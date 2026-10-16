@@ -128,7 +128,7 @@ func Run(cs *core.Changeset, opts Options) *Result {
 	res := &Result{Label: cs.Label}
 	settings := cfg.Settings()
 
-	a := &core.Analysis{Settings: settings}
+	a := &core.Analysis{Settings: settings, Source: cs.Source}
 	for _, fd := range cs.Files {
 		p := fd.Path()
 		if fd.Binary || core.IsIgnoredByDefault(p) || core.MatchAny(cfg.Ignore, p) {
@@ -309,7 +309,7 @@ func applyWaivers(fs []core.Finding, files map[string]*core.FileInfo, cfg *confi
 		// repository-level waivers
 		for _, a := range cfg.Allow {
 			if (a.Rule == "*" || a.Rule == f.RuleID) && (a.Path == "" || core.MatchGlob(a.Path, f.Path)) {
-				f.Waived, f.WaiverReason = true, a.Reason
+				f.Waived, f.WaiverReason, f.WaiverSource = true, a.Reason, "config"
 				break
 			}
 		}
@@ -338,7 +338,7 @@ func applyWaivers(fs []core.Finding, files map[string]*core.FileInfo, cfg *confi
 				}
 				continue
 			}
-			f.Waived, f.WaiverReason = true, w.reason
+			f.Waived, f.WaiverReason, f.WaiverSource = true, w.reason, "inline"
 			break
 		}
 	}

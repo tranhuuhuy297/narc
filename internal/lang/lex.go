@@ -67,6 +67,7 @@ const (
 	stBlockComment
 	stString
 	stRegex
+	stHeredoc
 )
 
 type lexer struct {
@@ -112,6 +113,16 @@ type lexer struct {
 
 	lastSig  byte   // last significant code byte on the current line
 	lastWord string // last identifier-like word in code
+
+	// Ruby heredocs: terminators seen on the current line, and the one
+	// being read (squiggly/dash heredocs allow an indented terminator).
+	pendingHD []heredoc
+	curHD     heredoc
+}
+
+type heredoc struct {
+	term     string
+	indented bool
 }
 
 func (lx *lexer) peek(off int) byte {
@@ -238,6 +249,8 @@ func (lx *lexer) run() {
 			lx.stepString()
 		case stRegex:
 			lx.stepRegex()
+		case stHeredoc:
+			lx.stepHeredoc()
 		}
 	}
 	if lx.st == stString {
@@ -264,6 +277,14 @@ func (lx *lexer) newline() {
 		}
 	case stRegex:
 		lx.st = stCode
+	case stHeredoc:
+		if lx.strKeep {
+			lx.strBuf.WriteByte('\n')
+		}
+	case stCode:
+		if len(lx.pendingHD) > 0 {
+			lx.startHeredoc()
+		}
 	}
 	lx.flushLine()
 	lx.pendingContent = false
@@ -389,6 +410,10 @@ func (lx *lexer) stepCodeC(c byte) bool {
 		lx.reClass = false
 		return true
 	}
+	if (c == '\'' || c == '"') && lx.lang.IsJSLike() && isIdentByte(lx.prev()) && !regexKeywords[lx.lastWord] {
+		// A quote glued to a word is JSX text ("Don't"), not a literal.
+		return false
+	}
 	switch c {
 	case '"':
 		if lx.hasTriple('"') && lx.supportsTriple() {
@@ -465,6 +490,9 @@ func (lx *lexer) regexAllowed() bool {
 	if lx.peek(1) == '/' || lx.peek(1) == '*' {
 		return false
 	}
+	if lx.prev() == '<' {
+		return false // JSX closing tag: </div>
+	}
 	if lx.lastWord != "" {
 		return regexKeywords[lx.lastWord]
 	}
@@ -493,6 +521,9 @@ func (lx *lexer) stepCodeHash(c byte) bool {
 	case Ruby, Elixir:
 		if c == '#' {
 			lx.startLineComment()
+			return true
+		}
+		if lx.lang == Ruby && c == '<' && lx.rubyHeredoc() {
 			return true
 		}
 		if lx.lang == Ruby && c == '=' && lx.i == lx.lineStart && lx.hasPrefix("=begin") {
@@ -561,6 +592,83 @@ func (lx *lexer) startLineComment() {
 	lx.startComment()
 	lx.i++
 	lx.st = stLineComment
+}
+
+// ---- Ruby heredocs ----
+
+// rubyHeredoc recognizes <<~ID, <<-ID, <<ID (uppercase) and quoted forms.
+// The body starts on the next line, so we only record the terminator here.
+func (lx *lexer) rubyHeredoc() bool {
+	rest := lx.src[lx.i:]
+	if !strings.HasPrefix(rest, "<<") {
+		return false
+	}
+	j := 2
+	indented := false
+	if j < len(rest) && (rest[j] == '~' || rest[j] == '-') {
+		indented = true
+		j++
+	}
+	quote := byte(0)
+	if j < len(rest) && (rest[j] == '\'' || rest[j] == '"' || rest[j] == '`') {
+		quote = rest[j]
+		j++
+	}
+	k := j
+	for k < len(rest) && (rest[k] == '_' || (rest[k] >= 'A' && rest[k] <= 'Z') || (rest[k] >= 'a' && rest[k] <= 'z') || (rest[k] >= '0' && rest[k] <= '9')) {
+		k++
+	}
+	id := rest[j:k]
+	if id == "" || (id[0] >= '0' && id[0] <= '9') {
+		return false
+	}
+	if !indented && quote == 0 && !(id[0] >= 'A' && id[0] <= 'Z') {
+		return false // x <<y is a shift
+	}
+	if quote != 0 {
+		if k >= len(rest) || rest[k] != quote {
+			return false
+		}
+		k++
+	}
+	lx.emitCode(lx.i, lx.i+k)
+	lx.i += k
+	lx.lastWord = ""
+	lx.pendingHD = append(lx.pendingHD, heredoc{term: id, indented: indented})
+	return true
+}
+
+func (lx *lexer) startHeredoc() {
+	lx.curHD = lx.pendingHD[0]
+	lx.pendingHD = lx.pendingHD[1:]
+	lx.st = stHeredoc
+	lx.strBuf.Reset()
+	lx.strStartLine = len(lx.out) // attach to the line with <<ID
+	lx.strKeep = lx.keepLine
+}
+
+func (lx *lexer) stepHeredoc() {
+	j := lx.i
+	for j < len(lx.src) && lx.src[j] != '\n' {
+		j++
+	}
+	line := lx.src[lx.i:j]
+	if lx.i == lx.lineStart {
+		t := line
+		if lx.curHD.indented {
+			t = strings.TrimSpace(t)
+		}
+		if t == lx.curHD.term {
+			// terminator line: back to code
+			lx.endString()
+			lx.st = stCode
+			lx.emitCode(lx.i, j)
+			lx.i = j
+			return // a further pending heredoc starts at the newline
+		}
+	}
+	lx.emitStringBody(lx.i, j)
+	lx.i = j
 }
 
 // ---- block comments ----

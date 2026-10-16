@@ -114,3 +114,28 @@ func TestLexSomeMatchesLex(t *testing.T) {
 		}
 	}
 }
+
+func TestLexJSXAndHeredoc(t *testing.T) {
+	jsx := Lex(TypeScript, "render(<p>Don't panic</p>); it.skip('x')\nconst s = 'a'; return'b'")
+	if jsx[0].Code != "render(<p>Don't panic</p>); it.skip('')" {
+		t.Errorf("jsx code = %q", jsx[0].Code)
+	}
+	if jsx[1].Code != "const s = ''; return''" {
+		t.Errorf("keyword quote code = %q", jsx[1].Code)
+	}
+	rb := Lex(Ruby, "x = <<~SQL.strip\n  SELECT * FROM t do end\n  SQL\ny = a << b\nz = <<-EOS\nit 'q' do\n    EOS\nputs 1 # c\n")
+	codes := []string{}
+	for _, l := range rb {
+		codes = append(codes, l.Code)
+	}
+	want := []string{"x = <<~SQL.strip", "", "  SQL", "y = a << b", "z = <<-EOS", "", "    EOS", "puts 1 "}
+	if !reflect.DeepEqual(codes, want) {
+		t.Errorf("ruby heredoc codes:\n got %q\nwant %q", codes, want)
+	}
+	if len(rb[0].Strings) != 1 || rb[0].Strings[0] != "  SELECT * FROM t do end\n" {
+		t.Errorf("heredoc strings = %q", rb[0].Strings)
+	}
+	if rb[7].Comment != "c" {
+		t.Errorf("comment after heredoc = %q", rb[7].Comment)
+	}
+}

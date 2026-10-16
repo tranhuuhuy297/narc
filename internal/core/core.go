@@ -86,6 +86,9 @@ type Finding struct {
 
 	Waived       bool   `json:"waived,omitempty"`
 	WaiverReason string `json:"waiver_reason,omitempty"`
+	// WaiverSource is "inline" (a narc:allow comment) or "config" (an
+	// allow: entry in .narc.yml) for waived findings.
+	WaiverSource string `json:"waiver_source,omitempty"`
 
 	Fingerprint string `json:"fingerprint"`
 }
@@ -114,7 +117,7 @@ func (f *Finding) ComputeFingerprint() string {
 type Rule struct {
 	ID       string
 	Title    string
-	Category string // tests, assertions, escapes, ci, config, integrity
+	Category string // tests, accounting, assertions, escapes, ci, config, integrity
 	Severity Severity
 	// Summary is one sentence for `narc rules`.
 	Summary string
@@ -207,7 +210,10 @@ func RuleByID(id string) *Rule {
 	return registry[id]
 }
 
-var categories = []string{"tests", "assertions", "escapes", "ci", "config", "integrity"}
+var categories = []string{"tests", "accounting", "assertions", "escapes", "ci", "config", "integrity"}
+
+// Categories returns rule categories in display order.
+func Categories() []string { return append([]string(nil), categories...) }
 
 func categoryOrder(c string) int {
 	for i, x := range categories {

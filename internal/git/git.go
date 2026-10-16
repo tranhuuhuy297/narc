@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -242,12 +243,68 @@ func (c *catFile) close() {
 // ---- changesets ----
 
 type source struct {
-	oldFn func(string) ([]byte, bool)
-	newFn func(string) ([]byte, bool)
+	oldFn  func(string) ([]byte, bool)
+	newFn  func(string) ([]byte, bool)
+	listFn func(dir string) []string
 }
 
 func (s source) Old(p string) ([]byte, bool) { return s.oldFn(p) }
 func (s source) New(p string) ([]byte, bool) { return s.newFn(p) }
+
+// ListNew implements core.Lister.
+func (s source) ListNew(dir string) []string {
+	if s.listFn == nil {
+		return nil
+	}
+	return s.listFn(dir)
+}
+
+func splitNUL(b []byte) []string {
+	var out []string
+	for _, p := range strings.Split(string(b), "\x00") {
+		if p != "" {
+			out = append(out, p)
+		}
+	}
+	sort.Strings(out)
+	return out
+}
+
+// listWorktree lists tracked and untracked (non-ignored) files under dir.
+func (r *Repo) listWorktree(dir string) []string {
+	args := []string{"ls-files", "-z", "--cached", "--others", "--exclude-standard"}
+	if dir != "" {
+		args = append(args, "--", dir)
+	}
+	out, err := r.Run(args...)
+	if err != nil {
+		return nil
+	}
+	return splitNUL(out)
+}
+
+// listRev lists the files of a revision under dir.
+func (r *Repo) listRev(rev, dir string) []string {
+	args := []string{"ls-tree", "-r", "-z", "--name-only", rev}
+	if dir != "" {
+		args = append(args, "--", dir)
+	}
+	out, err := r.Run(args...)
+	if err != nil {
+		return nil
+	}
+	return splitNUL(out)
+}
+
+// HooksDir returns the directory git runs hooks from, honouring
+// core.hooksPath.
+func (r *Repo) HooksDir() (string, error) {
+	out, err := r.Run("rev-parse", "--path-format=absolute", "--git-path", "hooks")
+	if err != nil {
+		return "", err
+	}
+	return strings.TrimSpace(string(out)), nil
+}
 
 // WorkingChangeset compares base (default HEAD) with the work tree,
 // including staged changes and, optionally, untracked files.
@@ -285,8 +342,9 @@ func (r *Repo) WorkingChangeset(base string, untracked bool) (*core.Changeset, e
 		Files: files,
 		Label: label,
 		Source: source{
-			oldFn: func(p string) ([]byte, bool) { return r.Blob(base, p) },
-			newFn: r.ReadWorktree,
+			oldFn:  func(p string) ([]byte, bool) { return r.Blob(base, p) },
+			newFn:  r.ReadWorktree,
+			listFn: r.listWorktree,
 		},
 	}, nil
 }
@@ -307,6 +365,17 @@ func (r *Repo) StagedChangeset() (*core.Changeset, error) {
 		Source: source{
 			oldFn: func(p string) ([]byte, bool) { return r.Blob(base, p) },
 			newFn: func(p string) ([]byte, bool) { return r.Blob("", p) },
+			listFn: func(dir string) []string {
+				args := []string{"ls-files", "-z", "--cached"}
+				if dir != "" {
+					args = append(args, "--", dir)
+				}
+				out, err := r.Run(args...)
+				if err != nil {
+					return nil
+				}
+				return splitNUL(out)
+			},
 		},
 	}, nil
 }
@@ -321,8 +390,9 @@ func (r *Repo) RangeChangeset(from, to string) (*core.Changeset, error) {
 		Files: files,
 		Label: shortRev(from) + ".." + shortRev(to),
 		Source: source{
-			oldFn: func(p string) ([]byte, bool) { return r.Blob(from, p) },
-			newFn: func(p string) ([]byte, bool) { return r.Blob(to, p) },
+			oldFn:  func(p string) ([]byte, bool) { return r.Blob(from, p) },
+			newFn:  func(p string) ([]byte, bool) { return r.Blob(to, p) },
+			listFn: func(dir string) []string { return r.listRev(to, dir) },
 		},
 	}, nil
 }
@@ -360,8 +430,9 @@ func (r *Repo) CommitChangeset(sha string) (*core.Changeset, error) {
 		Files: files,
 		Label: shortRev(sha),
 		Source: source{
-			oldFn: func(p string) ([]byte, bool) { return r.Blob(parent, p) },
-			newFn: func(p string) ([]byte, bool) { return r.Blob(sha, p) },
+			oldFn:  func(p string) ([]byte, bool) { return r.Blob(parent, p) },
+			newFn:  func(p string) ([]byte, bool) { return r.Blob(sha, p) },
+			listFn: func(dir string) []string { return r.listRev(sha, dir) },
 		},
 	}, nil
 }

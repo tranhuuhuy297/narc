@@ -100,7 +100,7 @@ var extLang = map[string]Lang{
 	".rb":  Ruby, ".rake": Ruby,
 	".ex": Elixir, ".exs": Elixir,
 	".sh": Shell, ".bash": Shell, ".zsh": Shell,
-	".yml": YAML, ".yaml": YAML,
+	".yml": YAML, ".yaml": YAML, ".neon": YAML,
 	".json": JSON, ".jsonc": JSON, ".json5": JSON,
 	".toml": TOML,
 	".ini":  INI, ".cfg": INI, ".coveragerc": INI,

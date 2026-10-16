@@ -1,6 +1,7 @@
 package core
 
 import (
+	"sort"
 	"strings"
 	"sync"
 
@@ -17,6 +18,14 @@ type ContentSource interface {
 	New(path string) ([]byte, bool)
 }
 
+// Lister is an optional ContentSource extension that lists files on the new
+// side, including files the change did not touch.
+type Lister interface {
+	// ListNew returns the slash-separated paths of all files on the new
+	// side under dir ("" for the whole tree).
+	ListNew(dir string) []string
+}
+
 // MemSource is an in-memory ContentSource.
 type MemSource struct {
 	OldFiles map[string][]byte
@@ -25,6 +34,18 @@ type MemSource struct {
 
 func (m *MemSource) Old(p string) ([]byte, bool) { b, ok := m.OldFiles[p]; return b, ok }
 func (m *MemSource) New(p string) ([]byte, bool) { b, ok := m.NewFiles[p]; return b, ok }
+
+// ListNew implements Lister.
+func (m *MemSource) ListNew(dir string) []string {
+	var out []string
+	for p := range m.NewFiles {
+		if dir == "" || strings.HasPrefix(p, strings.TrimSuffix(dir, "/")+"/") {
+			out = append(out, p)
+		}
+	}
+	sort.Strings(out)
+	return out
+}
 
 // Changeset is the input to an analysis: a set of file diffs plus,
 // optionally, access to full file contents.
@@ -46,6 +67,55 @@ type Settings struct {
 type Analysis struct {
 	Files    []*FileInfo
 	Settings Settings
+	// Source reads full contents, including files the change did not
+	// touch (nil for bare patches). Prefer ReadNew/ListNew.
+	Source ContentSource
+
+	memoMu sync.Mutex
+	memo   map[any]any
+}
+
+// ReadNew returns the new-side content of any file in the repository,
+// changed or not (e.g. the existing tests of a changed source file). It
+// returns false when contents are unavailable (bare patches).
+func (a *Analysis) ReadNew(path string) ([]byte, bool) {
+	if a.Source == nil {
+		return nil, false
+	}
+	return a.Source.New(path)
+}
+
+// ListNew lists new-side files under dir, changed or not. ok is false when
+// the source cannot list files (bare patches).
+func (a *Analysis) ListNew(dir string) (paths []string, ok bool) {
+	l, isLister := a.Source.(Lister)
+	if a.Source == nil || !isLister {
+		return nil, false
+	}
+	return l.ListNew(dir), true
+}
+
+// Memo returns the value cached under key, computing it with build on
+// first use. Rules use it to share expensive work (parsed configs, test
+// ledgers) within one analysis.
+func (a *Analysis) Memo(key any, build func() any) any {
+	a.memoMu.Lock()
+	if v, ok := a.memo[key]; ok {
+		a.memoMu.Unlock()
+		return v
+	}
+	a.memoMu.Unlock()
+	v := build()
+	a.memoMu.Lock()
+	defer a.memoMu.Unlock()
+	if a.memo == nil {
+		a.memo = map[any]any{}
+	}
+	if prev, ok := a.memo[key]; ok {
+		return prev
+	}
+	a.memo[key] = v
+	return v
 }
 
 // TestFiles returns the files classified as tests.
@@ -110,13 +180,39 @@ func NewFileInfo(fd *diff.FileDiff, src ContentSource, s Settings) *FileInfo {
 	f.Config = ConfigKind(f.Path)
 	f.IsTest = IsTestPath(f.Path) || MatchAny(s.TestGlobs, f.Path)
 	f.load()
-	if !f.IsTest && f.Lang == lang.Rust && f.hasNew && strings.Contains(string(f.newRaw), "#[cfg(test)]") {
+	if !f.IsTest && f.Lang == lang.Rust && f.hasRustTests() {
 		// Rust unit tests live next to the code; rules look at test markers
 		// such as #[ignore] anywhere in the file.
 		f.IsTest = true
 	}
 	f.Added, f.Removed = f.lexDiffLines()
 	return f
+}
+
+var rustTestMarkers = []string{"#[cfg(test)]", "#[test]", "#[tokio::test", "#[rstest", "#[test_case"}
+
+// hasRustTests reports whether a Rust source file contains unit tests on
+// either side of the change (full contents when available, else hunks).
+func (f *FileInfo) hasRustTests() bool {
+	has := func(s string) bool {
+		for _, m := range rustTestMarkers {
+			if strings.Contains(s, m) {
+				return true
+			}
+		}
+		return false
+	}
+	if (f.hasNew && has(string(f.newRaw))) || (f.hasOld && has(string(f.oldRaw))) {
+		return true
+	}
+	for _, h := range f.Diff.Hunks {
+		for _, l := range h.Lines {
+			if has(l.Text) {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func (f *FileInfo) load() {

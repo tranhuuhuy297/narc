@@ -10,7 +10,9 @@
 //	it.skip('rejects expired tokens', () => { ... })
 //
 // Header lines starting with '#' describe the case. "expect:" lists the rule
-// IDs that must fire (comma-separated; "clean" or empty for none). Files
+// IDs that must fire (comma-separated; "clean" or empty for none). An ID may
+// carry a severity, "any-cast@info", which must be the highest severity
+// among that rule's active findings. Files
 // that exist only under old/ are deletions, only under new/ are additions.
 // An optional "-- .narc.yml --" section provides configuration, and the
 // header "patch-only: true" analyzes the case without full file contents
@@ -37,6 +39,7 @@ type Case struct {
 	Name      string
 	Desc      string
 	Expect    []string
+	ExpectSev map[string]core.Severity
 	Old, New  map[string][]byte
 	Config    *config.Config
 	PatchOnly bool
@@ -54,7 +57,7 @@ func Load(path string) (*Case, error) {
 // Parse parses case file content.
 func Parse(path, src string) (*Case, error) {
 	c := &Case{Path: path, Name: strings.TrimSuffix(filepath.Base(path), ".case"),
-		Old: map[string][]byte{}, New: map[string][]byte{}}
+		Old: map[string][]byte{}, New: map[string][]byte{}, ExpectSev: map[string]core.Severity{}}
 	lines := strings.SplitAfter(src, "\n")
 	i := 0
 	var desc []string
@@ -69,6 +72,14 @@ func Parse(path, src string) (*Case, error) {
 		case strings.HasPrefix(l, "expect:"):
 			for _, id := range strings.Split(strings.TrimPrefix(l, "expect:"), ",") {
 				id = strings.TrimSpace(id)
+				if i := strings.IndexByte(id, '@'); i >= 0 {
+					sev, err := core.ParseSeverity(id[i+1:])
+					if err != nil || sev == core.Off {
+						return nil, fmt.Errorf("%s:%d: bad severity in %q", path, i+1, id)
+					}
+					id = id[:i]
+					c.ExpectSev[id] = sev
+				}
 				if id != "" && id != "clean" && id != "none" {
 					c.Expect = append(c.Expect, id)
 				}
@@ -242,6 +253,56 @@ func RunDir(t *testing.T, dir string) {
 			if strings.Join(got, ",") != strings.Join(want, ",") {
 				t.Errorf("%s\n%s\nwant: %v\ngot:  %v\nfindings:\n%s\ndiff:\n%s",
 					c.Path, c.Desc, want, got, describe(res), diff.Format(c.Changeset().Files))
+				return
+			}
+			for id, sev := range c.ExpectSev {
+				if core.RuleByID(id) == nil {
+					continue
+				}
+				if max := maxSeverity(res, id); max != sev {
+					t.Errorf("%s: %s: want severity %s, got %s\nfindings:\n%s", c.Path, id, sev, max, describe(res))
+				}
+			}
+		})
+	}
+}
+
+func maxSeverity(res *engine.Result, id string) core.Severity {
+	max := core.Off
+	for _, f := range res.Active() {
+		if f.RuleID == id && f.Severity > max {
+			max = f.Severity
+		}
+	}
+	return max
+}
+
+// RunDirPatchOnly re-runs every case under dir without full file contents
+// (as with `narc scan --patch`). Recall may drop, but it must never crash,
+// legitimate cases must stay clean, and cheat cases must not gain rule IDs
+// they did not expect.
+func RunDirPatchOnly(t *testing.T, dir string) {
+	t.Helper()
+	cases, err := LoadDir(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, c := range cases {
+		c := *c
+		c.PatchOnly = true
+		t.Run(c.Name, func(t *testing.T) {
+			res := c.Run(nil)
+			for _, e := range res.Errors {
+				t.Errorf("engine error: %s", e)
+			}
+			want := map[string]bool{}
+			for _, id := range InScope(c.Expect) {
+				want[id] = true
+			}
+			for _, id := range Got(res) {
+				if !want[id] {
+					t.Errorf("%s (patch-only): unexpected %s\nfindings:\n%s", c.Path, id, describe(res))
+				}
 			}
 		})
 	}

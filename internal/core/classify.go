@@ -19,7 +19,7 @@ var fixtureDirs = map[string]bool{
 var testNameRe = regexp.MustCompile(`(?i)(` +
 	`_test\.(go|py|rb|exs|dart|cpp|cc|c)$` +
 	`|^test_[^/]*\.(py|rb)$` +
-	`|\.(test|spec|e2e|e2e-spec|integration)\.(js|jsx|mjs|cjs|ts|tsx|mts|cts)$` +
+	`|\.(test|spec|e2e|e2e-spec|integration|cy)\.(js|jsx|mjs|cjs|ts|tsx|mts|cts)$` +
 	`|(Test|Tests|IT|Spec)\.(java|kt|kts|scala|groovy|cs|swift|php)$` +
 	`|_spec\.rb$` +
 	`|^conftest\.py$` +
