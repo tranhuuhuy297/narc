@@ -1,0 +1,38 @@
+
+  [1;38;5;203m✖ skip-added[0m  [1mTest skipped[0m
+    [38;5;245merror · tests[0m
+
+  New skip/disable markers ([38;5;137m`it.skip`[0m, [38;5;137m`xit`[0m, [38;5;137m`@pytest.mark.skip`[0m, [38;5;137m`t.Skip`[0m, [38;5;137m`#[ignore]`[0m,
+  [38;5;137m`@Disabled`[0m).
+
+  A skipped test cannot fail, so skipping a failing test hides the bug instead of fixing it.
+
+  Bad:
+
+  [38;5;245m│[0m [38;5;137mit.skip('rejects expired tokens', async () => {[0m
+  [38;5;245m│[0m [38;5;137m  expect(await verify(expired)).toBe(false)[0m
+  [38;5;245m│[0m [38;5;137m})[0m
+
+  Good: fix [38;5;137m`verify()`[0m so the test passes. narc recognizes:
+
+  • [38;5;137m`it.skip`[0m, [38;5;137m`describe.skip`[0m, [38;5;137m`xit`[0m, [38;5;137m`xdescribe`[0m (Jest, Vitest, Mocha)
+  • [38;5;137m`@pytest.mark.skip`[0m and [38;5;137m`pytest.skip()`[0m (pytest)
+  • [38;5;137m`t.Skip()`[0m (Go), [38;5;137m`#[ignore]`[0m (Rust), [38;5;137m`@Disabled`[0m (JUnit)
+
+  See the waiver guide (https://github.com/huyth45/narc#waivers) when a skip is really intended.
+
+  [1mHow to fix[0m
+    Fix the code under test so the test passes instead of skipping it. If the test itself is wrong,
+    fix the test and say why in the commit.
+
+  [1mIf the change is intentional[0m
+    Waive it with a reason, in a comment on the flagged line or the line above:
+      [38;5;137m// narc:allow skip-added reason="<why this is fine>"[0m
+    or for whole paths, in .narc.yml:
+      [38;5;137mallow:[0m
+      [38;5;137m  - rule: skip-added[0m
+      [38;5;137m    path: "src/legacy/**"[0m
+      [38;5;137m    reason: "<why this is fine>"[0m
+
+  [38;5;245mDocs: https://github.com/huyth45/narc/blob/main/docs/rules.md#skip-added[0m
+

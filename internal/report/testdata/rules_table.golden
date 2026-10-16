@@ -1,0 +1,35 @@
+
+  Tests (3)
+    ✖ skip-added             error    New skip/disable markers (`it.skip`, `xit`,
+                                      `@pytest.mark.skip`, `t.Skip`, `#[ignore]`, `@Disabled`).
+    ✖ focus-added            error    `.only`, `fit`, `fdescribe`: silently skips every other test
+                                      in the file.
+    ▲ assertion-weakened     warning  A specific matcher was replaced by a weaker one (`toEqual(x)`
+                                      → `toBeDefined()`), or a tolerance was widened.
+
+  Accounting (2)
+    ✖ assertions-removed     error    A surviving test lost assertions (`3 → 1`).
+    ▲ test-file-deleted      warning  A test file was deleted and its tests were not re-added
+                                      elsewhere.
+
+  Escapes (3)
+    ▲ any-cast               warning  `as any`, `as unknown as T`, `<any>`, `cast(Any, ...)` (info
+                                      in tests).
+    ▲ lint-suppressed        warning  `eslint-disable`, `# noqa`, `//nolint`, `#[allow(...)]`,
+                                      `@SuppressWarnings` (info in tests).
+    ▲ hardcoded-answer       warning  Source special-cases a literal that the tests use as input or
+                                      expected output.
+
+  CI (2)
+    ✖ ci-failure-ignored     error    `continue-on-error: true`, `allow_failure: true`, `|| true` on
+                                      a verification command.
+    ✖ coverage-lowered       error    Coverage thresholds were lowered or removed.
+
+  Integrity (2)
+    ✖ protected-path         error    A file matching a `protected:` glob in .narc.yml was modified
+                                      or deleted.
+    ▲ waiver-missing-reason  warning  A narc:allow comment must say why the waived change is
+                                      acceptable.
+
+  12 rules · narc explain <rule> for details
+

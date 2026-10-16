@@ -1,0 +1,13 @@
+
+  ▲ waiver-missing-reason  Waiver without a reason
+    warning · integrity
+
+  A narc:allow comment must say why the waived change is acceptable.
+
+  How to fix
+    Add a reason: narc:allow <rule> reason="why this is fine (link to
+    issue)"
+
+  Docs:
+  https://github.com/huyth45/narc/blob/main/docs/rules.md#waiver-missing-reason
+

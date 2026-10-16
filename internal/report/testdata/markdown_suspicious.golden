@@ -1,0 +1,37 @@
+<!-- narc-report -->
+### 🤨 narc: SUSPICIOUS · integrity 90/100
+
+narc found **1 warning and 1 note** in `staged changes`. Warnings are often cheats but sometimes legitimate, so each needs a human look.
+
+| 🔴 Errors | 🟡 Warnings | 🔵 Notes | ⚪ Waived | Files | Lines |
+| :---: | :---: | :---: | :---: | :---: | :---: |
+| 0 | **1** | 1 | 0 | 2 | +31 −4 |
+
+#### Findings
+
+<details open>
+<summary><code>src/api/client.test.ts</code> · 🔵 1</summary>
+
+**🔵 Lint rule suppressed** · [`lint-suppressed`](https://github.com/huyth45/narc/blob/main/docs/rules.md#lint-suppressed) · line 3\
+`eslint-disable` added for the whole file
+
+```typescript
+/* eslint-disable */
+```
+
+</details>
+
+<details open>
+<summary><code>src/api/client.ts</code> · 🟡 1</summary>
+
+**🟡 Type escape (any cast)** · [`any-cast`](https://github.com/huyth45/narc/blob/main/docs/rules.md#any-cast) · line 77\
+`as unknown as Response` double cast added in fetchUser()
+
+```typescript
+return (await res.json()) as unknown as Response;
+```
+
+</details>
+
+---
+<sub>🕵️ [narc](https://github.com/huyth45/narc) v1.4.0 · `narc scan --base main`<br>False positive? Waive it with a reason: `narc:allow <rule> reason="…"` in a comment on or above the line, or an `allow:` entry in `.narc.yml`. [Rule reference](https://github.com/huyth45/narc/blob/main/docs/rules.md)</sub>

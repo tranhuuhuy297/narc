@@ -1,0 +1,86 @@
+
+  🚨 BUSTED  integrity 0/100  ▱▱▱▱▱▱▱▱▱▱
+     main → HEAD
+
+  .github/workflows/ci.yml
+    ✖ ci-failure-ignored  CI failure ignored · line 31
+      `npm test` can no longer fail the build: `|| true` was appended
+      31 │ - run: npm test
+      31 │ + run: npm test || true
+      ↳ Let the step fail and fix what makes it fail.
+
+  jest.config.js
+    ✖ coverage-lowered  Coverage threshold lowered · line 12
+      coverage threshold for lines lowered 90% → 70%, branches: 85% → 60%
+      12 │ - lines: 90, branches: 85,
+      12 │ + lines: 70, branches: 60,
+      ↳ Restore the threshold and add tests for the uncovered code.
+
+  src/auth/session.test.ts
+    ✖ skip-added  Test skipped · line 42
+      test "rejects expired tokens" was skipped with it.skip
+      42 │ it.skip('rejects expired tokens', async () => {
+      ↳ Fix the code under test so the test passes instead of skipping it. If the test itself is
+        wrong, fix the test and say why in the commit.
+
+    ✖ assertions-removed  Assertions removed · line 57
+      assertions in "refreshes an expiring session" dropped 3 → 1
+      61 │ - expect(session.expiresAt).toBeGreaterThan(Date.now())
+      ↳ Restore the removed assertions; if one is obsolete, replace it with an assertion about the
+        new behavior.
+
+    ▲ assertion-weakened  Assertion weakened · line 88
+      `toEqual({ id: 7, role: "admin" })` was replaced by the weaker `toBeDefined()`
+      92 │ - expect(user).toEqual({ id: 7, role: "admin" })
+      88 │ + expect(user).toBeDefined()
+      ↳ Keep the precise assertion and fix the code until it holds.
+
+  src/billing/invoice.test.ts
+    ● lint-suppressed  Lint rule suppressed · line 9
+      eslint-disable-next-line added for @typescript-eslint/no-explicit-any
+      9 │ // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      ↳ Fix the lint error instead of silencing it.
+
+  src/billing/invoice.ts
+    ▲ any-cast  Type escape (any cast) · line 14
+      `as any` cast added in calculateTotal()
+      14 │ const total = (order as any).total_cents / 100;
+      ↳ Fix the types instead of casting them away.
+
+    ▲ hardcoded-answer  Hardcoded test answer · line 203
+      production code special-cases 4999, the exact input used by "applies the loyalty discount" in
+      src/billing/invoice.test.ts, and returns the test's expected value 4499 directly instead of
+      computing it
+      203 │ if (order.subtotalCents === 4999 && order.customer.tier === "gold") { return { ...order…
+      ↳ Delete the special case and fix the discount calculation; "applies the loyalty discount"
+        must pass for any gold-tier subtotal, not just 4999.
+
+  src/legacy/client.test.js
+    ✖ focus-added  Test focused · line 30
+      `describe.only` focuses this suite; the other 14 tests in the file are silently skipped
+      30 │ describe.only("retry policy", () => { // narc:allow focus-added
+      ↳ Remove the focus marker so the whole suite runs.
+
+    ▲ waiver-missing-reason  Waiver without a reason · line 30
+      narc:allow for focus-added has no reason, so it was ignored
+      30 │ describe.only("retry policy", () => { // narc:allow focus-added
+      ↳ Add a reason: narc:allow <rule> reason="why this is fine (link to issue)"
+
+  tests/test_payments.py
+    ▲ test-file-deleted  Test file deleted · whole file
+      test file deleted with 6 tests ("test_refund_partial", "test_refund_full", and 4 more); none
+      were re-added elsewhere
+      ↳ Keep the tests, or move them to the file that now covers this code.
+
+  Waived (2)
+    ○ skip-added  src/legacy/client.test.js:12
+      “flaky upstream API, see #812”
+    ○ protected-path  tests/golden/invoice.txt:1
+      “tax rate changed by finance, ticket FIN-12”
+
+  ▲ 1 rule failed to run, so this report may be incomplete:
+    rule retry-added crashed: runtime error: index out of range [3] with length 3
+
+  ────────────────────────────────────────────────────────────────────────────────────────────────
+  5 errors · 5 warnings · 1 note · 2 waived · 9 files (2 skipped) · +214 −87 lines
+

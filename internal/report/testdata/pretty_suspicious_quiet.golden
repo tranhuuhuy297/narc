@@ -1,0 +1,17 @@
+
+  🤨 SUSPICIOUS  integrity 90/100  ▰▰▰▰▰▰▰▰▰▱
+     staged changes
+
+  src/api/client.test.ts
+    ● lint-suppressed  Lint rule suppressed · line 3
+      `eslint-disable` added for the whole file
+      3 │ /* eslint-disable */
+
+  src/api/client.ts
+    ▲ any-cast  Type escape (any cast) · line 77
+      `as unknown as Response` double cast added in fetchUser()
+      77 │ return (await res.json()) as unknown as Response;
+
+  ────────────────────────────────────────────────────────────────────────────────────────────────
+  1 warning · 1 note · 2 files · +31 −4 lines
+

@@ -1,0 +1,86 @@
+
+  🚨 [1;38;5;231;48;5;160m BUSTED [0m  integrity [1;38;5;203m0[0m[38;5;245m/100[0m  [38;5;245m▱▱▱▱▱▱▱▱▱▱[0m
+      [38;5;245mmain → HEAD[0m
+
+  [38;5;245m.github/workflows/[0m[1mci.yml[0m
+    [38;5;203m✖ ci-failure-ignored[0m  [1mCI failure ignored[0m[38;5;245m · line 31[0m
+      [38;5;137m`npm test`[0m can no longer fail the build: [38;5;137m`|| true`[0m was appended
+      [38;5;245m31 │ [0m[38;5;203m- run: npm test[0m
+      [38;5;245m31 │ [0m[38;5;71m+ run: npm test || true[0m
+      [38;5;245m↳ [0m[38;5;245mLet the step fail and fix what makes it fail.[0m
+
+  [1mjest.config.js[0m
+    [38;5;203m✖ coverage-lowered[0m  [1mCoverage threshold lowered[0m[38;5;245m · line 12[0m
+      coverage threshold for lines lowered 90% → 70%, branches: 85% → 60%
+      [38;5;245m12 │ [0m[38;5;203m- lines: 90, branches: 85,[0m
+      [38;5;245m12 │ [0m[38;5;71m+ lines: 70, branches: 60,[0m
+      [38;5;245m↳ [0m[38;5;245mRestore the threshold and add tests for the uncovered code.[0m
+
+  [38;5;245msrc/auth/[0m[1msession.test.ts[0m
+    [38;5;203m✖ skip-added[0m  [1mTest skipped[0m[38;5;245m · line 42[0m
+      test "rejects expired tokens" was skipped with it.skip
+      [38;5;245m42 │ [0mit.skip('rejects expired tokens', async () => {
+      [38;5;245m↳ [0m[38;5;245mFix the code under test so the test passes instead of skipping it. If the test itself is[0m
+        [38;5;245mwrong, fix the test and say why in the commit.[0m
+
+    [38;5;203m✖ assertions-removed[0m  [1mAssertions removed[0m[38;5;245m · line 57[0m
+      assertions in "refreshes an expiring session" dropped 3 → 1
+      [38;5;245m61 │ [0m[38;5;203m- expect(session.expiresAt).toBeGreaterThan(Date.now())[0m
+      [38;5;245m↳ [0m[38;5;245mRestore the removed assertions; if one is obsolete, replace it with an assertion about the[0m
+        [38;5;245mnew behavior.[0m
+
+    [38;5;214m▲ assertion-weakened[0m  [1mAssertion weakened[0m[38;5;245m · line 88[0m
+      [38;5;137m`toEqual({ id: 7, role: "admin" })`[0m was replaced by the weaker [38;5;137m`toBeDefined()`[0m
+      [38;5;245m92 │ [0m[38;5;203m- expect(user).toEqual({ id: 7, role: "admin" })[0m
+      [38;5;245m88 │ [0m[38;5;71m+ expect(user).toBeDefined()[0m
+      [38;5;245m↳ [0m[38;5;245mKeep the precise assertion and fix the code until it holds.[0m
+
+  [38;5;245msrc/billing/[0m[1minvoice.test.ts[0m
+    [38;5;68m● lint-suppressed[0m  [1mLint rule suppressed[0m[38;5;245m · line 9[0m
+      eslint-disable-next-line added for @typescript-eslint/no-explicit-any
+      [38;5;245m9 │ [0m// eslint-disable-next-line @typescript-eslint/no-explicit-any
+      [38;5;245m↳ [0m[38;5;245mFix the lint error instead of silencing it.[0m
+
+  [38;5;245msrc/billing/[0m[1minvoice.ts[0m
+    [38;5;214m▲ any-cast[0m  [1mType escape (any cast)[0m[38;5;245m · line 14[0m
+      [38;5;137m`as any`[0m cast added in calculateTotal()
+      [38;5;245m14 │ [0mconst total = (order as any).total_cents / 100;
+      [38;5;245m↳ [0m[38;5;245mFix the types instead of casting them away.[0m
+
+    [38;5;214m▲ hardcoded-answer[0m  [1mHardcoded test answer[0m[38;5;245m · line 203[0m
+      production code special-cases 4999, the exact input used by "applies the loyalty discount" in
+      src/billing/invoice.test.ts, and returns the test's expected value 4499 directly instead of
+      computing it
+      [38;5;245m203 │ [0mif (order.subtotalCents === 4999 && order.customer.tier === "gold") { return { ...order…
+      [38;5;245m↳ [0m[38;5;245mDelete the special case and fix the discount calculation; "applies the loyalty discount"[0m
+        [38;5;245mmust pass for any gold-tier subtotal, not just 4999.[0m
+
+  [38;5;245msrc/legacy/[0m[1mclient.test.js[0m
+    [38;5;203m✖ focus-added[0m  [1mTest focused[0m[38;5;245m · line 30[0m
+      [38;5;137m`describe.only`[0m focuses this suite; the other 14 tests in the file are silently skipped
+      [38;5;245m30 │ [0mdescribe.only("retry policy", () => { // narc:allow focus-added
+      [38;5;245m↳ [0m[38;5;245mRemove the focus marker so the whole suite runs.[0m
+
+    [38;5;214m▲ waiver-missing-reason[0m  [1mWaiver without a reason[0m[38;5;245m · line 30[0m
+      narc:allow for focus-added has no reason, so it was ignored
+      [38;5;245m30 │ [0mdescribe.only("retry policy", () => { // narc:allow focus-added
+      [38;5;245m↳ [0m[38;5;245mAdd a reason: narc:allow <rule> reason="why this is fine (link to issue)"[0m
+
+  [38;5;245mtests/[0m[1mtest_payments.py[0m
+    [38;5;214m▲ test-file-deleted[0m  [1mTest file deleted[0m[38;5;245m · whole file[0m
+      test file deleted with 6 tests ("test_refund_partial", "test_refund_full", and 4 more); none
+      were re-added elsewhere
+      [38;5;245m↳ [0m[38;5;245mKeep the tests, or move them to the file that now covers this code.[0m
+
+  [1;38;5;245mWaived[0m[38;5;245m (2)[0m
+    [38;5;245m○ skip-added  src/legacy/client.test.js:12[0m
+      [38;5;245m“flaky upstream API, see #812”[0m
+    [38;5;245m○ protected-path  tests/golden/invoice.txt:1[0m
+      [38;5;245m“tax rate changed by finance, ticket FIN-12”[0m
+
+  [38;5;214m▲ [0m[38;5;214m1 rule failed to run, so this report may be incomplete:[0m
+    [38;5;245mrule retry-added crashed: runtime error: index out of range [3] with length 3[0m
+
+  [38;5;245m────────────────────────────────────────────────────────────────────────────────────────────────[0m
+  [1;38;5;203m5 errors[0m[38;5;245m · [0m[1;38;5;214m5 warnings[0m[38;5;245m · [0m[1;38;5;68m1 note[0m[38;5;245m · [0m[38;5;245m2 waived[0m[38;5;245m · [0m[38;5;245m9 files (2 skipped)[0m[38;5;245m · [0m[38;5;245m+214 −87 lines[0m
+

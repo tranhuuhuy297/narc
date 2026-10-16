@@ -1,0 +1,35 @@
+
+  [1mTests[0m[38;5;245m (3)[0m
+    [38;5;203m✖[0m [1mskip-added           [0m  [38;5;203merror  [0m  New skip/disable markers ([38;5;137m`it.skip`[0m, [38;5;137m`xit`[0m,
+                                      [38;5;137m`@pytest.mark.skip`[0m, [38;5;137m`t.Skip`[0m, [38;5;137m`#[ignore]`[0m, [38;5;137m`@Disabled`[0m).
+    [38;5;203m✖[0m [1mfocus-added          [0m  [38;5;203merror  [0m  [38;5;137m`.only`[0m, [38;5;137m`fit`[0m, [38;5;137m`fdescribe`[0m: silently skips every other test
+                                      in the file.
+    [38;5;214m▲[0m [1massertion-weakened   [0m  [38;5;214mwarning[0m  A specific matcher was replaced by a weaker one ([38;5;137m`toEqual(x)`[0m
+                                      → [38;5;137m`toBeDefined()`[0m), or a tolerance was widened.
+
+  [1mAccounting[0m[38;5;245m (2)[0m
+    [38;5;203m✖[0m [1massertions-removed   [0m  [38;5;203merror  [0m  A surviving test lost assertions ([38;5;137m`3 → 1`[0m).
+    [38;5;214m▲[0m [1mtest-file-deleted    [0m  [38;5;214mwarning[0m  A test file was deleted and its tests were not re-added
+                                      elsewhere.
+
+  [1mEscapes[0m[38;5;245m (3)[0m
+    [38;5;214m▲[0m [1many-cast             [0m  [38;5;214mwarning[0m  [38;5;137m`as any`[0m, [38;5;137m`as unknown as T`[0m, [38;5;137m`<any>`[0m, [38;5;137m`cast(Any, ...)`[0m (info
+                                      in tests).
+    [38;5;214m▲[0m [1mlint-suppressed      [0m  [38;5;214mwarning[0m  [38;5;137m`eslint-disable`[0m, [38;5;137m`# noqa`[0m, [38;5;137m`//nolint`[0m, [38;5;137m`#[allow(...)]`[0m,
+                                      [38;5;137m`@SuppressWarnings`[0m (info in tests).
+    [38;5;214m▲[0m [1mhardcoded-answer     [0m  [38;5;214mwarning[0m  Source special-cases a literal that the tests use as input or
+                                      expected output.
+
+  [1mCI[0m[38;5;245m (2)[0m
+    [38;5;203m✖[0m [1mci-failure-ignored   [0m  [38;5;203merror  [0m  [38;5;137m`continue-on-error: true`[0m, [38;5;137m`allow_failure: true`[0m, [38;5;137m`|| true`[0m on
+                                      a verification command.
+    [38;5;203m✖[0m [1mcoverage-lowered     [0m  [38;5;203merror  [0m  Coverage thresholds were lowered or removed.
+
+  [1mIntegrity[0m[38;5;245m (2)[0m
+    [38;5;203m✖[0m [1mprotected-path       [0m  [38;5;203merror  [0m  A file matching a [38;5;137m`protected:`[0m glob in .narc.yml was modified
+                                      or deleted.
+    [38;5;214m▲[0m [1mwaiver-missing-reason[0m  [38;5;214mwarning[0m  A narc:allow comment must say why the waived change is
+                                      acceptable.
+
+  [38;5;245m12 rules[0m[38;5;245m · [0m[38;5;245mnarc explain <rule> for details[0m
+

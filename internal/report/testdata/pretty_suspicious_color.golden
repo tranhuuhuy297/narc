@@ -1,0 +1,19 @@
+
+  🤨 [1;38;5;16;48;5;214m SUSPICIOUS [0m  integrity [1;38;5;214m90[0m[38;5;245m/100[0m  [38;5;214m▰▰▰▰▰▰▰▰▰[0m[38;5;245m▱[0m
+      [38;5;245mstaged changes[0m
+
+  [38;5;245msrc/api/[0m[1mclient.test.ts[0m
+    [38;5;68m● lint-suppressed[0m  [1mLint rule suppressed[0m[38;5;245m · line 3[0m
+      [38;5;137m`eslint-disable`[0m added for the whole file
+      [38;5;245m3 │ [0m/* eslint-disable */
+      [38;5;245m↳ [0m[38;5;245mFix the lint error instead of silencing it.[0m
+
+  [38;5;245msrc/api/[0m[1mclient.ts[0m
+    [38;5;214m▲ any-cast[0m  [1mType escape (any cast)[0m[38;5;245m · line 77[0m
+      [38;5;137m`as unknown as Response`[0m double cast added in fetchUser()
+      [38;5;245m77 │ [0mreturn (await res.json()) as unknown as Response;
+      [38;5;245m↳ [0m[38;5;245mFix the types instead of casting them away.[0m
+
+  [38;5;245m────────────────────────────────────────────────────────────────────────────────────────────────[0m
+  [1;38;5;214m1 warning[0m[38;5;245m · [0m[1;38;5;68m1 note[0m[38;5;245m · [0m[38;5;245m2 files[0m[38;5;245m · [0m[38;5;245m+31 −4 lines[0m
+

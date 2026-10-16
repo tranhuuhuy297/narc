@@ -1,0 +1,160 @@
+<!-- narc-report -->
+### 🚨 narc: BUSTED · integrity 0/100
+
+narc found **5 errors, 5 warnings and 1 note** in `main → HEAD`. Errors are high-confidence signs that verification was weakened instead of the code being fixed.
+
+| 🔴 Errors | 🟡 Warnings | 🔵 Notes | ⚪ Waived | Files | Lines |
+| :---: | :---: | :---: | :---: | :---: | :---: |
+| **5** | **5** | 1 | 2 | 9 (2 skipped) | +214 −87 |
+
+> [!WARNING]
+> 1 rule failed to run, so this report may be incomplete.
+> - `rule retry-added crashed: runtime error: index out of range [3] with length 3`
+
+#### Findings
+
+<details open>
+<summary><code>.github/workflows/ci.yml</code> · 🔴 1</summary>
+
+**🔴 CI failure ignored** · [`ci-failure-ignored`](https://github.com/huyth45/narc/blob/main/docs/rules.md#ci-failure-ignored) · [line 31](https://github.com/acme/shop/blob/4f2c9e1/.github/workflows/ci.yml#L31)\
+`npm test` can no longer fail the build: `|| true` was appended
+
+```diff
+- run: npm test
++ run: npm test || true
+```
+
+> 💡 Let the step fail and fix what makes it fail.
+
+</details>
+
+<details open>
+<summary><code>jest.config.js</code> · 🔴 1</summary>
+
+**🔴 Coverage threshold lowered** · [`coverage-lowered`](https://github.com/huyth45/narc/blob/main/docs/rules.md#coverage-lowered) · [line 12](https://github.com/acme/shop/blob/4f2c9e1/jest.config.js#L12)\
+coverage threshold for lines lowered 90% → 70%, branches: 85% → 60%
+
+```diff
+- lines: 90, branches: 85,
++ lines: 70, branches: 60,
+```
+
+> 💡 Restore the threshold and add tests for the uncovered code.
+
+</details>
+
+<details open>
+<summary><code>src/auth/session.test.ts</code> · 🔴 2 · 🟡 1</summary>
+
+**🔴 Test skipped** · [`skip-added`](https://github.com/huyth45/narc/blob/main/docs/rules.md#skip-added) · [line 42](https://github.com/acme/shop/blob/4f2c9e1/src/auth/session.test.ts#L42)\
+test "rejects expired tokens" was skipped with it.skip
+
+```typescript
+it.skip('rejects expired tokens', async () => {
+```
+
+> 💡 Fix the code under test so the test passes instead of skipping it. If the test itself is wrong, fix the test and say why in the commit.
+
+**🔴 Assertions removed** · [`assertions-removed`](https://github.com/huyth45/narc/blob/main/docs/rules.md#assertions-removed) · [line 57](https://github.com/acme/shop/blob/4f2c9e1/src/auth/session.test.ts#L57)\
+assertions in "refreshes an expiring session" dropped 3 → 1
+
+```diff
+- expect(session.expiresAt).toBeGreaterThan(Date.now())
+```
+
+> 💡 Restore the removed assertions; if one is obsolete, replace it with an assertion about the new behavior.
+
+**🟡 Assertion weakened** · [`assertion-weakened`](https://github.com/huyth45/narc/blob/main/docs/rules.md#assertion-weakened) · [line 88](https://github.com/acme/shop/blob/4f2c9e1/src/auth/session.test.ts#L88)\
+`toEqual({ id: 7, role: "admin" })` was replaced by the weaker `toBeDefined()`
+
+```diff
+- expect(user).toEqual({ id: 7, role: "admin" })
++ expect(user).toBeDefined()
+```
+
+> 💡 Keep the precise assertion and fix the code until it holds.
+
+</details>
+
+<details open>
+<summary><code>src/billing/invoice.test.ts</code> · 🔵 1</summary>
+
+**🔵 Lint rule suppressed** · [`lint-suppressed`](https://github.com/huyth45/narc/blob/main/docs/rules.md#lint-suppressed) · [line 9](https://github.com/acme/shop/blob/4f2c9e1/src/billing/invoice.test.ts#L9)\
+eslint-disable-next-line added for <code>@typescript-eslint/no-explicit-any</code>
+
+```typescript
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+```
+
+> 💡 Fix the lint error instead of silencing it.
+
+</details>
+
+<details open>
+<summary><code>src/billing/invoice.ts</code> · 🟡 2</summary>
+
+**🟡 Type escape (any cast)** · [`any-cast`](https://github.com/huyth45/narc/blob/main/docs/rules.md#any-cast) · [line 14](https://github.com/acme/shop/blob/4f2c9e1/src/billing/invoice.ts#L14)\
+`as any` cast added in calculateTotal()
+
+```typescript
+const total = (order as any).total_cents / 100;
+```
+
+> 💡 Fix the types instead of casting them away.
+
+**🟡 Hardcoded test answer** · [`hardcoded-answer`](https://github.com/huyth45/narc/blob/main/docs/rules.md#hardcoded-answer) · [line 203](https://github.com/acme/shop/blob/4f2c9e1/src/billing/invoice.ts#L203)\
+production code special-cases 4999, the exact input used by "applies the loyalty discount" in src/billing/invoice.test.ts, and returns the test's expected value 4499 directly instead of computing it
+
+```typescript
+if (order.subtotalCents === 4999 && order.customer.tier === "gold") { return { ...order, totalCents: 4499, discountApplied: true }; }
+```
+
+> 💡 Delete the special case and fix the discount calculation; "applies the loyalty discount" must pass for any gold-tier subtotal, not just 4999.
+
+</details>
+
+<details open>
+<summary><code>src/legacy/client.test.js</code> · 🔴 1 · 🟡 1</summary>
+
+**🔴 Test focused** · [`focus-added`](https://github.com/huyth45/narc/blob/main/docs/rules.md#focus-added) · [line 30](https://github.com/acme/shop/blob/4f2c9e1/src/legacy/client.test.js#L30)\
+`describe.only` focuses this suite; the other 14 tests in the file are silently skipped
+
+```javascript
+describe.only("retry policy", () => { // narc:allow focus-added
+```
+
+> 💡 Remove the focus marker so the whole suite runs.
+
+**🟡 Waiver without a reason** · [`waiver-missing-reason`](https://github.com/huyth45/narc/blob/main/docs/rules.md#waiver-missing-reason) · [line 30](https://github.com/acme/shop/blob/4f2c9e1/src/legacy/client.test.js#L30)\
+narc:allow for focus-added has no reason, so it was ignored
+
+```javascript
+describe.only("retry policy", () => { // narc:allow focus-added
+```
+
+> 💡 Add a reason: narc:allow \<rule\> reason="why this is fine (link to issue)"
+
+</details>
+
+<details open>
+<summary><code>tests/test_payments.py</code> · 🟡 1</summary>
+
+**🟡 Test file deleted** · [`test-file-deleted`](https://github.com/huyth45/narc/blob/main/docs/rules.md#test-file-deleted) · whole file\
+test file deleted with 6 tests ("test\_refund\_partial", "test\_refund\_full", and 4 more); none were re-added elsewhere
+
+> 💡 Keep the tests, or move them to the file that now covers this code.
+
+</details>
+
+<details>
+<summary>⚪ 2 waived findings</summary>
+
+| Rule | Location | Reason |
+| --- | --- | --- |
+| [`skip-added`](https://github.com/huyth45/narc/blob/main/docs/rules.md#skip-added) | `src/legacy/client.test.js:12` | flaky upstream API, see #812 |
+| [`protected-path`](https://github.com/huyth45/narc/blob/main/docs/rules.md#protected-path) | `tests/golden/invoice.txt:1` | tax rate changed by finance, ticket FIN-12 |
+
+</details>
+
+---
+<sub>🕵️ [narc](https://github.com/huyth45/narc) v1.4.0 · `narc scan --base main`<br>False positive? Waive it with a reason: `narc:allow <rule> reason="…"` in a comment on or above the line, or an `allow:` entry in `.narc.yml`. [Rule reference](https://github.com/huyth45/narc/blob/main/docs/rules.md)</sub>

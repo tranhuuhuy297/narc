@@ -1,0 +1,725 @@
+{
+  "$schema": "https://json.schemastore.org/sarif-2.1.0.json",
+  "version": "2.1.0",
+  "runs": [
+    {
+      "tool": {
+        "driver": {
+          "name": "narc",
+          "version": "1.4.0",
+          "semanticVersion": "1.4.0",
+          "informationUri": "https://github.com/huyth45/narc",
+          "rules": [
+            {
+              "id": "skip-added",
+              "name": "SkipAdded",
+              "shortDescription": {
+                "text": "Test skipped"
+              },
+              "fullDescription": {
+                "text": "New skip/disable markers (`it.skip`, `xit`, `@pytest.mark.skip`, `t.Skip`, `#[ignore]`, `@Disabled`)."
+              },
+              "help": {
+                "text": "New skip/disable markers (`it.skip`, `xit`, `@pytest.mark.skip`, `t.Skip`, `#[ignore]`, `@Disabled`).\n\nHow to fix: Fix the code under test so the test passes instead of skipping it. If the test itself is wrong, fix the test and say why in the commit.",
+                "markdown": "New skip/disable markers (`it.skip`, `xit`, `@pytest.mark.skip`, `t.Skip`, `#[ignore]`, `@Disabled`).\n\nA skipped test cannot fail, so skipping a failing test hides the bug instead of fixing it.\n\nBad:\n\n```ts\nit.skip('rejects expired tokens', async () => {\n  expect(await verify(expired)).toBe(false)\n})\n```\n\nGood: fix `verify()` so the test passes. narc recognizes:\n\n- `it.skip`, `describe.skip`, `xit`, `xdescribe` (Jest, Vitest, Mocha)\n- `@pytest.mark.skip` and `pytest.skip()` (pytest)\n- `t.Skip()` (Go), `#[ignore]` (Rust), `@Disabled` (JUnit)\n\nSee [the waiver guide](https://github.com/huyth45/narc#waivers) when a skip is **really** intended.\n\n**How to fix:** Fix the code under test so the test passes instead of skipping it. If the test itself is wrong, fix the test and say why in the commit.\n\nIf the change is intentional, waive it with a reason: `narc:allow skip-added reason=\"...\"` in a comment on or above the line, or an `allow:` entry in `.narc.yml`.\n\n[Rule reference](https://github.com/huyth45/narc/blob/main/docs/rules.md#skip-added)"
+              },
+              "helpUri": "https://github.com/huyth45/narc/blob/main/docs/rules.md#skip-added",
+              "defaultConfiguration": {
+                "level": "error"
+              },
+              "properties": {
+                "tags": [
+                  "narc",
+                  "tests"
+                ],
+                "precision": "high",
+                "problem.severity": "error"
+              }
+            },
+            {
+              "id": "focus-added",
+              "name": "FocusAdded",
+              "shortDescription": {
+                "text": "Test focused"
+              },
+              "fullDescription": {
+                "text": "`.only`, `fit`, `fdescribe`: silently skips every other test in the file."
+              },
+              "help": {
+                "text": "`.only`, `fit`, `fdescribe`: silently skips every other test in the file.\n\nHow to fix: Remove the focus marker so the whole suite runs.",
+                "markdown": "`.only`, `fit`, `fdescribe`: silently skips every other test in the file.\n\n**How to fix:** Remove the focus marker so the whole suite runs.\n\nIf the change is intentional, waive it with a reason: `narc:allow focus-added reason=\"...\"` in a comment on or above the line, or an `allow:` entry in `.narc.yml`.\n\n[Rule reference](https://github.com/huyth45/narc/blob/main/docs/rules.md#focus-added)"
+              },
+              "helpUri": "https://github.com/huyth45/narc/blob/main/docs/rules.md#focus-added",
+              "defaultConfiguration": {
+                "level": "error"
+              },
+              "properties": {
+                "tags": [
+                  "narc",
+                  "tests"
+                ],
+                "precision": "high",
+                "problem.severity": "error"
+              }
+            },
+            {
+              "id": "assertion-weakened",
+              "name": "AssertionWeakened",
+              "shortDescription": {
+                "text": "Assertion weakened"
+              },
+              "fullDescription": {
+                "text": "A specific matcher was replaced by a weaker one (`toEqual(x)` → `toBeDefined()`), or a tolerance was widened."
+              },
+              "help": {
+                "text": "A specific matcher was replaced by a weaker one (`toEqual(x)` → `toBeDefined()`), or a tolerance was widened.\n\nHow to fix: Keep the precise assertion and fix the code until it holds.",
+                "markdown": "A specific matcher was replaced by a weaker one (`toEqual(x)` → `toBeDefined()`), or a tolerance was widened.\n\n**How to fix:** Keep the precise assertion and fix the code until it holds.\n\nIf the change is intentional, waive it with a reason: `narc:allow assertion-weakened reason=\"...\"` in a comment on or above the line, or an `allow:` entry in `.narc.yml`.\n\n[Rule reference](https://github.com/huyth45/narc/blob/main/docs/rules.md#assertion-weakened)"
+              },
+              "helpUri": "https://github.com/huyth45/narc/blob/main/docs/rules.md#assertion-weakened",
+              "defaultConfiguration": {
+                "level": "warning"
+              },
+              "properties": {
+                "tags": [
+                  "narc",
+                  "tests"
+                ],
+                "precision": "medium",
+                "problem.severity": "warning"
+              }
+            },
+            {
+              "id": "assertions-removed",
+              "name": "AssertionsRemoved",
+              "shortDescription": {
+                "text": "Assertions removed"
+              },
+              "fullDescription": {
+                "text": "A surviving test lost assertions (`3 → 1`)."
+              },
+              "help": {
+                "text": "A surviving test lost assertions (`3 → 1`).\n\nHow to fix: Restore the removed assertions; if one is obsolete, replace it with an assertion about the new behavior.",
+                "markdown": "A surviving test lost assertions (`3 → 1`).\n\n**How to fix:** Restore the removed assertions; if one is obsolete, replace it with an assertion about the new behavior.\n\nIf the change is intentional, waive it with a reason: `narc:allow assertions-removed reason=\"...\"` in a comment on or above the line, or an `allow:` entry in `.narc.yml`.\n\n[Rule reference](https://github.com/huyth45/narc/blob/main/docs/rules.md#assertions-removed)"
+              },
+              "helpUri": "https://github.com/huyth45/narc/blob/main/docs/rules.md#assertions-removed",
+              "defaultConfiguration": {
+                "level": "error"
+              },
+              "properties": {
+                "tags": [
+                  "narc",
+                  "accounting"
+                ],
+                "precision": "high",
+                "problem.severity": "error"
+              }
+            },
+            {
+              "id": "test-file-deleted",
+              "name": "TestFileDeleted",
+              "shortDescription": {
+                "text": "Test file deleted"
+              },
+              "fullDescription": {
+                "text": "A test file was deleted and its tests were not re-added elsewhere."
+              },
+              "help": {
+                "text": "A test file was deleted and its tests were not re-added elsewhere.\n\nHow to fix: Keep the tests, or move them to the file that now covers this code.",
+                "markdown": "A test file was deleted and its tests were not re-added elsewhere.\n\n**How to fix:** Keep the tests, or move them to the file that now covers this code.\n\nIf the change is intentional, waive it with a reason: `narc:allow test-file-deleted reason=\"...\"` in a comment on or above the line, or an `allow:` entry in `.narc.yml`.\n\n[Rule reference](https://github.com/huyth45/narc/blob/main/docs/rules.md#test-file-deleted)"
+              },
+              "helpUri": "https://github.com/huyth45/narc/blob/main/docs/rules.md#test-file-deleted",
+              "defaultConfiguration": {
+                "level": "warning"
+              },
+              "properties": {
+                "tags": [
+                  "narc",
+                  "accounting"
+                ],
+                "precision": "medium",
+                "problem.severity": "warning"
+              }
+            },
+            {
+              "id": "any-cast",
+              "name": "AnyCast",
+              "shortDescription": {
+                "text": "Type escape (any cast)"
+              },
+              "fullDescription": {
+                "text": "`as any`, `as unknown as T`, `<any>`, `cast(Any, ...)` (info in tests)."
+              },
+              "help": {
+                "text": "`as any`, `as unknown as T`, `<any>`, `cast(Any, ...)` (info in tests).\n\nHow to fix: Fix the types instead of casting them away.",
+                "markdown": "`as any`, `as unknown as T`, `<any>`, `cast(Any, ...)` (info in tests).\n\n**How to fix:** Fix the types instead of casting them away.\n\nIf the change is intentional, waive it with a reason: `narc:allow any-cast reason=\"...\"` in a comment on or above the line, or an `allow:` entry in `.narc.yml`.\n\n[Rule reference](https://github.com/huyth45/narc/blob/main/docs/rules.md#any-cast)"
+              },
+              "helpUri": "https://github.com/huyth45/narc/blob/main/docs/rules.md#any-cast",
+              "defaultConfiguration": {
+                "level": "warning"
+              },
+              "properties": {
+                "tags": [
+                  "narc",
+                  "escapes"
+                ],
+                "precision": "medium",
+                "problem.severity": "warning"
+              }
+            },
+            {
+              "id": "lint-suppressed",
+              "name": "LintSuppressed",
+              "shortDescription": {
+                "text": "Lint rule suppressed"
+              },
+              "fullDescription": {
+                "text": "`eslint-disable`, `# noqa`, `//nolint`, `#[allow(...)]`, `@SuppressWarnings` (info in tests)."
+              },
+              "help": {
+                "text": "`eslint-disable`, `# noqa`, `//nolint`, `#[allow(...)]`, `@SuppressWarnings` (info in tests).\n\nHow to fix: Fix the lint error instead of silencing it.",
+                "markdown": "`eslint-disable`, `# noqa`, `//nolint`, `#[allow(...)]`, `@SuppressWarnings` (info in tests).\n\n**How to fix:** Fix the lint error instead of silencing it.\n\nIf the change is intentional, waive it with a reason: `narc:allow lint-suppressed reason=\"...\"` in a comment on or above the line, or an `allow:` entry in `.narc.yml`.\n\n[Rule reference](https://github.com/huyth45/narc/blob/main/docs/rules.md#lint-suppressed)"
+              },
+              "helpUri": "https://github.com/huyth45/narc/blob/main/docs/rules.md#lint-suppressed",
+              "defaultConfiguration": {
+                "level": "warning"
+              },
+              "properties": {
+                "tags": [
+                  "narc",
+                  "escapes"
+                ],
+                "precision": "medium",
+                "problem.severity": "warning"
+              }
+            },
+            {
+              "id": "hardcoded-answer",
+              "name": "HardcodedAnswer",
+              "shortDescription": {
+                "text": "Hardcoded test answer"
+              },
+              "fullDescription": {
+                "text": "Source special-cases a literal that the tests use as input or expected output."
+              },
+              "help": {
+                "text": "Source special-cases a literal that the tests use as input or expected output.\n\nHow to fix: Implement the general logic; the tests should pass for inputs they do not mention.",
+                "markdown": "Source special-cases a literal that the tests use as input or expected output.\n\n**How to fix:** Implement the general logic; the tests should pass for inputs they do not mention.\n\nIf the change is intentional, waive it with a reason: `narc:allow hardcoded-answer reason=\"...\"` in a comment on or above the line, or an `allow:` entry in `.narc.yml`.\n\n[Rule reference](https://github.com/huyth45/narc/blob/main/docs/rules.md#hardcoded-answer)"
+              },
+              "helpUri": "https://github.com/huyth45/narc/blob/main/docs/rules.md#hardcoded-answer",
+              "defaultConfiguration": {
+                "level": "warning"
+              },
+              "properties": {
+                "tags": [
+                  "narc",
+                  "escapes"
+                ],
+                "precision": "medium",
+                "problem.severity": "warning"
+              }
+            },
+            {
+              "id": "ci-failure-ignored",
+              "name": "CiFailureIgnored",
+              "shortDescription": {
+                "text": "CI failure ignored"
+              },
+              "fullDescription": {
+                "text": "`continue-on-error: true`, `allow_failure: true`, `|| true` on a verification command."
+              },
+              "help": {
+                "text": "`continue-on-error: true`, `allow_failure: true`, `|| true` on a verification command.\n\nHow to fix: Let the step fail and fix what makes it fail.",
+                "markdown": "`continue-on-error: true`, `allow_failure: true`, `|| true` on a verification command.\n\n**How to fix:** Let the step fail and fix what makes it fail.\n\nIf the change is intentional, waive it with a reason: `narc:allow ci-failure-ignored reason=\"...\"` in a comment on or above the line, or an `allow:` entry in `.narc.yml`.\n\n[Rule reference](https://github.com/huyth45/narc/blob/main/docs/rules.md#ci-failure-ignored)"
+              },
+              "helpUri": "https://github.com/huyth45/narc/blob/main/docs/rules.md#ci-failure-ignored",
+              "defaultConfiguration": {
+                "level": "error"
+              },
+              "properties": {
+                "tags": [
+                  "narc",
+                  "ci"
+                ],
+                "precision": "high",
+                "problem.severity": "error"
+              }
+            },
+            {
+              "id": "coverage-lowered",
+              "name": "CoverageLowered",
+              "shortDescription": {
+                "text": "Coverage threshold lowered"
+              },
+              "fullDescription": {
+                "text": "Coverage thresholds were lowered or removed."
+              },
+              "help": {
+                "text": "Coverage thresholds were lowered or removed.\n\nHow to fix: Restore the threshold and add tests for the uncovered code.",
+                "markdown": "Coverage thresholds were lowered or removed.\n\n**How to fix:** Restore the threshold and add tests for the uncovered code.\n\nIf the change is intentional, waive it with a reason: `narc:allow coverage-lowered reason=\"...\"` in a comment on or above the line, or an `allow:` entry in `.narc.yml`.\n\n[Rule reference](https://github.com/huyth45/narc/blob/main/docs/rules.md#coverage-lowered)"
+              },
+              "helpUri": "https://github.com/huyth45/narc/blob/main/docs/rules.md#coverage-lowered",
+              "defaultConfiguration": {
+                "level": "error"
+              },
+              "properties": {
+                "tags": [
+                  "narc",
+                  "ci"
+                ],
+                "precision": "high",
+                "problem.severity": "error"
+              }
+            },
+            {
+              "id": "protected-path",
+              "name": "ProtectedPath",
+              "shortDescription": {
+                "text": "Protected file changed"
+              },
+              "fullDescription": {
+                "text": "A file matching a `protected:` glob in .narc.yml was modified or deleted."
+              },
+              "help": {
+                "text": "A file matching a `protected:` glob in .narc.yml was modified or deleted.\n\nHow to fix: Revert the change to the protected file. If it really must change, a human should make or approve that change.",
+                "markdown": "A file matching a `protected:` glob in .narc.yml was modified or deleted.\n\n**How to fix:** Revert the change to the protected file. If it really must change, a human should make or approve that change.\n\nIf the change is intentional, waive it with a reason: `narc:allow protected-path reason=\"...\"` in a comment on or above the line, or an `allow:` entry in `.narc.yml`.\n\n[Rule reference](https://github.com/huyth45/narc/blob/main/docs/rules.md#protected-path)"
+              },
+              "helpUri": "https://github.com/huyth45/narc/blob/main/docs/rules.md#protected-path",
+              "defaultConfiguration": {
+                "level": "error"
+              },
+              "properties": {
+                "tags": [
+                  "narc",
+                  "integrity"
+                ],
+                "precision": "high",
+                "problem.severity": "error"
+              }
+            },
+            {
+              "id": "waiver-missing-reason",
+              "name": "WaiverMissingReason",
+              "shortDescription": {
+                "text": "Waiver without a reason"
+              },
+              "fullDescription": {
+                "text": "A narc:allow comment must say why the waived change is acceptable."
+              },
+              "help": {
+                "text": "A narc:allow comment must say why the waived change is acceptable.\n\nHow to fix: Add a reason: narc:allow <rule> reason=\"why this is fine (link to issue)\"",
+                "markdown": "A narc:allow comment must say why the waived change is acceptable.\n\n**How to fix:** Add a reason: narc:allow <rule> reason=\"why this is fine (link to issue)\"\n\n[Rule reference](https://github.com/huyth45/narc/blob/main/docs/rules.md#waiver-missing-reason)"
+              },
+              "helpUri": "https://github.com/huyth45/narc/blob/main/docs/rules.md#waiver-missing-reason",
+              "defaultConfiguration": {
+                "level": "warning"
+              },
+              "properties": {
+                "tags": [
+                  "narc",
+                  "integrity"
+                ],
+                "precision": "medium",
+                "problem.severity": "warning"
+              }
+            }
+          ]
+        }
+      },
+      "invocations": [
+        {
+          "executionSuccessful": true,
+          "commandLine": "narc scan --base main",
+          "toolExecutionNotifications": [
+            {
+              "level": "error",
+              "message": {
+                "text": "rule retry-added crashed: runtime error: index out of range [3] with length 3"
+              }
+            }
+          ]
+        }
+      ],
+      "originalUriBaseIds": {
+        "%SRCROOT%": {
+          "uri": "file:///home/ci/work/shop/"
+        }
+      },
+      "results": [
+        {
+          "ruleId": "ci-failure-ignored",
+          "ruleIndex": 8,
+          "level": "error",
+          "message": {
+            "text": "`npm test` can no longer fail the build: `|| true` was appended\nBefore: run: npm test"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": ".github/workflows/ci.yml",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 31
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "narcFingerprint/v1": "65465394ed6b1251"
+          },
+          "properties": {
+            "category": "ci",
+            "oldLine": 31
+          }
+        },
+        {
+          "ruleId": "coverage-lowered",
+          "ruleIndex": 9,
+          "level": "error",
+          "message": {
+            "text": "coverage threshold for lines lowered 90% → 70%, branches: 85% → 60%\nBefore: lines: 90, branches: 85,"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "jest.config.js",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 12
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "narcFingerprint/v1": "ee4fb133dda20cb6"
+          },
+          "properties": {
+            "category": "ci",
+            "oldLine": 12
+          }
+        },
+        {
+          "ruleId": "skip-added",
+          "ruleIndex": 0,
+          "level": "error",
+          "message": {
+            "text": "test \"rejects expired tokens\" was skipped with it.skip"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/auth/session.test.ts",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 42
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "narcFingerprint/v1": "c703c528c5e8f692"
+          },
+          "properties": {
+            "category": "tests"
+          }
+        },
+        {
+          "ruleId": "assertions-removed",
+          "ruleIndex": 3,
+          "level": "error",
+          "message": {
+            "text": "assertions in \"refreshes an expiring session\" dropped 3 → 1\nRemoved: expect(session.expiresAt).toBeGreaterThan(Date.now())"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/auth/session.test.ts",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 57
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "narcFingerprint/v1": "c140647ecdd7a12d"
+          },
+          "properties": {
+            "category": "accounting",
+            "oldLine": 61
+          }
+        },
+        {
+          "ruleId": "assertion-weakened",
+          "ruleIndex": 2,
+          "level": "warning",
+          "message": {
+            "text": "`toEqual({ id: 7, role: \"admin\" })` was replaced by the weaker `toBeDefined()`\nBefore: expect(user).toEqual({ id: 7, role: \"admin\" })"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/auth/session.test.ts",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 88
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "narcFingerprint/v1": "d61760b2a0f70034"
+          },
+          "properties": {
+            "category": "tests",
+            "oldLine": 92
+          }
+        },
+        {
+          "ruleId": "lint-suppressed",
+          "ruleIndex": 6,
+          "level": "note",
+          "message": {
+            "text": "eslint-disable-next-line added for @typescript-eslint/no-explicit-any"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/billing/invoice.test.ts",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 9
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "narcFingerprint/v1": "7f3addbc97573c10"
+          },
+          "properties": {
+            "category": "escapes"
+          }
+        },
+        {
+          "ruleId": "any-cast",
+          "ruleIndex": 5,
+          "level": "warning",
+          "message": {
+            "text": "`as any` cast added in calculateTotal()"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/billing/invoice.ts",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 14
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "narcFingerprint/v1": "1157f32dceeb7a9a"
+          },
+          "properties": {
+            "category": "escapes"
+          }
+        },
+        {
+          "ruleId": "hardcoded-answer",
+          "ruleIndex": 7,
+          "level": "warning",
+          "message": {
+            "text": "production code special-cases 4999, the exact input used by \"applies the loyalty discount\" in src/billing/invoice.test.ts, and returns the test's expected value 4499 directly instead of computing it\nHint: Delete the special case and fix the discount calculation; \"applies the loyalty discount\" must pass for any gold-tier subtotal, not just 4999."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/billing/invoice.ts",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 203
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "narcFingerprint/v1": "c29f51aba6789c3f"
+          },
+          "properties": {
+            "category": "escapes"
+          }
+        },
+        {
+          "ruleId": "skip-added",
+          "ruleIndex": 0,
+          "level": "error",
+          "message": {
+            "text": "test \"syncs with partner API\" was skipped with it.skip"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/legacy/client.test.js",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 12
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "narcFingerprint/v1": "e6df33fa20422a5e"
+          },
+          "suppressions": [
+            {
+              "kind": "inSource",
+              "status": "accepted",
+              "justification": "flaky upstream API, see #812"
+            }
+          ],
+          "properties": {
+            "category": "tests"
+          }
+        },
+        {
+          "ruleId": "focus-added",
+          "ruleIndex": 1,
+          "level": "error",
+          "message": {
+            "text": "`describe.only` focuses this suite; the other 14 tests in the file are silently skipped"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/legacy/client.test.js",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 30
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "narcFingerprint/v1": "3c18ceb7af8dab79"
+          },
+          "properties": {
+            "category": "tests"
+          }
+        },
+        {
+          "ruleId": "waiver-missing-reason",
+          "ruleIndex": 11,
+          "level": "warning",
+          "message": {
+            "text": "narc:allow for focus-added has no reason, so it was ignored"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/legacy/client.test.js",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 30
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "narcFingerprint/v1": "34175716ab66d3a9"
+          },
+          "properties": {
+            "category": "integrity"
+          }
+        },
+        {
+          "ruleId": "protected-path",
+          "ruleIndex": 10,
+          "level": "error",
+          "message": {
+            "text": "protected file was modified (+1 -1)"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "tests/golden/invoice.txt",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 1
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "narcFingerprint/v1": "d582ba541f59b105"
+          },
+          "suppressions": [
+            {
+              "kind": "external",
+              "status": "accepted",
+              "justification": "tax rate changed by finance, ticket FIN-12"
+            }
+          ],
+          "properties": {
+            "category": "integrity"
+          }
+        },
+        {
+          "ruleId": "test-file-deleted",
+          "ruleIndex": 4,
+          "level": "warning",
+          "message": {
+            "text": "test file deleted with 6 tests (\"test_refund_partial\", \"test_refund_full\", and 4 more); none were re-added elsewhere"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "tests/test_payments.py",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 1
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "narcFingerprint/v1": "17b503d32957e8c3"
+          },
+          "properties": {
+            "category": "accounting"
+          }
+        }
+      ],
+      "properties": {
+        "label": "main → HEAD",
+        "verdict": "busted",
+        "score": 0
+      }
+    }
+  ]
+}

@@ -1,0 +1,22 @@
+{
+  "version": "1.4.0",
+  "schema": 1,
+  "label": "HEAD → working tree",
+  "verdict": "clean",
+  "score": 100,
+  "counts": {
+    "error": 0,
+    "warning": 0,
+    "info": 0,
+    "waived": 0
+  },
+  "files": 4,
+  "skipped": 0,
+  "lines": {
+    "added": 120,
+    "removed": 34
+  },
+  "findings": [],
+  "errors": [],
+  "duration_ms": 0
+}

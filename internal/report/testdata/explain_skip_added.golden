@@ -1,0 +1,38 @@
+
+  ✖ skip-added  Test skipped
+    error · tests
+
+  New skip/disable markers (`it.skip`, `xit`, `@pytest.mark.skip`, `t.Skip`, `#[ignore]`,
+  `@Disabled`).
+
+  A skipped test cannot fail, so skipping a failing test hides the bug instead of fixing it.
+
+  Bad:
+
+  │ it.skip('rejects expired tokens', async () => {
+  │   expect(await verify(expired)).toBe(false)
+  │ })
+
+  Good: fix `verify()` so the test passes. narc recognizes:
+
+  • `it.skip`, `describe.skip`, `xit`, `xdescribe` (Jest, Vitest, Mocha)
+  • `@pytest.mark.skip` and `pytest.skip()` (pytest)
+  • `t.Skip()` (Go), `#[ignore]` (Rust), `@Disabled` (JUnit)
+
+  See the waiver guide (https://github.com/huyth45/narc#waivers) when a skip is really intended.
+
+  How to fix
+    Fix the code under test so the test passes instead of skipping it. If the test itself is wrong,
+    fix the test and say why in the commit.
+
+  If the change is intentional
+    Waive it with a reason, in a comment on the flagged line or the line above:
+      // narc:allow skip-added reason="<why this is fine>"
+    or for whole paths, in .narc.yml:
+      allow:
+        - rule: skip-added
+          path: "src/legacy/**"
+          reason: "<why this is fine>"
+
+  Docs: https://github.com/huyth45/narc/blob/main/docs/rules.md#skip-added
+
