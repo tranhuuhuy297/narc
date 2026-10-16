@@ -1,0 +1,30 @@
+name: False positive
+description: narc flagged a legitimate change. These reports make narc better for everyone.
+labels: [false-positive]
+body:
+  - type: input
+    id: rule
+    attributes:
+      label: Rule ID
+      placeholder: skip-added
+    validations:
+      required: true
+  - type: textarea
+    id: diff
+    attributes:
+      label: The diff (minimal)
+      description: Paste the smallest diff that reproduces it. `narc scan --format json` output helps too.
+      render: diff
+    validations:
+      required: true
+  - type: textarea
+    id: why
+    attributes:
+      label: Why this change is legitimate
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: narc version
+      placeholder: narc version

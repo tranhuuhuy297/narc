@@ -1,0 +1,7 @@
+# Adding a brand-new golden file for a new test is fine.
+expect: clean
+-- .narc.yml --
+protected:
+  - "tests/golden/**"
+-- new/tests/golden/receipt.txt --
+Total: 12.00 EUR

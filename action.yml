@@ -1,0 +1,104 @@
+name: "narc — catch AI agents cheating on tests"
+description: "Flags PR changes that weaken verification: skipped tests, deleted assertions, || true in CI, lowered coverage, type escapes."
+author: "huyth45"
+branding:
+  icon: "eye"
+  color: "red"
+
+inputs:
+  version:
+    description: "narc version to install (e.g. v0.1.0). Defaults to the latest release."
+    default: "latest"
+  base:
+    description: "Base revision to compare against. Defaults to the PR base (or the previous commit on push)."
+    default: ""
+  fail-on:
+    description: "Fail the check at this severity or worse: error, warning, info, never."
+    default: "error"
+  sarif:
+    description: "Upload findings to GitHub code scanning (needs security-events: write)."
+    default: "true"
+  comment:
+    description: "Post or update a sticky PR comment with the report (needs pull-requests: write)."
+    default: "true"
+  args:
+    description: "Extra arguments for `narc scan`."
+    default: ""
+
+outputs:
+  verdict:
+    description: "clean, suspicious or busted"
+    value: ${{ steps.scan.outputs.verdict }}
+  findings:
+    description: "Number of active findings"
+    value: ${{ steps.scan.outputs.findings }}
+
+runs:
+  using: "composite"
+  steps:
+    - name: Install narc
+      shell: bash
+      env:
+        NARC_VERSION: ${{ inputs.version }}
+        NARC_INSTALL_DIR: ${{ runner.temp }}/narc-bin
+      run: |
+        curl -fsSL "https://raw.githubusercontent.com/huyth45/narc/main/install.sh" | sh
+        echo "${NARC_INSTALL_DIR}" >> "$GITHUB_PATH"
+
+    - name: Scan
+      id: scan
+      shell: bash
+      env:
+        INPUT_BASE: ${{ inputs.base }}
+        INPUT_FAIL_ON: ${{ inputs.fail-on }}
+        INPUT_ARGS: ${{ inputs.args }}
+        PR_BASE: ${{ github.event.pull_request.base.sha }}
+        PUSH_BEFORE: ${{ github.event.before }}
+      run: |
+        set +e
+        base="${INPUT_BASE:-${PR_BASE:-$PUSH_BEFORE}}"
+        if [ -z "$base" ] || [ "$base" = "0000000000000000000000000000000000000000" ]; then
+          range="HEAD~1..HEAD"
+        else
+          git cat-file -e "$base^{commit}" 2>/dev/null || git fetch --no-tags --depth=200 origin "$base" >/dev/null 2>&1
+          range="$base...HEAD"
+        fi
+        echo "narc: scanning $range"
+        # shellcheck disable=SC2086
+        narc scan "$range" --format github --fail-on "$INPUT_FAIL_ON" \
+          --sarif narc.sarif --markdown narc.md --json narc.json $INPUT_ARGS
+        status=$?
+        cat narc.md >> "$GITHUB_STEP_SUMMARY" 2>/dev/null
+        verdict=$(sed -n 's/.*"verdict": *"\([a-z]*\)".*/\1/p' narc.json | head -n1)
+        findings=$(grep -c '"rule":' narc.json 2>/dev/null || echo 0)
+        echo "verdict=${verdict:-unknown}" >> "$GITHUB_OUTPUT"
+        echo "findings=${findings}" >> "$GITHUB_OUTPUT"
+        echo "status=${status}" >> "$GITHUB_OUTPUT"
+        exit 0
+
+    - name: Upload SARIF
+      if: ${{ inputs.sarif == 'true' && hashFiles('narc.sarif') != '' }}
+      uses: github/codeql-action/upload-sarif@v3
+      continue-on-error: true  # narc:allow ci-failure-ignored reason="upload is best-effort; the verdict step below gates the build"
+      with:
+        sarif_file: narc.sarif
+        category: narc
+
+    - name: Comment on PR
+      if: ${{ inputs.comment == 'true' && github.event_name == 'pull_request' && hashFiles('narc.md') != '' }}
+      shell: bash
+      env:
+        GH_TOKEN: ${{ github.token }}
+        PR: ${{ github.event.pull_request.number }}
+        REPO: ${{ github.repository }}
+      run: |
+        id=$(gh api "repos/$REPO/issues/$PR/comments" --paginate --jq '.[] | select(.body | contains("<!-- narc-report -->")) | .id' 2>/dev/null | head -n1)
+        if [ -n "$id" ]; then
+          gh api -X PATCH "repos/$REPO/issues/comments/$id" -F body=@narc.md >/dev/null || echo "narc: could not update comment"
+        elif [ "${{ steps.scan.outputs.verdict }}" != "clean" ]; then
+          gh api -X POST "repos/$REPO/issues/$PR/comments" -F body=@narc.md >/dev/null || echo "narc: could not post comment"
+        fi
+
+    - name: Verdict
+      shell: bash
+      run: exit ${{ steps.scan.outputs.status }}

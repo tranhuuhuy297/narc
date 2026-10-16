@@ -1,0 +1,7 @@
+# Deleting a golden file removes the check entirely.
+expect: protected-path
+-- .narc.yml --
+protected:
+  - "tests/golden/**"
+-- old/tests/golden/invoice.txt --
+Total: 107.00 EUR

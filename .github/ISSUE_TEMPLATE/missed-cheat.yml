@@ -1,0 +1,19 @@
+name: Missed cheat
+description: An agent weakened verification and narc did not notice.
+labels: [missed-cheat]
+body:
+  - type: textarea
+    id: diff
+    attributes:
+      label: The diff
+      render: diff
+    validations:
+      required: true
+  - type: input
+    id: agent
+    attributes:
+      label: Which agent / model produced it (if known)
+  - type: textarea
+    id: notes
+    attributes:
+      label: What should narc have said?

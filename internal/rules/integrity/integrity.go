@@ -34,7 +34,9 @@ func checkProtected(a *core.Analysis) []core.Finding {
 	var out []core.Finding
 	for _, f := range a.Files {
 		hit := core.MatchAny(a.Settings.Protected, f.Path) || (f.OldPath != "" && core.MatchAny(a.Settings.Protected, f.OldPath))
-		if !hit {
+		// Adding new files under a protected path (a new golden file for a
+		// new test) does not move existing goalposts.
+		if !hit || f.Diff.Kind == diff.Added {
 			continue
 		}
 		add, del := f.Diff.Stats()
@@ -44,8 +46,6 @@ func checkProtected(a *core.Analysis) []core.Finding {
 			msg = "protected file was deleted"
 		case diff.Renamed:
 			msg = fmt.Sprintf("protected file was renamed from %s", f.OldPath)
-		case diff.Added:
-			msg = "file added under a protected path"
 		default:
 			msg = fmt.Sprintf("protected file was modified (+%d -%d)", add, del)
 		}
