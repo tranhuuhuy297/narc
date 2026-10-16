@@ -2,7 +2,7 @@ package lang
 
 import (
 	"strings"
-	"unicode"
+	"unicode/utf8"
 )
 
 // LexedLine is one source line split into its code, comment and string
@@ -25,12 +25,27 @@ type LexedLine struct {
 // Lex splits src into lines and classifies each character as code, comment
 // or string. Lexing is best-effort: it never fails, and it is tolerant of
 // syntax it does not understand.
-func Lex(l Lang, src string) []LexedLine {
-	src = strings.ReplaceAll(src, "\r\n", "\n")
-	lx := &lexer{lang: l, fam: l.family(), src: []rune(src)}
+//
+// The lexer works on bytes: every delimiter it cares about is ASCII, and
+// UTF-8 continuation bytes are never mistaken for one. Lines that contain
+// neither comments nor string contents share one string for Raw, Code and
+// NoComment, which keeps lexing large files cheap.
+func Lex(l Lang, src string) []LexedLine { return LexSome(l, src, nil) }
+
+// LexSome is Lex for callers that only need some lines. The whole source is
+// still scanned (a line's meaning depends on everything before it), but
+// lines for which keep(lineNumber) is false (1-based) only get Raw filled
+// in. A nil keep keeps every line.
+func LexSome(l Lang, src string, keep func(line int) bool) []LexedLine {
 	if src == "" {
 		return nil
 	}
+	if strings.IndexByte(src, '\r') >= 0 {
+		src = strings.ReplaceAll(src, "\r\n", "\n")
+	}
+	lx := &lexer{lang: l, fam: l.family(), src: src, pure: true, keep: keep}
+	lx.out = make([]LexedLine, 0, strings.Count(src, "\n")+1)
+	lx.keepLine = keep == nil || keep(1)
 	lx.run()
 	return lx.out
 }
@@ -57,13 +72,21 @@ const (
 type lexer struct {
 	lang Lang
 	fam  family
-	src  []rune
+	src  string
 	i    int
 
-	out                   []LexedLine
-	raw, code, nocom, com strings.Builder
-	strs                  []string
-	pendingContent        bool
+	out       []LexedLine
+	lineStart int
+	keep      func(int) bool
+	keepLine  bool // build output for the current line
+	strKeep   bool // the current string literal started on a kept line
+	// pure means everything on the current line so far is code, so Code
+	// and NoComment equal the raw text and nothing has been copied yet.
+	pure           bool
+	code, nocom    strings.Builder
+	com            strings.Builder
+	strs           []string
+	pendingContent bool
 
 	st state
 
@@ -87,11 +110,11 @@ type lexer struct {
 	// regex state
 	reClass bool
 
-	lastSig  rune   // last significant code rune on the current logical line
+	lastSig  byte   // last significant code byte on the current line
 	lastWord string // last identifier-like word in code
 }
 
-func (lx *lexer) peek(off int) rune {
+func (lx *lexer) peek(off int) byte {
 	j := lx.i + off
 	if j < 0 || j >= len(lx.src) {
 		return 0
@@ -99,61 +122,101 @@ func (lx *lexer) peek(off int) rune {
 	return lx.src[j]
 }
 
-func (lx *lexer) hasPrefix(s string) bool {
-	j := lx.i
-	for _, r := range s {
-		if j >= len(lx.src) || lx.src[j] != r {
-			return false
+func (lx *lexer) hasPrefix(s string) bool { return strings.HasPrefix(lx.src[lx.i:], s) }
+
+// impure materializes the code seen so far on this line, because something
+// that is not code (a comment, a string body) is about to follow.
+func (lx *lexer) impure() {
+	if !lx.pure || !lx.keepLine {
+		lx.pure = false
+		return
+	}
+	seg := lx.src[lx.lineStart:lx.i]
+	lx.code.WriteString(seg)
+	lx.nocom.WriteString(seg)
+	lx.pure = false
+}
+
+// emitCode records src[a:b] as code.
+func (lx *lexer) emitCode(a, b int) {
+	if !lx.pure && lx.keepLine {
+		s := lx.src[a:b]
+		lx.code.WriteString(s)
+		lx.nocom.WriteString(s)
+	}
+	for k := b - 1; k >= a; k-- {
+		if c := lx.src[k]; c != ' ' && c != '\t' {
+			lx.lastSig = c
+			break
 		}
-		j++
-	}
-	return true
-}
-
-func (lx *lexer) emitCode(r rune) {
-	lx.code.WriteRune(r)
-	lx.nocom.WriteRune(r)
-	if !unicode.IsSpace(r) {
-		lx.lastSig = r
 	}
 }
 
-func (lx *lexer) emitCodeStr(s string) {
-	for _, r := range s {
-		lx.emitCode(r)
+// emitSynthetic adds text to Code and NoComment that is not in the source.
+func (lx *lexer) emitSynthetic(s string) {
+	lx.impure()
+	if !lx.keepLine {
+		return
+	}
+	lx.code.WriteString(s)
+	lx.nocom.WriteString(s)
+}
+
+// emitStringBody records src[a:b] as string contents.
+func (lx *lexer) emitStringBody(a, b int) {
+	if a >= b {
+		return
+	}
+	lx.impure()
+	s := lx.src[a:b]
+	if lx.keepLine {
+		lx.nocom.WriteString(s)
+	}
+	if lx.strKeep {
+		lx.strBuf.WriteString(s)
+	}
+}
+
+func (lx *lexer) startComment() {
+	lx.impure()
+	if lx.keepLine && lx.com.Len() > 0 {
+		lx.com.WriteByte(' ')
 	}
 }
 
 func (lx *lexer) flushLine() {
-	lx.out = append(lx.out, LexedLine{
-		Raw:       lx.raw.String(),
-		Code:      lx.code.String(),
-		NoComment: lx.nocom.String(),
-		Comment:   strings.TrimSpace(lx.com.String()),
-		Strings:   lx.strs,
-	})
-	lx.raw.Reset()
-	lx.code.Reset()
-	lx.nocom.Reset()
-	lx.com.Reset()
+	raw := lx.src[lx.lineStart:lx.i]
+	ll := LexedLine{Raw: raw, Strings: lx.strs}
+	if !lx.keepLine {
+		ll.Strings = nil
+		lx.code.Reset()
+		lx.nocom.Reset()
+		lx.com.Reset()
+	} else if lx.pure {
+		ll.Code, ll.NoComment = raw, raw
+	} else {
+		ll.Code, ll.NoComment = lx.code.String(), lx.nocom.String()
+		lx.code.Reset()
+		lx.nocom.Reset()
+	}
+	if lx.com.Len() > 0 {
+		ll.Comment = strings.TrimSpace(lx.com.String())
+		lx.com.Reset()
+	}
+	lx.out = append(lx.out, ll)
 	lx.strs = nil
+	lx.pure = true
 	lx.lastSig = 0
 	lx.lastWord = ""
-}
-
-func (lx *lexer) addComment(s string) {
-	if lx.com.Len() > 0 && s != "" {
-		lx.com.WriteByte(' ')
-	}
-	lx.com.WriteString(s)
+	lx.keepLine = lx.keep == nil || lx.keep(len(lx.out)+1)
 }
 
 func (lx *lexer) run() {
 	for lx.i < len(lx.src) {
-		r := lx.src[lx.i]
-		if r == '\n' {
+		if lx.src[lx.i] == '\n' {
 			lx.newline()
 			lx.i++
+			lx.lineStart = lx.i
 			continue
 		}
 		lx.pendingContent = true
@@ -161,9 +224,14 @@ func (lx *lexer) run() {
 		case stCode:
 			lx.stepCode()
 		case stLineComment:
-			lx.raw.WriteRune(r)
-			lx.com.WriteRune(r)
-			lx.i++
+			j := lx.i
+			for j < len(lx.src) && lx.src[j] != '\n' {
+				j++
+			}
+			if lx.keepLine {
+				lx.com.WriteString(lx.src[lx.i:j])
+			}
+			lx.i = j
 		case stBlockComment:
 			lx.stepBlock()
 		case stString:
@@ -185,11 +253,11 @@ func (lx *lexer) newline() {
 	case stLineComment:
 		lx.st = stCode
 	case stString:
-		if lx.strMulti {
-			lx.strBuf.WriteByte('\n')
-		} else if lx.strEsc && strings.HasSuffix(lx.raw.String(), `\`) && !strings.HasSuffix(lx.raw.String(), `\\`) {
-			// backslash-newline continuation
-			lx.strBuf.WriteByte('\n')
+		continued := lx.strEsc && lx.i > 0 && lx.src[lx.i-1] == '\\' && (lx.i < 2 || lx.src[lx.i-2] != '\\')
+		if lx.strMulti || continued {
+			if lx.strKeep {
+				lx.strBuf.WriteByte('\n')
+			}
 		} else {
 			lx.endString()
 			lx.st = stCode
@@ -199,13 +267,19 @@ func (lx *lexer) newline() {
 	}
 	lx.flushLine()
 	lx.pendingContent = false
+	if lx.st != stCode {
+		// The next line starts inside a comment or string: it is not pure.
+		lx.pure = false
+	}
 }
 
 // ---- code state ----
 
-func isIdent(r rune) bool { return r == '_' || r == '$' || unicode.IsLetter(r) || unicode.IsDigit(r) }
+func isIdentByte(c byte) bool {
+	return c == '_' || c == '$' || c >= 0x80 || (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9')
+}
 
-func (lx *lexer) prev() rune { return lx.peek(-1) }
+func (lx *lexer) prev() byte { return lx.peek(-1) }
 
 func (lx *lexer) atLineStartOrSpace() bool {
 	p := lx.prev()
@@ -213,94 +287,109 @@ func (lx *lexer) atLineStartOrSpace() bool {
 }
 
 func (lx *lexer) stepCode() {
-	r := lx.src[lx.i]
+	c := lx.src[lx.i]
 	switch lx.fam {
 	case famC:
-		if lx.stepCodeC(r) {
+		if lx.stepCodeC(c) {
 			return
 		}
 	case famHash:
-		if lx.stepCodeHash(r) {
+		if lx.stepCodeHash(c) {
 			return
 		}
 	}
-	// plain code rune
-	if isIdent(r) {
-		// accumulate word
+	if isIdentByte(c) {
 		j := lx.i
-		for j < len(lx.src) && isIdent(lx.src[j]) {
+		for j < len(lx.src) && isIdentByte(lx.src[j]) {
 			j++
 		}
-		w := string(lx.src[lx.i:j])
-		lx.raw.WriteString(w)
-		lx.emitCodeStr(w)
+		w := lx.src[lx.i:j]
+		if lx.lang == Rust && (w == "r" || w == "br") && lx.rustRawString(j) {
+			return
+		}
+		lx.emitCode(lx.i, j)
 		lx.lastWord = w
 		lx.i = j
 		return
 	}
-	if r == '{' {
+	if c == ' ' || c == '\t' {
+		j := lx.i
+		for j < len(lx.src) && (lx.src[j] == ' ' || lx.src[j] == '\t') {
+			j++
+		}
+		lx.emitCode(lx.i, j)
+		lx.i = j
+		return
+	}
+	if c == '{' {
 		lx.braceDepth++
 	}
-	if r == '}' {
+	if c == '}' {
 		if n := len(lx.tmplStack); n > 0 && lx.tmplStack[n-1] == lx.braceDepth {
-			// end of ${...} interpolation: resume the template literal
+			// end of ${...} interpolation: resume the enclosing template
+			// literal (an inner string may have replaced the settings)
 			lx.tmplStack = lx.tmplStack[:n-1]
 			lx.braceDepth--
-			lx.raw.WriteRune(r)
-			lx.emitCode(r)
+			lx.emitCode(lx.i, lx.i+1)
 			lx.i++
-			// resume the enclosing template literal (an inner string may
-			// have replaced the string settings)
 			lx.st = stString
 			lx.strClose, lx.strEsc, lx.strMulti, lx.strDoubling, lx.strTemplate = "`", true, true, false, true
 			lx.strBuf.Reset()
 			lx.strStartLine = len(lx.out)
+			lx.strKeep = lx.keepLine
 			return
 		}
 		lx.braceDepth--
 	}
-	lx.raw.WriteRune(r)
-	lx.emitCode(r)
-	if !unicode.IsSpace(r) {
-		lx.lastWord = ""
-	}
+	lx.emitCode(lx.i, lx.i+1)
+	lx.lastWord = ""
 	lx.i++
 }
 
-func (lx *lexer) stepCodeC(r rune) bool {
+// rustRawString handles r"..." / r#"..."# / br"..." whose prefix word ends
+// at j. It returns false if this is not a raw string.
+func (lx *lexer) rustRawString(j int) bool {
+	k := j
+	for k < len(lx.src) && lx.src[k] == '#' {
+		k++
+	}
+	if k >= len(lx.src) || lx.src[k] != '"' {
+		return false
+	}
+	lx.emitCode(lx.i, k)
+	hashes := lx.src[j:k]
+	lx.i = k
+	lx.openStringClose(`"`, `"`+hashes, false, true, false, false)
+	return true
+}
+
+func (lx *lexer) stepCodeC(c byte) bool {
 	switch {
-	case r == '/' && lx.peek(1) == '/':
-		lx.raw.WriteString("//")
+	case c == '/' && lx.peek(1) == '/':
+		lx.startComment()
 		lx.i += 2
 		lx.st = stLineComment
-		lx.addComment("")
 		return true
-	case r == '/' && lx.peek(1) == '*':
-		lx.raw.WriteString("/*")
+	case c == '/' && lx.peek(1) == '*':
+		lx.startComment()
 		lx.i += 2
 		lx.st = stBlockComment
 		lx.blockDepth = 1
 		lx.blockNest = lx.lang == Rust || lx.lang == Swift || lx.lang == Scala || lx.lang == Dart || lx.lang == Kotlin
-		lx.addComment("")
 		return true
-	case r == '#' && lx.lang == PHP && lx.peek(1) != '[':
-		lx.raw.WriteRune(r)
+	case c == '#' && lx.lang == PHP && lx.peek(1) != '[':
+		lx.startComment()
 		lx.i++
 		lx.st = stLineComment
-		lx.addComment("")
 		return true
-	case r == '/' && lx.lang.IsJSLike() && lx.regexAllowed():
-		lx.raw.WriteRune(r)
-		lx.emitCode(r)
+	case c == '/' && lx.lang.IsJSLike() && lx.regexAllowed():
+		lx.emitCode(lx.i, lx.i+1)
 		lx.i++
 		lx.st = stRegex
 		lx.reClass = false
-		lx.strBuf.Reset()
-		lx.strStartLine = len(lx.out)
 		return true
 	}
-	// strings
-	switch r {
+	switch c {
 	case '"':
 		if lx.hasTriple('"') && lx.supportsTriple() {
 			lx.openString(`"""`, lx.lang != Kotlin && lx.lang != Scala, true, false, false)
@@ -323,9 +412,16 @@ func (lx *lexer) stepCodeC(r rune) bool {
 			return true
 		case lx.lang == Rust:
 			// char literal vs lifetime/label
-			if lx.peek(1) == '\\' || (lx.peek(2) == '\'' && lx.peek(1) != 0) {
+			if lx.peek(1) == '\\' {
 				lx.openString(`'`, true, false, false, false)
 				return true
+			}
+			if lx.i+1 < len(lx.src) {
+				_, size := utf8.DecodeRuneInString(lx.src[lx.i+1:])
+				if lx.src[lx.i+1] != '\n' && lx.peek(1+size) == '\'' {
+					lx.openString(`'`, true, false, false, false)
+					return true
+				}
 			}
 			return false
 		case lx.lang == Swift:
@@ -346,28 +442,6 @@ func (lx *lexer) stepCodeC(r rune) bool {
 			lx.openString("`", false, false, false, false)
 			return true
 		}
-	case 'r', 'b':
-		if lx.lang == Rust && !isIdent(lx.prev()) {
-			j := lx.i + 1
-			if r == 'b' && j < len(lx.src) && lx.src[j] == 'r' {
-				j++
-			} else if r == 'b' {
-				return false
-			}
-			hashes := 0
-			for j < len(lx.src) && lx.src[j] == '#' {
-				hashes++
-				j++
-			}
-			if j < len(lx.src) && lx.src[j] == '"' {
-				prefix := string(lx.src[lx.i:j])
-				lx.raw.WriteString(prefix)
-				lx.emitCodeStr(prefix)
-				lx.i = j
-				lx.openStringClose(`"`, `"`+strings.Repeat("#", hashes), false, true, false, false)
-				return true
-			}
-		}
 	}
 	return false
 }
@@ -380,7 +454,7 @@ func (lx *lexer) supportsTriple() bool {
 	return false
 }
 
-func (lx *lexer) hasTriple(q rune) bool {
+func (lx *lexer) hasTriple(q byte) bool {
 	return lx.peek(0) == q && lx.peek(1) == q && lx.peek(2) == q
 }
 
@@ -401,140 +475,141 @@ func (lx *lexer) regexAllowed() bool {
 	return false
 }
 
-func (lx *lexer) stepCodeHash(r rune) bool {
+func (lx *lexer) stepCodeHash(c byte) bool {
 	switch lx.lang {
 	case Python:
-		if r == '#' {
-			lx.startLineComment(1)
+		if c == '#' {
+			lx.startLineComment()
 			return true
 		}
-		if r == '"' || r == '\'' {
-			if lx.hasTriple(r) {
-				d := string([]rune{r, r, r})
-				lx.openString(d, true, true, false, false)
+		if c == '"' || c == '\'' {
+			if lx.hasTriple(c) {
+				lx.openString(strings.Repeat(string(c), 3), true, true, false, false)
 				return true
 			}
-			lx.openString(string(r), true, false, false, false)
+			lx.openString(string(c), true, false, false, false)
 			return true
 		}
 	case Ruby, Elixir:
-		if r == '#' {
-			lx.startLineComment(1)
+		if c == '#' {
+			lx.startLineComment()
 			return true
 		}
-		if lx.lang == Ruby && r == '=' && lx.prev() == 0 || (lx.lang == Ruby && r == '=' && lx.prev() == '\n') {
-			if lx.hasPrefix("=begin") {
-				lx.raw.WriteString("=begin")
-				lx.i += len("=begin")
-				lx.st = stBlockComment
-				lx.blockDepth = 1
-				lx.blockNest = false
-				return true
-			}
+		if lx.lang == Ruby && c == '=' && lx.i == lx.lineStart && lx.hasPrefix("=begin") {
+			lx.startComment()
+			lx.i += len("=begin")
+			lx.st = stBlockComment
+			lx.blockDepth = 1
+			lx.blockNest = false
+			return true
 		}
 		if lx.lang == Elixir && lx.hasTriple('"') {
 			lx.openString(`"""`, true, true, false, false)
 			return true
 		}
-		if r == '"' || r == '\'' {
-			if r == '\'' && lx.lang == Ruby && isIdent(lx.prev()) {
+		if c == '"' || c == '\'' {
+			if c == '\'' && lx.lang == Ruby && isIdentByte(lx.prev()) {
 				return false
 			}
-			lx.openString(string(r), r == '"' || lx.lang == Ruby, false, false, false)
+			lx.openString(string(c), c == '"' || lx.lang == Ruby, false, false, false)
 			return true
 		}
 	case TOML:
-		if r == '#' {
-			lx.startLineComment(1)
+		if c == '#' {
+			lx.startLineComment()
 			return true
 		}
-		if r == '"' || r == '\'' {
-			if lx.hasTriple(r) {
-				lx.openString(string([]rune{r, r, r}), r == '"', true, false, false)
+		if c == '"' || c == '\'' {
+			if lx.hasTriple(c) {
+				lx.openString(strings.Repeat(string(c), 3), c == '"', true, false, false)
 				return true
 			}
-			lx.openString(string(r), r == '"', false, false, false)
+			lx.openString(string(c), c == '"', false, false, false)
 			return true
 		}
 	case INI:
-		if (r == '#' || r == ';') && lx.onlySpaceBefore() {
-			lx.startLineComment(1)
+		if (c == '#' || c == ';') && strings.TrimSpace(lx.src[lx.lineStart:lx.i]) == "" {
+			lx.startLineComment()
 			return true
 		}
-		if r == '#' && lx.atLineStartOrSpace() {
-			lx.startLineComment(1)
+		if c == '#' && lx.atLineStartOrSpace() {
+			lx.startLineComment()
 			return true
 		}
 	default: // Shell, YAML, Makefile, Dockerfile
-		if r == '#' && lx.atLineStartOrSpace() {
-			lx.startLineComment(1)
+		if c == '#' && lx.atLineStartOrSpace() {
+			lx.startLineComment()
 			return true
 		}
-		if r == '"' || r == '\'' {
+		if c == '"' || c == '\'' {
 			p := lx.prev()
-			if isIdent(p) && p != '$' {
+			if isIdentByte(p) && p != '$' {
 				return false // apostrophe inside a word: don't, it's
 			}
-			if lx.lang == YAML && r == '\'' {
+			if lx.lang == YAML && c == '\'' {
 				lx.openString(`'`, false, false, true, false)
 				return true
 			}
-			lx.openString(string(r), r == '"', false, false, false)
+			lx.openString(string(c), c == '"', false, false, false)
 			return true
 		}
 	}
 	return false
 }
 
-func (lx *lexer) onlySpaceBefore() bool {
-	return strings.TrimSpace(lx.raw.String()) == ""
-}
-
-func (lx *lexer) startLineComment(markerLen int) {
-	lx.raw.WriteString(string(lx.src[lx.i : lx.i+markerLen]))
-	lx.i += markerLen
+func (lx *lexer) startLineComment() {
+	lx.startComment()
+	lx.i++
 	lx.st = stLineComment
-	lx.addComment("")
 }
 
 // ---- block comments ----
 
 func (lx *lexer) stepBlock() {
 	if lx.lang == Ruby {
-		if lx.atLineStartOrSpace() && lx.prev() != ' ' && lx.prev() != '\t' && lx.hasPrefix("=end") {
-			lx.raw.WriteString("=end")
+		if lx.i == lx.lineStart && lx.hasPrefix("=end") {
 			lx.i += len("=end")
 			lx.st = stLineComment // rest of the =end line is ignored
 			return
 		}
-		r := lx.src[lx.i]
-		lx.raw.WriteRune(r)
-		lx.com.WriteRune(r)
-		lx.i++
+		j := lx.i
+		for j < len(lx.src) && lx.src[j] != '\n' {
+			j++
+		}
+		lx.impure()
+		if lx.keepLine {
+			lx.com.WriteString(lx.src[lx.i:j])
+		}
+		lx.i = j
 		return
 	}
-	if lx.hasPrefix("*/") {
-		lx.raw.WriteString("*/")
+	lx.impure()
+	j := lx.i
+	for j < len(lx.src) {
+		c := lx.src[j]
+		if c == '\n' || (c == '*' && j+1 < len(lx.src) && lx.src[j+1] == '/') ||
+			(lx.blockNest && c == '/' && j+1 < len(lx.src) && lx.src[j+1] == '*') {
+			break
+		}
+		j++
+	}
+	if lx.keepLine {
+		lx.com.WriteString(lx.src[lx.i:j])
+	}
+	lx.i = j
+	switch {
+	case lx.hasPrefix("*/"):
 		lx.i += 2
 		lx.blockDepth--
 		if lx.blockDepth <= 0 || !lx.blockNest {
 			lx.st = stCode
 			// keep tokens on either side of the comment separate
-			lx.code.WriteByte(' ')
-			lx.nocom.WriteByte(' ')
+			lx.emitSynthetic(" ")
 		}
-		return
-	}
-	if lx.blockNest && lx.hasPrefix("/*") {
-		lx.raw.WriteString("/*")
+	case lx.blockNest && lx.hasPrefix("/*"):
 		lx.i += 2
 		lx.blockDepth++
-		return
 	}
-	r := lx.src[lx.i]
-	lx.raw.WriteRune(r)
-	lx.com.WriteRune(r)
-	lx.i++
 }
 
 // ---- strings ----
@@ -544,9 +619,8 @@ func (lx *lexer) openString(open string, esc, multi, doubling, template bool) {
 }
 
 func (lx *lexer) openStringClose(open, close string, esc, multi, doubling, template bool) {
-	lx.raw.WriteString(open)
-	lx.emitCodeStr(open)
-	lx.i += len([]rune(open))
+	lx.emitCode(lx.i, lx.i+len(open))
+	lx.i += len(open)
 	lx.st = stString
 	lx.strClose = close
 	lx.strEsc = esc
@@ -555,9 +629,14 @@ func (lx *lexer) openStringClose(open, close string, esc, multi, doubling, templ
 	lx.strTemplate = template
 	lx.strBuf.Reset()
 	lx.strStartLine = len(lx.out)
+	lx.strKeep = lx.keepLine
 }
 
 func (lx *lexer) endString() {
+	if !lx.strKeep {
+		lx.strBuf.Reset()
+		return
+	}
 	s := lx.strBuf.String()
 	if lx.strStartLine < len(lx.out) {
 		lx.out[lx.strStartLine].Strings = append(lx.out[lx.strStartLine].Strings, s)
@@ -568,86 +647,124 @@ func (lx *lexer) endString() {
 }
 
 func (lx *lexer) stepString() {
-	r := lx.src[lx.i]
-	if lx.strEsc && r == '\\' && lx.i+1 < len(lx.src) && lx.src[lx.i+1] != '\n' {
-		nx := lx.src[lx.i+1]
-		lx.raw.WriteRune(r)
-		lx.raw.WriteRune(nx)
-		lx.nocom.WriteRune(r)
-		lx.nocom.WriteRune(nx)
-		lx.strBuf.WriteRune(r)
-		lx.strBuf.WriteRune(nx)
-		lx.i += 2
+	closeFirst := lx.strClose[0]
+	j := lx.i
+	for j < len(lx.src) {
+		c := lx.src[j]
+		if c == '\n' || c == closeFirst || (lx.strEsc && c == '\\') || (lx.strTemplate && c == '$') {
+			break
+		}
+		j++
+	}
+	lx.emitStringBody(lx.i, j)
+	lx.i = j
+	if lx.i >= len(lx.src) || lx.src[lx.i] == '\n' {
 		return
 	}
-	if lx.strTemplate && r == '$' && lx.peek(1) == '{' {
+	c := lx.src[lx.i]
+	switch {
+	case lx.strEsc && c == '\\':
+		if lx.i+1 < len(lx.src) && lx.src[lx.i+1] != '\n' {
+			_, size := utf8.DecodeRuneInString(lx.src[lx.i+1:])
+			lx.emitStringBody(lx.i, lx.i+1+size)
+			lx.i += 1 + size
+		} else {
+			lx.emitStringBody(lx.i, lx.i+1)
+			lx.i++
+		}
+	case lx.strTemplate && c == '$' && lx.peek(1) == '{':
 		// interpolation: back to code until the matching }
-		lx.raw.WriteString("${")
-		lx.code.WriteString("${")
-		lx.nocom.WriteString("${")
-		lx.strBuf.WriteString("${")
+		lx.impure()
+		if lx.keepLine {
+			lx.code.WriteString("${")
+			lx.nocom.WriteString("${")
+		}
+		if lx.strKeep {
+			lx.strBuf.WriteString("${")
+		}
 		lx.i += 2
 		lx.braceDepth++
 		lx.tmplStack = append(lx.tmplStack, lx.braceDepth)
 		lx.st = stCode
 		lx.lastSig = '{'
 		lx.lastWord = ""
-		return
-	}
-	if lx.hasPrefix(lx.strClose) {
-		if lx.strDoubling && lx.peekAfter(lx.strClose) == []rune(lx.strClose)[0] {
+	case lx.hasPrefix(lx.strClose):
+		n := len(lx.strClose)
+		if lx.strDoubling && lx.peek(n) == closeFirst {
 			// doubled delimiter is an escaped quote
-			lx.raw.WriteString(lx.strClose + lx.strClose)
-			lx.nocom.WriteString(lx.strClose + lx.strClose)
-			lx.strBuf.WriteString(lx.strClose)
-			lx.i += 2 * len([]rune(lx.strClose))
+			lx.impure()
+			if lx.keepLine {
+				lx.nocom.WriteString(lx.src[lx.i : lx.i+2*n])
+			}
+			if lx.strKeep {
+				lx.strBuf.WriteString(lx.strClose)
+			}
+			lx.i += 2 * n
 			return
 		}
-		lx.raw.WriteString(lx.strClose)
-		lx.emitCodeStr(lx.strClose)
-		lx.i += len([]rune(lx.strClose))
+		lx.emitCode(lx.i, lx.i+n)
+		lx.i += n
 		lx.endString()
 		lx.st = stCode
 		lx.lastWord = ""
-		return
+	default:
+		// a lone '$' or a partial closing delimiter (e.g. one quote of """)
+		lx.emitStringBody(lx.i, lx.i+1)
+		lx.i++
 	}
-	lx.raw.WriteRune(r)
-	lx.nocom.WriteRune(r)
-	lx.strBuf.WriteRune(r)
-	lx.i++
-}
-
-func (lx *lexer) peekAfter(s string) rune {
-	return lx.peek(len([]rune(s)))
 }
 
 // ---- JS regex literals ----
 
 func (lx *lexer) stepRegex() {
-	r := lx.src[lx.i]
-	switch {
-	case r == '\\' && lx.i+1 < len(lx.src) && lx.src[lx.i+1] != '\n':
-		s := string(lx.src[lx.i : lx.i+2])
-		lx.raw.WriteString(s)
-		lx.nocom.WriteString(s)
-		lx.strBuf.WriteString(s)
-		lx.i += 2
+	j := lx.i
+	for j < len(lx.src) {
+		c := lx.src[j]
+		if c == '\n' || c == '\\' || c == '[' || c == ']' || c == '/' {
+			break
+		}
+		j++
+	}
+	lx.regexBody(lx.i, j)
+	lx.i = j
+	if lx.i >= len(lx.src) || lx.src[lx.i] == '\n' {
 		return
-	case r == '[':
+	}
+	switch c := lx.src[lx.i]; {
+	case c == '\\':
+		end := lx.i + 1
+		if end < len(lx.src) && lx.src[end] != '\n' {
+			end++
+		}
+		lx.regexBody(lx.i, end)
+		lx.i = end
+	case c == '[':
 		lx.reClass = true
-	case r == ']':
+		lx.regexBody(lx.i, lx.i+1)
+		lx.i++
+	case c == ']':
 		lx.reClass = false
-	case r == '/' && !lx.reClass:
-		lx.raw.WriteRune(r)
-		lx.emitCode(r)
+		lx.regexBody(lx.i, lx.i+1)
+		lx.i++
+	case c == '/' && !lx.reClass:
+		lx.emitCode(lx.i, lx.i+1)
 		lx.i++
 		lx.st = stCode
 		lx.lastWord = ""
 		lx.lastSig = ')' // a regex is an operand; a following / is division
+	default:
+		lx.regexBody(lx.i, lx.i+1)
+		lx.i++
+	}
+}
+
+// regexBody records regex contents: kept in NoComment, removed from Code.
+func (lx *lexer) regexBody(a, b int) {
+	if a >= b {
 		return
 	}
-	lx.raw.WriteRune(r)
-	lx.nocom.WriteRune(r)
-	lx.strBuf.WriteRune(r)
-	lx.i++
+	lx.impure()
+	if lx.keepLine {
+		lx.nocom.WriteString(lx.src[a:b])
+	}
 }

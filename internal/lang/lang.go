@@ -118,14 +118,19 @@ var baseLang = map[string]Lang{
 	"justfile": Makefile,
 }
 
+var mediaExt = map[string]bool{".png": true, ".jpg": true, ".jpeg": true, ".gif": true, ".svg": true, ".webp": true, ".txt": true, ".pdf": true}
+
 // Detect returns the language for a file path.
 func Detect(p string) Lang {
 	base := strings.ToLower(path.Base(p))
 	if l, ok := baseLang[base]; ok {
 		return l
 	}
-	if strings.HasPrefix(base, "dockerfile") {
-		return Dockerfile
+	// Dockerfile.dev, Dockerfile.prod, ... (but not dockerfile-diagram.png)
+	if strings.HasPrefix(base, "dockerfile.") && !strings.Contains(base[len("dockerfile."):], ".") {
+		if _, known := extLang[path.Ext(base)]; !known && !mediaExt[path.Ext(base)] {
+			return Dockerfile
+		}
 	}
 	if l, ok := extLang[strings.ToLower(path.Ext(base))]; ok {
 		return l

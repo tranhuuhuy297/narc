@@ -343,18 +343,27 @@ func (r *Repo) BaseChangeset(base string) (*core.Changeset, error) {
 }
 
 // CommitChangeset returns the changes introduced by a single commit
-// (against its first parent, or the empty tree for root commits).
+// (against its first parent, or the empty tree for root commits). It uses
+// one git process: diff-tree handles root commits with --root.
 func (r *Repo) CommitChangeset(sha string) (*core.Changeset, error) {
-	parent := sha + "^"
-	if _, err := r.Run("rev-parse", "--verify", "--quiet", parent); err != nil {
-		parent = r.EmptyTree()
-	}
-	cs, err := r.RangeChangeset(parent, sha)
+	args := append([]string{"diff-tree", "-p", "-r", "--root", "--no-commit-id", "-m", "--first-parent"}, diffFlags[1:]...)
+	out, err := r.Run(append(args, sha)...)
 	if err != nil {
 		return nil, err
 	}
-	cs.Label = shortRev(sha)
-	return cs, nil
+	files, err := diff.Parse(bytes.NewReader(out))
+	if err != nil {
+		return nil, err
+	}
+	parent := sha + "^"
+	return &core.Changeset{
+		Files: files,
+		Label: shortRev(sha),
+		Source: source{
+			oldFn: func(p string) ([]byte, bool) { return r.Blob(parent, p) },
+			newFn: func(p string) ([]byte, bool) { return r.Blob(sha, p) },
+		},
+	}, nil
 }
 
 // ParseRange splits "A..B" or "A...B" into its ends. For "A...B" the start

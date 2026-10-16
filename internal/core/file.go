@@ -86,13 +86,17 @@ type FileInfo struct {
 
 	src ContentSource
 
-	once     sync.Once
-	oldLines []lang.LexedLine // full old content, lexed (nil if unavailable)
-	newLines []lang.LexedLine
-	hasOld   bool
-	hasNew   bool
-	oldRaw   []byte
-	newRaw   []byte
+	once sync.Once
+	// oldPart/newPart are lexed only on lines inside hunks (other lines
+	// have just Raw). Full lexing happens lazily, on first use.
+	oldPart, newPart []lang.LexedLine
+	oldFull, newFull []lang.LexedLine
+	oldOnce, newOnce sync.Once
+	oldKeep, newKeep func(int) bool
+	hasOld           bool
+	hasNew           bool
+	oldRaw           []byte
+	newRaw           []byte
 	// Fallbacks reconstructed from hunks when full content is unavailable.
 	oldFrag map[int]lang.LexedLine
 	newFrag map[int]lang.LexedLine
@@ -125,16 +129,39 @@ func (f *FileInfo) load() {
 				f.newRaw, f.hasNew = f.src.New(f.Diff.NewPath)
 			}
 		}
+		f.oldKeep, f.newKeep = hunkRanges(f.Diff)
 		if f.hasOld {
-			f.oldLines = lang.Lex(f.Lang, string(f.oldRaw))
+			f.oldPart = lang.LexSome(f.Lang, string(f.oldRaw), f.oldKeep)
 		}
 		if f.hasNew {
-			f.newLines = lang.Lex(f.Lang, string(f.newRaw))
+			f.newPart = lang.LexSome(f.Lang, string(f.newRaw), f.newKeep)
 		}
 		if !f.hasOld || !f.hasNew {
 			f.oldFrag, f.newFrag = f.fragments()
 		}
 	})
+}
+
+// hunkRanges returns predicates for the old-side and new-side lines that
+// fall inside a hunk (changed lines and their context).
+func hunkRanges(d *diff.FileDiff) (old, new func(int) bool) {
+	type span struct{ a, b int }
+	var os, ns []span
+	for _, h := range d.Hunks {
+		os = append(os, span{h.OldStart, h.OldStart + h.OldLines - 1})
+		ns = append(ns, span{h.NewStart, h.NewStart + h.NewLines - 1})
+	}
+	in := func(ss []span) func(int) bool {
+		return func(n int) bool {
+			for _, s := range ss {
+				if n >= s.a && n <= s.b {
+					return true
+				}
+			}
+			return false
+		}
+	}
+	return in(os), in(ns)
 }
 
 // fragments lexes each hunk's old and new side on its own. It is used when
@@ -203,19 +230,34 @@ func (f *FileInfo) OldContent() ([]byte, bool) { return f.oldRaw, f.hasOld }
 func (f *FileInfo) NewContent() ([]byte, bool) { return f.newRaw, f.hasNew }
 
 // OldLines returns the full lexed old content (nil if unavailable).
-func (f *FileInfo) OldLines() []lang.LexedLine { return f.oldLines }
+func (f *FileInfo) OldLines() []lang.LexedLine {
+	if !f.hasOld {
+		return nil
+	}
+	f.oldOnce.Do(func() { f.oldFull = lang.Lex(f.Lang, string(f.oldRaw)) })
+	return f.oldFull
+}
 
 // NewLines returns the full lexed new content (nil if unavailable).
-func (f *FileInfo) NewLines() []lang.LexedLine { return f.newLines }
+func (f *FileInfo) NewLines() []lang.LexedLine {
+	if !f.hasNew {
+		return nil
+	}
+	f.newOnce.Do(func() { f.newFull = lang.Lex(f.Lang, string(f.newRaw)) })
+	return f.newFull
+}
 
 // NewLine returns lexed new-side line n (1-based), from full content when
 // available and otherwise from hunk context.
 func (f *FileInfo) NewLine(n int) (lang.LexedLine, bool) {
 	if f.hasNew {
-		if n >= 1 && n <= len(f.newLines) {
-			return f.newLines[n-1], true
+		if n < 1 || n > len(f.newPart) {
+			return lang.LexedLine{}, false
 		}
-		return lang.LexedLine{}, false
+		if f.newKeep(n) {
+			return f.newPart[n-1], true
+		}
+		return f.NewLines()[n-1], true
 	}
 	l, ok := f.newFrag[n]
 	return l, ok
@@ -224,10 +266,13 @@ func (f *FileInfo) NewLine(n int) (lang.LexedLine, bool) {
 // OldLine returns lexed old-side line n (1-based).
 func (f *FileInfo) OldLine(n int) (lang.LexedLine, bool) {
 	if f.hasOld {
-		if n >= 1 && n <= len(f.oldLines) {
-			return f.oldLines[n-1], true
+		if n < 1 || n > len(f.oldPart) {
+			return lang.LexedLine{}, false
 		}
-		return lang.LexedLine{}, false
+		if f.oldKeep(n) {
+			return f.oldPart[n-1], true
+		}
+		return f.OldLines()[n-1], true
 	}
 	l, ok := f.oldFrag[n]
 	return l, ok
@@ -255,8 +300,8 @@ func (f *FileInfo) AnchorForOld(oldNo int) int {
 					n = 1
 				}
 				// Clamp to the end of the new file.
-				if f.hasNew && n > len(f.newLines) {
-					n = len(f.newLines)
+				if f.hasNew && n > len(f.newPart) {
+					n = len(f.newPart)
 				}
 				return n
 			}

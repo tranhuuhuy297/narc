@@ -85,3 +85,32 @@ func splitLines(s string) []string {
 	}
 	return append(out, s[start:])
 }
+
+func TestLexSomeMatchesLex(t *testing.T) {
+	srcs := map[Lang]string{
+		JavaScript: "const a = `x ${b ? `y` : 'z'} w`; // c\n/* multi\nline */ it.skip('q', () => {})\nconst re = /a\\/b/g;\nconst s = `line1\nline2 ${x}\nline3`\n",
+		Python:     "def f():\n    '''doc\n    it.skip\n    '''\n    return 1  # c\nx = 'a' \"b\"\n",
+		Go:         "s := `raw\nmore`\n// c\nx := \"q\" /* z */ + y\n",
+		YAML:       "a: 'it''s'\nb: \"x # y\" # c\nrun: |\n  npm test || true\n",
+		Rust:       "let s = r#\"a\n\"b\"#; // c\nfn f<'a>() -> char { 'x' }\n",
+	}
+	for l, src := range srcs {
+		full := Lex(l, src)
+		for mask := 0; mask < 1<<len(full) && mask < 512; mask++ {
+			keep := func(n int) bool { return mask&(1<<(n-1)) != 0 }
+			some := LexSome(l, src, keep)
+			if len(some) != len(full) {
+				t.Fatalf("%s: line count %d vs %d", l, len(some), len(full))
+			}
+			for i := range full {
+				if keep(i + 1) {
+					if !reflect.DeepEqual(some[i], full[i]) {
+						t.Fatalf("%s mask %b line %d:\nsome %+v\nfull %+v", l, mask, i+1, some[i], full[i])
+					}
+				} else if some[i].Raw != full[i].Raw {
+					t.Fatalf("%s: raw mismatch on unkept line %d", l, i+1)
+				}
+			}
+		}
+	}
+}
