@@ -1,0 +1,5 @@
+/narc
+/dist/
+*.sarif
+.DS_Store
+coverage.out

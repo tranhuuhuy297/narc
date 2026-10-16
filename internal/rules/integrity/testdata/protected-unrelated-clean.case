@@ -1,0 +1,9 @@
+# Changes outside protected paths are fine.
+expect: clean
+-- .narc.yml --
+protected:
+  - "tests/golden/**"
+-- old/src/invoice.py --
+TAX = 0.07
+-- new/src/invoice.py --
+TAX = 0.07  # VAT

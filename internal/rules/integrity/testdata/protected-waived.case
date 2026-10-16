@@ -1,0 +1,13 @@
+# A repository-level allow with a reason waives the finding.
+expect: clean
+-- .narc.yml --
+protected:
+  - "tests/golden/**"
+allow:
+  - rule: protected-path
+    path: "tests/golden/invoice.txt"
+    reason: "tax rate changed by finance, ticket FIN-12"
+-- old/tests/golden/invoice.txt --
+Total: 107.00 EUR
+-- new/tests/golden/invoice.txt --
+Total: 100.00 EUR
