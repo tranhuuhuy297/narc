@@ -1,0 +1,9 @@
+# Dropping a protected path lets golden files be edited silently.
+expect: narc-config-weakened@error
+-- old/.narc.yml --
+protected:
+  - "tests/golden/**"
+  - ".github/workflows/**"
+-- new/.narc.yml --
+protected:
+  - ".github/workflows/**"

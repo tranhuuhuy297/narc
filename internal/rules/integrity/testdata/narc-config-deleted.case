@@ -1,0 +1,5 @@
+# Deleting the config drops protected paths and overrides.
+expect: narc-config-weakened
+-- old/.narc.yml --
+protected:
+  - "tests/golden/**"

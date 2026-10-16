@@ -1,0 +1,24 @@
+# Pinning the action to a version is not a removal.
+expect: clean
+-- old/.github/workflows/narc.yml --
+on: pull_request
+jobs:
+  narc:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: huyth45/narc@v1
+-- new/.github/workflows/narc.yml --
+on: pull_request
+jobs:
+  narc:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: huyth45/narc@v1.2.0
+        with:
+          fail-on: warning

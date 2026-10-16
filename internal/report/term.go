@@ -14,6 +14,9 @@ type term struct {
 	g         glyphs
 	width     int
 	lastBlank bool
+	// hinted records hints already shown, so repeated findings of one rule
+	// don't repeat the same advice.
+	hinted map[string]bool
 }
 
 func newTerm(o Options) *term {

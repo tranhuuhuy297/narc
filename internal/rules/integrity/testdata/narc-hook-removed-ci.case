@@ -1,0 +1,25 @@
+# Removing the narc step from CI.
+expect: narc-config-weakened
+-- old/.github/workflows/pr.yml --
+name: pr
+on: pull_request
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: huyth45/narc@v1
+      - run: make test
+-- new/.github/workflows/pr.yml --
+name: pr
+on: pull_request
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - run: make test

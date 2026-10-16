@@ -1,0 +1,11 @@
+# disableAllHooks switches narc off without touching its entries.
+expect: narc-config-weakened
+-- old/.claude/settings.local.json --
+{
+  "permissions": { "allow": [] }
+}
+-- new/.claude/settings.local.json --
+{
+  "permissions": { "allow": [] },
+  "disableAllHooks": true
+}

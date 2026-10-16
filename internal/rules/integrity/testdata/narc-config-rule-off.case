@@ -1,0 +1,10 @@
+# Blocked by narc, the agent switches the rule off instead of fixing the test.
+expect: narc-config-weakened@error
+-- old/.narc.yml --
+version: 1
+fail_on: error
+-- new/.narc.yml --
+version: 1
+fail_on: error
+rules:
+  skip-added: off

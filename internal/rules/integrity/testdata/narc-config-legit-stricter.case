@@ -1,0 +1,12 @@
+# Making narc stricter is always fine.
+expect: clean
+-- old/.narc.yml --
+fail_on: error
+rules:
+  any-cast: info
+-- new/.narc.yml --
+fail_on: warning
+rules:
+  any-cast: error
+protected:
+  - "tests/golden/**"

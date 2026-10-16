@@ -168,7 +168,11 @@ func (t *term) finding(f core.Finding) {
 	}
 	t.para(indentBody, indentBody, msg, sNone)
 	t.codeFrame(f)
-	if t.o.ShowHints && strings.TrimSpace(f.Hint) != "" {
+	if t.o.ShowHints && strings.TrimSpace(f.Hint) != "" && !t.hinted[f.Hint] {
+		if t.hinted == nil {
+			t.hinted = map[string]bool{}
+		}
+		t.hinted[f.Hint] = true
 		lead := t.g.hint + " "
 		t.para(indentBody+t.p.paint(sDim, lead), indentBody+strings.Repeat(" ", textWidth(lead)), f.Hint, sDim)
 	}

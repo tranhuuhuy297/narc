@@ -1,0 +1,6 @@
+# fail_on: never makes narc advisory only.
+expect: narc-config-weakened@error
+-- old/.narc.yml --
+fail_on: error
+-- new/.narc.yml --
+fail_on: never

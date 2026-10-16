@@ -1,0 +1,11 @@
+# Ignoring the test directory and waiving deletions are worth a human look.
+expect: narc-config-weakened@warning
+-- old/.narc.yml --
+fail_on: error
+-- new/.narc.yml --
+fail_on: error
+ignore:
+  - "src/billing/**"
+allow:
+  - rule: test-deleted
+    reason: "cleanup"

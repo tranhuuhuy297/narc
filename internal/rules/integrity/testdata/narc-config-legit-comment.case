@@ -1,0 +1,11 @@
+# Documenting the config changes nothing.
+expect: clean
+-- old/.narc.yml --
+fail_on: error
+ignore:
+  - "vendor/**"
+-- new/.narc.yml --
+# CI fails on errors only; warnings are reviewed by humans.
+fail_on: error
+ignore:
+  - "vendor/**"   # third-party code

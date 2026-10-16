@@ -1,0 +1,13 @@
+# Reformatting settings and adding another hook keeps narc in place.
+expect: clean
+-- old/.claude/settings.json --
+{"hooks": {"Stop": [{"hooks": [{"type": "command", "command": "narc hook claude stop"}]}]}}
+-- new/.claude/settings.json --
+{
+  "hooks": {
+    "Stop": [
+      { "hooks": [{ "type": "command", "command": "narc hook claude stop" }] },
+      { "hooks": [{ "type": "command", "command": "./scripts/notify.sh" }] }
+    ]
+  }
+}
