@@ -189,7 +189,7 @@ func NewFileInfo(fd *diff.FileDiff, src ContentSource, s Settings) *FileInfo {
 	return f
 }
 
-var rustTestMarkers = []string{"#[cfg(test)]", "#[test]", "#[tokio::test", "#[rstest", "#[test_case"}
+var rustTestMarkers = []string{"#[cfg(test)]", "#[test]", "#[rstest", "#[test_case", "::test]", "::test("}
 
 // hasRustTests reports whether a Rust source file contains unit tests on
 // either side of the change (full contents when available, else hunks).

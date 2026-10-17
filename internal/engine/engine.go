@@ -218,15 +218,23 @@ func runRule(r *core.Rule, a *core.Analysis) (fs []core.Finding, err error) {
 	return r.Check(a), nil
 }
 
+// isGenerated reports whether a file is generated and should be skipped.
+// A generated marker only counts when the file is new or was already
+// generated: adding "@generated" to a hand-written file must not hide it
+// from narc (the generated-marker-added rule reports that).
 func isGenerated(f *core.FileInfo) bool {
-	if b, ok := f.NewContent(); ok {
-		return core.IsGeneratedContent(b)
-	}
-	if b, ok := f.OldContent(); ok && f.Diff.Kind == diff.Deleted {
-		return core.IsGeneratedContent(b)
-	}
-	// Patch-only: look at the first added lines of a new file.
-	if f.Diff.Kind == diff.Added {
+	newB, hasNew := f.NewContent()
+	oldB, hasOld := f.OldContent()
+	switch {
+	case hasNew:
+		if !core.IsGeneratedContent(newB) {
+			return false
+		}
+		return !hasOld || core.IsGeneratedContent(oldB)
+	case hasOld && f.Diff.Kind == diff.Deleted:
+		return core.IsGeneratedContent(oldB)
+	case f.Diff.Kind == diff.Added:
+		// Patch-only: look at the first added lines of a new file.
 		var head strings.Builder
 		for i, l := range f.Added {
 			if i >= 5 {
