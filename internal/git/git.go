@@ -412,6 +412,16 @@ func (r *Repo) BaseChangeset(base string) (*core.Changeset, error) {
 	return cs, nil
 }
 
+// CommitMessage returns the full message of a commit, or "" when it cannot
+// be read.
+func (r *Repo) CommitMessage(sha string) string {
+	out, err := r.Run("log", "-1", "--format=%B", sha)
+	if err != nil {
+		return ""
+	}
+	return strings.TrimRight(string(out), "\n")
+}
+
 // CommitChangeset returns the changes introduced by a single commit
 // (against its first parent, or the empty tree for root commits). It uses
 // one git process: diff-tree handles root commits with --root.

@@ -128,7 +128,7 @@ func Run(cs *core.Changeset, opts Options) *Result {
 	res := &Result{Label: cs.Label}
 	settings := cfg.Settings()
 
-	a := &core.Analysis{Settings: settings, Source: cs.Source}
+	a := &core.Analysis{Settings: settings, Source: cs.Source, Message: cs.Message}
 	for _, fd := range cs.Files {
 		p := fd.Path()
 		if fd.Binary || core.IsIgnoredByDefault(p) || core.MatchAny(cfg.Ignore, p) {

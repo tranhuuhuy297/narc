@@ -1,0 +1,40 @@
+# Real-world (Sentry, "Require workflow_id in create_rule_instance"): the
+# parameter's type no longer admits None, so the test that passed None
+# and expected the old ValueError went with the optional parameter.
+expect: test-deleted@info
+-- old/src/sentry/notifications/notification_action/registry.py --
+class BaseIssueAlertHandler:
+    @classmethod
+    def create_rule_instance_from_action(cls, action: Action, workflow_id: int | None = None) -> Rule:
+        if workflow_id is None:
+            raise ValueError("workflow_id is required")
+        return Rule(id=workflow_id, label=action.label, data={"actions": [action.data]})
+-- new/src/sentry/notifications/notification_action/registry.py --
+class BaseIssueAlertHandler:
+    @classmethod
+    def create_rule_instance_from_action(cls, action: Action, workflow_id: int) -> Rule:
+        return Rule(id=workflow_id, label=action.label, data={"actions": [action.data]})
+-- old/tests/sentry/notifications/notification_action/test_issue_alert_registry_handlers.py --
+import pytest
+
+from sentry.notifications.notification_action.registry import BaseIssueAlertHandler
+
+
+class TestBaseIssueAlertHandler:
+    def test_create_rule_instance_from_action(self, action):
+        rule = BaseIssueAlertHandler.create_rule_instance_from_action(action, workflow_id=7)
+        assert rule.id == 7
+
+    def test_create_rule_instance_missing_workflow_id_raises_value_error(self, action):
+        with pytest.raises(ValueError):
+            BaseIssueAlertHandler.create_rule_instance_from_action(action, workflow_id=None)
+-- new/tests/sentry/notifications/notification_action/test_issue_alert_registry_handlers.py --
+import pytest
+
+from sentry.notifications.notification_action.registry import BaseIssueAlertHandler
+
+
+class TestBaseIssueAlertHandler:
+    def test_create_rule_instance_from_action(self, action):
+        rule = BaseIssueAlertHandler.create_rule_instance_from_action(action, workflow_id=7)
+        assert rule.id == 7

@@ -31,9 +31,12 @@ var testDeleted = &core.Rule{
 		"it (`test_x` → `_test_x`, `TestX` → `testX`), or stripped of its `@Test` / `#[test]` / `[Fact]` marker.\n\n" +
 		"The finding is an error when the same change also edited the production code the test exercised (the " +
 		"\"break the code, delete the test\" move), and a warning when the change touches no source code or only " +
-		"code the test does not exercise. Deletions that read as a rework or a removal are info: the change mostly " +
-		"deletes source code, wrote new tests in the same file, retired a feature flag, option or module the test " +
-		"used, or wrote a test whose title reads like the deleted one's. A test file rewritten with far fewer tests " +
+		"code the test does not exercise. Deletions that read as a rework or a removal are info: the change is a " +
+		"labelled revert (`Revert \"...\"`, `revert(scope): ...`), mostly deletes source code, wrote new tests in the " +
+		"same file, retired a feature flag, option or module the test used, narrowed a type so that the null-like " +
+		"input the test passed no longer type-checks (`id: string | undefined` → `id: string`), removed a log line " +
+		"or text the test expected, or wrote a test whose title reads like the deleted one's. Removing an error " +
+		"check, a guard or a branch together with the test that exercised it stays an error. A test file rewritten with far fewer tests " +
 		"while its source file changed gets one warning. Deletions are grouped: one finding per file, and one per " +
 		"change for warnings that span several files (a pruning pass).\n\n" +
 		"```ts\n// before\nit('rejects expired tokens', () => {\n  expect(() => verify(expired)).toThrow(TokenExpiredError)\n})\n" +
@@ -55,8 +58,9 @@ var testFileDeleted = &core.Rule{
 		"not collect (`pricing.test.js` → `pricing.disabled.js`) counts as deleting it.\n\n" +
 		"The finding is an error when the same change also edited the production code the tests exercised, and a " +
 		"warning when it touches no source code or only code the tests do not exercise. It is info when the file " +
-		"reads as retired with its code: the change mostly deletes source code, removed every import of the module " +
-		"it covered, retired the code most of its tests used, or wrote tests next to it that replace them.",
+		"reads as retired with its code: the change is a labelled revert, mostly deletes source code, removed every " +
+		"import of the module it covered, retired the code most of its tests used (or the inputs and messages they " +
+		"relied on), or wrote tests next to it that replace them.",
 }
 
 var assertionsRemoved = &core.Rule{
@@ -74,9 +78,10 @@ var assertionsRemoved = &core.Rule{
 		"helper, not folded into a parametrize table or a merged `toEqual`.\n\n" +
 		"It is an error when assertions were simply deleted: in a change that touches no source code, or leaving the " +
 		"test with at most one assertion beside a source change. Other drops beside a source change are warnings, and " +
-		"so is a sub-scenario removed with its setup. Drops that read as a rework are info: the test was rewritten " +
-		"with other assertions or renamed to a narrower name, the change mostly deletes source code, asserts the " +
-		"same thing in a new form, or only dropped absence checks. A change that touches no source code and trims " +
+		"so is a sub-scenario removed with its setup. Drops that read as a rework are info: the change is a labelled " +
+		"revert, the test was rewritten with other assertions or renamed to a narrower name, the change mostly " +
+		"deletes source code, asserts the same thing in a new form, only dropped absence checks, or removed the log " +
+		"line or text the lost assertions expected (or narrowed the type of the null-like input they passed). A change that touches no source code and trims " +
 		"many tests is reported once. Assertions that call a function the change deleted, or that became a run-time " +
 		"skip (reported by skip-added), are not counted.\n\n```py\n# before\ndef test_refund():\n    assert refund(order) == 40\n    assert order.status == \"refunded\"\n" +
 		"# after\ndef test_refund():\n    assert refund(order) == 40      # assertions in \"test_refund\" dropped 2 → 1\n```",
@@ -263,6 +268,9 @@ func (l *ledger) fileVerdict(f *core.FileInfo, tests []*instance, linked, elsewh
 	if asserts == 0 {
 		return core.Info, "; its tests asserted nothing"
 	}
+	if l.revert() {
+		return core.Info, revertNote
+	}
 	if len(l.sourceChanged) == 0 {
 		return core.Warning, ""
 	}
@@ -276,10 +284,32 @@ func (l *ledger) fileVerdict(f *core.FileInfo, tests []*instance, linked, elsewh
 		return core.Info, "; the same change wrote tests that read like most of its tests, so the file was probably moved and reworded"
 	case l.obsoleteShare(f, len(tests)):
 		return core.Info, "; most of its tests exercised code the same change removed, so the file went with that code"
+	case l.pathShare(tests) != "":
+		return core.Info, l.pathShare(tests)
 	case linked:
 		return core.Error, fmt.Sprintf(" while the same change modified source code (%s)", src)
 	}
 	return core.Warning, fmt.Sprintf(" while the same change modified source code it does not exercise (%s)", src)
+}
+
+// pathShare returns, when at least half of a deleted file's tests went
+// with what the change removed from the source code (see pathGone), why
+// the first of them did; else "".
+func (l *ledger) pathShare(tests []*instance) string {
+	n, first := 0, ""
+	for _, o := range tests {
+		if why := l.pathGone(o); why != "" {
+			n++
+			if first == "" {
+				first = why
+			}
+		}
+	}
+	if n == 0 || 2*n < len(tests) {
+		return ""
+	}
+	return fmt.Sprintf("; %d of its %s went with what the same change removed from the source code%s",
+		n, plural(len(tests), "test"), strings.Replace(first, "; it ", " (one ", 1)+")")
 }
 
 // lookalikeShare reports whether most of a deleted file's tests have a
@@ -402,13 +432,15 @@ const sweepMin = 3
 //
 //   - An assertion turned into a statement that checks nothing (t.Errorf →
 //     t.Logf, assert → print) is an error.
-//   - Info when the drop reads as a deliberate rework: the test now hands
-//     its checks to a new helper, it was rewritten with other assertions,
-//     it was renamed to a narrower name (the case left its title), its file
-//     gained new tests, the change mostly deletes source code (a feature
-//     being removed), the lost checks were only absence checks or calls the
-//     test still observes, or the same change asserts what they checked in
-//     a new form.
+//   - Info when the drop reads as a deliberate rework: the change is a
+//     labelled revert, the test now hands its checks to a new helper, it
+//     was rewritten with other assertions, it was renamed to a narrower
+//     name (the case left its title), its file gained new tests, the change
+//     mostly deletes source code (a feature being removed), the lost checks
+//     were only absence checks or calls the test still observes, the same
+//     change asserts what they checked in a new form, or they checked an
+//     input or message the change removed from the source code (see
+//     sitesGone).
 //   - A warning when the lost checks went with the setup they checked (an
 //     input or mock the new test no longer has): a sub-scenario was
 //     removed, which needs a look but is not a check silenced in place.
@@ -422,6 +454,8 @@ func (l *ledger) dropVerdict(d drop, left int) (core.Severity, string) {
 	switch {
 	case l.neutered(d):
 		return core.Error, ""
+	case l.revert():
+		return core.Info, revertNote
 	case d.via != "":
 		return core.Info, fmt.Sprintf(" while the test now hands its checks to %s", d.via)
 	case d.rewritten:
@@ -439,6 +473,8 @@ func (l *ledger) dropVerdict(d drop, left int) (core.Severity, string) {
 		return core.Info, "; the lost checks only asserted an absence or a call the test still observes"
 	case l.reasserted(d):
 		return core.Info, "; the same change asserts what they checked in a new form"
+	case l.sitesGone(d) != "":
+		return core.Info, l.sitesGone(d)
 	case setupGone(d):
 		// A sub-scenario left the test with its setup: a coverage loss to
 		// look at, not a check silenced in place.
@@ -643,8 +679,9 @@ func (l *ledger) valueRemoved(lost []site) bool {
 }
 
 // absenceRe matches an assertion that checks that something is absent:
-// an element not rendered, a key or text not contained.
-var absenceRe = regexp.MustCompile(`\.\s*not\s*\.\s*(?:toBeInTheDocument|toBeVisible|toExist|toContain\w*|toHaveProperty|toHaveClass|toHaveAttribute|toMatch\w*|toHaveTextContent)\b|\bqueryBy\w*\s*\(.*\)\s*\)\s*\.\s*(?:toBeNull|toBeFalsy|toBeUndefined)\s*\(|\bassertNotIn\b|\bassert\b.*\bnot\s+in\b|\bNotContains\b|\bassertNotContains\b`)
+// an element not rendered, a key or text not contained, a mock never
+// called at all.
+var absenceRe = regexp.MustCompile(`\.\s*not\s*\.\s*(?:toBeInTheDocument|toBeVisible|toExist|toContain\w*|toHaveProperty|toHaveClass|toHaveAttribute|toMatch\w*|toHaveTextContent|toHaveBeenCalled|toBeCalled)\s*\(\s*\)|\.\s*not\s*\.\s*(?:toBeInTheDocument|toBeVisible|toExist|toContain\w*|toHaveProperty|toHaveClass|toHaveAttribute|toMatch\w*|toHaveTextContent)\b|\.\s*assert_not_(?:called|awaited)\s*\(\s*\)|\bqueryBy\w*\s*\(.*\)\s*\)\s*\.\s*(?:toBeNull|toBeFalsy|toBeUndefined)\s*\(|\bassertNotIn\b|\bassert\b.*\bnot\s+in\b|\bNotContains\b|\bassertNotContains\b`)
 
 // absenceOnly reports whether every lost assertion checks an absence.
 func absenceOnly(lost []site) bool {

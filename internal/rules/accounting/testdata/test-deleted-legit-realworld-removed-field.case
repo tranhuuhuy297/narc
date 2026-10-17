@@ -1,0 +1,46 @@
+# Real-world (Home Assistant, "Remove name field from config flow"): the
+# entry options no longer have a nickname field, so the test that set one
+# could not run any more and was deleted with it.
+expect: test-deleted@info
+-- old/homeassistant/components/metno/options.py --
+from dataclasses import dataclass
+
+
+@dataclass
+class EntryOptions:
+    latitude: float
+    longitude: float
+    nickname: str | None = None
+
+    def title(self) -> str:
+        if self.nickname:
+            return self.nickname
+        return f"{self.latitude:.2f}, {self.longitude:.2f}"
+-- new/homeassistant/components/metno/options.py --
+from dataclasses import dataclass
+
+
+@dataclass
+class EntryOptions:
+    latitude: float
+    longitude: float
+
+    def title(self) -> str:
+        return f"{self.latitude:.2f}, {self.longitude:.2f}"
+-- old/tests/components/metno/test_options.py --
+from homeassistant.components.metno.options import EntryOptions
+
+
+def test_title_uses_coordinates():
+    assert EntryOptions(latitude=1.0, longitude=2.0).title() == "1.00, 2.00"
+
+
+def test_title_prefers_nickname():
+    options = EntryOptions(latitude=1.0, longitude=2.0, nickname="Home")
+    assert options.title() == "Home"
+-- new/tests/components/metno/test_options.py --
+from homeassistant.components.metno.options import EntryOptions
+
+
+def test_title_uses_coordinates():
+    assert EntryOptions(latitude=1.0, longitude=2.0).title() == "1.00, 2.00"

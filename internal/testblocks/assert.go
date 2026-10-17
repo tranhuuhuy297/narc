@@ -245,15 +245,17 @@ var assertSets = map[lang.Lang]assertSet{
 	lang.JavaScript: jsAsserts,
 	lang.TypeScript: jsAsserts,
 	lang.Python: {
-		triggers: []string{"raises", "warns", "deprecated_call", "snapshot_platform"},
+		triggers: []string{"raises", "warns", "deprecated_call", "snapshot_platform", "fail", "AssertionError"},
 		any: res(
-			`\b(pytest\s*\.\s*(?:raises|warns|deprecated_call)\s*\()`,
+			`\b(pytest\s*\.\s*(?:raises|warns|deprecated_call|fail)\s*\()`,
+			`\b((?:self|cls)\s*\.\s*fail\s*\()`,
 			`\b(check\s*\.\s*\w+\s*\()`, // pytest-check
 			// Home Assistant's snapshot_platform compares every entity of a
 			// platform with a stored snapshot (syrupy).
 			`(?:^|[^\w.])((?:async_)?snapshot_platform\s*\()`,
 		),
-		stmt:  res(`(?:^|[^\w.])(assert)\b`),
+		// (raise AssertionError(...) fails the test like an assert.)
+		stmt:  res(`(?:^|[^\w.])(assert)\b`, `(?:^|[^\w.])(raise\s+AssertionError)\b`),
 		setup: regexp.MustCompile(`^assert\s+(?:await\s+)?(?:[\w.]+\.)?(?:async_)?setup(?:_component|_entry|_platform|_integration)?\s*\(`),
 	},
 	lang.Go: {

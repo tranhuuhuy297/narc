@@ -58,12 +58,13 @@ func checkTestDeleted(a *core.Analysis) []core.Finding {
 // deletionVerdict grades a deleted test that was not found again.
 //
 //   - info when the deletion reads as a rework or a removal: an excuse
-//     (see excuse), a test that asserted nothing, source edits that are
-//     mostly deletions, new tests written in the same file, tests the
-//     change edited that still call the code it exercised, a new test
-//     whose title reads like this one's, a flag or option key the change
-//     removed from source code, or a deleted module the file stopped
-//     importing;
+//     (see excuse), a test that asserted nothing, a labelled revert, source
+//     edits that are mostly deletions, new tests written in the same file,
+//     tests the change edited that still call the code it exercised, a new
+//     test whose title reads like this one's, a flag or option key the
+//     change removed from source code, a deleted module the file stopped
+//     importing, or an input or message the change removed from the
+//     source code (see pathGone);
 //   - an error when the change edited production code the test exercised
 //     (it calls a function the change modified, or its file is named after
 //     a modified source file): the "break the code, delete the test" move;
@@ -76,10 +77,14 @@ func (l *ledger) deletionVerdict(o *instance) (core.Severity, string) {
 	if o.assertions() == 0 && l.helperCalls(o) == 0 {
 		return core.Info, "; it asserted nothing"
 	}
+	if l.revert() {
+		return core.Info, revertNote
+	}
 	if len(l.sourceChanged) == 0 {
 		return core.Warning, ""
 	}
 	src := l.sourceList()
+	gone := l.pathGone(o)
 	switch {
 	case l.removesSource():
 		return core.Info, l.removalNote(src)
@@ -93,6 +98,8 @@ func (l *ledger) deletionVerdict(o *instance) (core.Severity, string) {
 		return core.Info, fmt.Sprintf("; it uses %q, which the same change removed from source code", l.retiredKey(o))
 	case l.droppedGoneModule(o.file) != "":
 		return core.Info, fmt.Sprintf("; the same change deleted %s, which this file used", l.droppedGoneModule(o.file))
+	case gone != "":
+		return core.Info, gone
 	case l.refsTouched(o) || l.coversModified(o.file):
 		return core.Error, fmt.Sprintf(" while the same change modified source code (%s)", src)
 	}
@@ -169,7 +176,7 @@ func (l *ledger) groupDeletions(vs []verdict) []core.Finding {
 // explanation of its own, so the file gets one warning, which absorbs the
 // file's individual deletion findings. It returns the remaining verdicts.
 func (l *ledger) foldShrunk(vs []verdict, out *[]core.Finding) []verdict {
-	if len(l.sourceChanged) == 0 || l.removesSource() {
+	if len(l.sourceChanged) == 0 || l.removesSource() || l.revert() {
 		return vs
 	}
 	gone := map[*core.FileInfo][]*instance{}

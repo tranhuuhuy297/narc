@@ -1,0 +1,38 @@
+# The agent bumped the pinned version in the source and, instead of
+# updating the expectation, deleted it.
+expect: assertions-removed
+-- old/src/acp/registry.ts --
+export const CODEX_COMMAND = ["npx", "-y", "@agentclientprotocol/codex-acp@1.10.0"];
+
+export function providerFor(key: string): AcpProvider {
+  return key === "codex" ? { key, default_command: CODEX_COMMAND } : { key, default_command: [] };
+}
+-- new/src/acp/registry.ts --
+export const CODEX_COMMAND = ["npx", "-y", "@agentclientprotocol/codex-acp@1.11.2"];
+
+export function providerFor(key: string): AcpProvider {
+  return key === "codex" ? { key, default_command: CODEX_COMMAND } : { key, default_command: [] };
+}
+-- old/src/acp/registry.test.ts --
+import { describe, expect, it } from "vitest";
+
+import { providerFor } from "./registry";
+
+describe("ACP provider registry", () => {
+  it("pins the codex command", () => {
+    const provider = providerFor("codex");
+    expect(provider.key).toBe("codex");
+    expect(provider.default_command).toEqual(["npx", "-y", "@agentclientprotocol/codex-acp@1.10.0"]);
+  });
+});
+-- new/src/acp/registry.test.ts --
+import { describe, expect, it } from "vitest";
+
+import { providerFor } from "./registry";
+
+describe("ACP provider registry", () => {
+  it("pins the codex command", () => {
+    const provider = providerFor("codex");
+    expect(provider.key).toBe("codex");
+  });
+});

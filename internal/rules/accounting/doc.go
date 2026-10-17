@@ -33,7 +33,8 @@
 // assertions were simply deleted; a warning when the loss needs a human
 // look; info when it reads as a rework or a removal (the code, flag or
 // module under test went away, the test was rewritten, renamed narrower or
-// replaced by a lookalike). Deletions are reported per file, and pruning
+// replaced by a lookalike, the old test could no longer compile against
+// the new code, or the change is a labelled revert; see paths.go). Deletions are reported per file, and pruning
 // passes and test-only assertion cleanups once per change.
 //
 // Most tests of a changed file are untouched by the diff. Their

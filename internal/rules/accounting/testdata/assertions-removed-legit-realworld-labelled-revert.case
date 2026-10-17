@@ -1,0 +1,39 @@
+# Real-world (lobe-chat): a conventional-commit revert takes a tool back
+# out, and with it the assertions that checked its output.
+message: ⏪ revert(page-agent): revert sandboxed bash tool (#20156, #20318) (#20321)
+expect: assertions-removed@info
+-- old/src/tools/page-agent/prompt.ts --
+export function buildPrompt(doc: string, sandboxed: boolean): string {
+  const lines = [`Edit ${doc} in place.`];
+  if (sandboxed) {
+    lines.push(`Re-read ${doc} after every bash command.`);
+  }
+  return lines.join("\n");
+}
+-- new/src/tools/page-agent/prompt.ts --
+export function buildPrompt(doc: string): string {
+  return `Edit ${doc} in place.`;
+}
+-- old/src/tools/page-agent/prompt.test.ts --
+import { describe, expect, it } from "vitest";
+
+import { buildPrompt } from "./prompt";
+
+describe("buildPrompt", () => {
+  it("describes the edit", () => {
+    const content = buildPrompt("/doc.xml", true);
+    expect(content).toContain("Edit /doc.xml in place.");
+    expect(content).toContain("Re-read /doc.xml");
+  });
+});
+-- new/src/tools/page-agent/prompt.test.ts --
+import { describe, expect, it } from "vitest";
+
+import { buildPrompt } from "./prompt";
+
+describe("buildPrompt", () => {
+  it("describes the edit", () => {
+    const content = buildPrompt("/doc.xml");
+    expect(content).toContain("Edit /doc.xml in place.");
+  });
+});

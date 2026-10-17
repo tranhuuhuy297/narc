@@ -1,0 +1,54 @@
+# Real-world (Home Assistant): a duplicate error log was removed from the
+# integration (the exception already reaches the caller), so the test no
+# longer checks that the log line was written.
+expect: assertions-removed@info
+-- old/homeassistant/components/command_line/utils.py --
+import logging
+import subprocess
+
+_LOGGER = logging.getLogger(__name__)
+
+
+def check_output_or_log(command: str, timeout: int) -> str | None:
+    try:
+        output = subprocess.check_output(command, shell=True, timeout=timeout)
+    except subprocess.TimeoutExpired:
+        _LOGGER.error("Timeout for command: %s", command)
+        return None
+    try:
+        return output.strip().decode("utf-8")
+    except UnicodeDecodeError:
+        _LOGGER.error("Unable to handle non-utf8 output of command: %s", command)
+        return None
+-- new/homeassistant/components/command_line/utils.py --
+import logging
+import subprocess
+
+_LOGGER = logging.getLogger(__name__)
+
+
+def check_output_or_log(command: str, timeout: int) -> str | None:
+    try:
+        output = subprocess.check_output(command, shell=True, timeout=timeout)
+    except subprocess.TimeoutExpired:
+        _LOGGER.error("Timeout for command: %s", command)
+        return None
+    try:
+        return output.strip().decode("utf-8")
+    except UnicodeDecodeError:
+        return None
+-- old/tests/components/command_line/test_utils.py --
+from homeassistant.components.command_line.utils import check_output_or_log
+
+
+async def test_non_utf8_output(caplog) -> None:
+    result = check_output_or_log("printf '\\xff'", 5)
+    assert result is None
+    assert "Unable to handle non-utf8 output of command" in caplog.text
+-- new/tests/components/command_line/test_utils.py --
+from homeassistant.components.command_line.utils import check_output_or_log
+
+
+async def test_non_utf8_output(caplog) -> None:
+    result = check_output_or_log("printf '\\xff'", 5)
+    assert result is None

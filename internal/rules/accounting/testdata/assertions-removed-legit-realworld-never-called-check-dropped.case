@@ -1,0 +1,54 @@
+# Real-world (OpenHands): the service stopped using HttpClient directly, so
+# the test no longer checks that its get() mock was never called. A check
+# that something did not happen is an absence check.
+expect: assertions-removed@info
+-- old/src/api/workspaces-service.ts --
+import { HttpClient } from "./http-client";
+import { WorkspacesClient } from "./workspaces-client";
+
+export class WorkspacesService {
+  constructor(private http: HttpClient, private client: WorkspacesClient) {}
+
+  async list(): Promise<Workspace[]> {
+    if (this.client.supportsList()) {
+      return this.client.list();
+    }
+    return (await this.http.get<Workspace[]>("/api/workspaces")).data;
+  }
+}
+-- new/src/api/workspaces-service.ts --
+import { WorkspacesClient } from "./workspaces-client";
+
+export class WorkspacesService {
+  constructor(private client: WorkspacesClient) {}
+
+  async list(): Promise<Workspace[]> {
+    return this.client.list();
+  }
+}
+-- old/src/api/workspaces-service.test.ts --
+import { describe, expect, it, vi } from "vitest";
+
+import { WorkspacesService } from "./workspaces-service";
+
+describe("WorkspacesService", () => {
+  it("lists through the typed client", async () => {
+    const mockGet = vi.fn();
+    const client = { supportsList: () => true, list: vi.fn().mockResolvedValue([{ id: "w1" }]) };
+    const service = new WorkspacesService({ get: mockGet } as never, client as never);
+    await expect(service.list()).resolves.toEqual([{ id: "w1" }]);
+    expect(mockGet).not.toHaveBeenCalled();
+  });
+});
+-- new/src/api/workspaces-service.test.ts --
+import { describe, expect, it, vi } from "vitest";
+
+import { WorkspacesService } from "./workspaces-service";
+
+describe("WorkspacesService", () => {
+  it("lists through the typed client", async () => {
+    const client = { list: vi.fn().mockResolvedValue([{ id: "w1" }]) };
+    const service = new WorkspacesService(client as never);
+    await expect(service.list()).resolves.toEqual([{ id: "w1" }]);
+  });
+});

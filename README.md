@@ -129,8 +129,8 @@ A waiver without a reason does not count, and narc tells you so. Reasons show up
 
 ## Accuracy
 
-- **Corpus:** 1,386 realistic cases — 705 cheating diffs and 681 legitimate look-alikes (refactors, renames, moved code, deliberate skips with issue links, strings that mention `.skip`…). Every legitimate case comes out clean. Per-rule numbers: [docs/accuracy.md](docs/accuracy.md).
-- **Real commits:** on 21,760 recent commits from 15 busy repositories (PostHog, Sentry, n8n, Home Assistant, cal.com, Ruff, Goose, OpenHands…), narc flags **1.6%** of commits at warning level or above. In a blind review of a random sample of those findings, 80% were factually accurate and a third were judged worth a reviewer's attention even in merged, maintainer-reviewed history. Method, per-repository results and the weak spots: [docs/real-world.md](docs/real-world.md).
+- **Corpus:** 1,419 realistic cases — 728 cheating diffs and 691 legitimate look-alikes (refactors, renames, moved code, deliberate skips with issue links, strings that mention `.skip`…). Every legitimate case comes out clean. Per-rule numbers: [docs/accuracy.md](docs/accuracy.md).
+- **Real commits:** on 21,760 recent commits from 15 busy repositories (PostHog, Sentry, n8n, Home Assistant, cal.com, Ruff, Goose, OpenHands…), narc flags **1.4%** of commits at warning level or above. In a blind review of a random sample of the previous build's findings, 80% were factually accurate and a third were judged worth a reviewer's attention even in merged, maintainer-reviewed history; the routine and wrong patterns that review found have since become corpus cases. Method, per-repository results and the weak spots: [docs/real-world.md](docs/real-world.md).
 
 ## When narc is wrong
 

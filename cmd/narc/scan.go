@@ -223,6 +223,9 @@ func (c *cli) changeset(dir string, f scanFlags, pos []string) (*core.Changeset,
 		sha, err = repo.Resolve(pos[0])
 		if err == nil {
 			cs, err = repo.CommitChangeset(sha)
+			if err == nil {
+				cs.Message = repo.CommitMessage(sha)
+			}
 		}
 	default:
 		cs, err = repo.WorkingChangeset("", !f.noUntracked)

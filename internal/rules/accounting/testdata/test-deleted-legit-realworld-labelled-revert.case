@@ -1,0 +1,79 @@
+# Real-world (gastown): a labelled revert of a fix takes out the parser
+# change and the test that came with it. Undoing a commit together with its
+# test is a note, not a warning.
+message: Revert "fix: parse OpenCode step-finish usage (gt-gh-3833)"\n\nThis reverts commit 4f1c2a9be0d27c5e4b8a1f3e6d9c0b7a2e5f8d13.
+expect: test-deleted@info
+-- old/internal/agentlog/opencode.go --
+package agentlog
+
+import "encoding/json"
+
+type Part struct {
+	Type   string          `json:"type"`
+	Tokens json.RawMessage `json:"tokens"`
+}
+
+func ParseOpenCodePart(raw []byte) (Event, error) {
+	var p Part
+	if err := json.Unmarshal(raw, &p); err != nil {
+		return Event{}, err
+	}
+	switch p.Type {
+	case "text":
+		return Event{Kind: KindText}, nil
+	case "step-finish":
+		return Event{Kind: KindUsage, Usage: parseTokens(p.Tokens)}, nil
+	}
+	return Event{Kind: KindOther}, nil
+}
+-- new/internal/agentlog/opencode.go --
+package agentlog
+
+import "encoding/json"
+
+type Part struct {
+	Type string `json:"type"`
+}
+
+func ParseOpenCodePart(raw []byte) (Event, error) {
+	var p Part
+	if err := json.Unmarshal(raw, &p); err != nil {
+		return Event{}, err
+	}
+	if p.Type == "text" {
+		return Event{Kind: KindText}, nil
+	}
+	return Event{Kind: KindOther}, nil
+}
+-- old/internal/agentlog/opencode_test.go --
+package agentlog
+
+import "testing"
+
+func TestParseOpenCodePart_Text(t *testing.T) {
+	ev, err := ParseOpenCodePart([]byte(`{"type":"text"}`))
+	if err != nil || ev.Kind != KindText {
+		t.Fatalf("got %+v, %v", ev, err)
+	}
+}
+
+func TestParseOpenCodePart_StepFinishUsage(t *testing.T) {
+	ev, err := ParseOpenCodePart([]byte(`{"type":"step-finish","tokens":{"input":12,"output":30}}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if ev.Usage.Input != 12 || ev.Usage.Output != 30 {
+		t.Errorf("usage = %+v, want 12/30", ev.Usage)
+	}
+}
+-- new/internal/agentlog/opencode_test.go --
+package agentlog
+
+import "testing"
+
+func TestParseOpenCodePart_Text(t *testing.T) {
+	ev, err := ParseOpenCodePart([]byte(`{"type":"text"}`))
+	if err != nil || ev.Kind != KindText {
+		t.Fatalf("got %+v, %v", ev, err)
+	}
+}

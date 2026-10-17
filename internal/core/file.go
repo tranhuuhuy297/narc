@@ -53,6 +53,9 @@ type Changeset struct {
 	Files  []*diff.FileDiff
 	Source ContentSource // may be nil (e.g. a bare .patch file)
 	Label  string        // human description, e.g. "HEAD → working tree"
+	// Message is the commit message when the change is exactly one commit
+	// (narc scan <sha>, narc audit), and "" otherwise.
+	Message string
 }
 
 // Settings carries the configuration that rules need.
@@ -67,6 +70,9 @@ type Settings struct {
 type Analysis struct {
 	Files    []*FileInfo
 	Settings Settings
+	// Message is the commit message of a one-commit change, or "" (see
+	// Changeset.Message).
+	Message string
 	// Source reads full contents, including files the change did not
 	// touch (nil for bare patches). Prefer ReadNew/ListNew.
 	Source ContentSource

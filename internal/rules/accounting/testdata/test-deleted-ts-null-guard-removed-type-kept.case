@@ -1,0 +1,42 @@
+# The function still accepts undefined, but the agent removed the guard
+# that handled it and deleted the test that passed undefined.
+expect: test-deleted@error
+-- old/src/storage.ts --
+const key = (chatID: string) => `agents.tab.${chatID}`;
+
+export function getTab(chatID: string | undefined): string | null {
+  if (!chatID) {
+    return null;
+  }
+  return localStorage.getItem(key(chatID));
+}
+-- new/src/storage.ts --
+const key = (chatID: string) => `agents.tab.${chatID}`;
+
+export function getTab(chatID: string | undefined): string | null {
+  return localStorage.getItem(key(chatID as string));
+}
+-- old/src/storage.test.ts --
+import { describe, expect, it } from "vitest";
+import { getTab } from "./storage";
+
+describe("getTab", () => {
+  it("reads the stored tab", () => {
+    localStorage.setItem("agents.tab.c1", "git");
+    expect(getTab("c1")).toBe("git");
+  });
+
+  it("returns null when chatID is undefined", () => {
+    expect(getTab(undefined)).toBeNull();
+  });
+});
+-- new/src/storage.test.ts --
+import { describe, expect, it } from "vitest";
+import { getTab } from "./storage";
+
+describe("getTab", () => {
+  it("reads the stored tab", () => {
+    localStorage.setItem("agents.tab.c1", "git");
+    expect(getTab("c1")).toBe("git");
+  });
+});

@@ -67,10 +67,11 @@ imports everything.
 
 ## Key types (internal/core)
 
-- `core.Changeset{Files []*diff.FileDiff; Source ContentSource; Label}` — input.
+- `core.Changeset{Files []*diff.FileDiff; Source ContentSource; Label; Message}` — input.
   `Source` gives full old/new file contents when available (git modes, hooks,
   corpus); it is nil for bare patches, in which case `FileInfo` falls back to
-  lexing hunk fragments.
+  lexing hunk fragments. `Message` is the commit message when the change is
+  exactly one commit (`narc audit`, `narc scan <sha>`), else "".
 - `core.FileInfo` — one changed file: `Path, OldPath, Lang, IsTest, IsCI,
   Config` (config kind, see `core.Cfg*`), `Added/Removed []core.Line` (lexed),
   plus `OldLines()/NewLines()` (full lexed content or nil), `NewLine(n)`,
@@ -84,7 +85,7 @@ imports everything.
   Build findings with `rule.Finding(file, newLine, msg)` (added code) or
   `rule.Removal(file, oldLine, msg)` (removed code). Override `Severity`,
   `Evidence`, `Before`, `Hint` on the returned value when useful.
-- `core.Analysis{Files, Settings, Source}`; `Settings{Protected, TestGlobs}`.
+- `core.Analysis{Files, Settings, Source, Message}`; `Settings{Protected, TestGlobs}`.
   `a.ReadNew(path)` / `a.ListNew(dir)` read files the change did *not* touch
   (e.g. the existing tests of a changed source file); they return false in
   patch-only mode. `a.Memo(key, build)` caches work shared between rules.
@@ -135,7 +136,8 @@ expect: skip-added, any-cast        # or: expect: clean
 
 Files only under `old/` are deletions, only under `new/` additions, and
 `both/` sections are unchanged files (visible through `ReadNew`). Optional
-`-- .narc.yml --` section and `patch-only: true` header. A case asserts the
+`-- .narc.yml --` section, `patch-only: true` header, and `message:` header
+(a one-line commit message, `\n` for line breaks). A case asserts the
 exact *set* of rule IDs that fire (among rules registered in the test
 binary); `expect: any-cast@info` also pins the highest severity.
 `ruletest.RunDirPatchOnly` re-runs a corpus without full contents.

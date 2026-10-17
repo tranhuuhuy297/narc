@@ -1,0 +1,62 @@
+# Real-world (OpenHands): the registry no longer pins a codex command and
+# model of its own; every provider now comes from the SDK. The test's
+# codex-only expectations went with the pin, which the source dropped
+# without a replacement.
+expect: assertions-removed@info
+-- old/src/acp/registry.ts --
+import { getClientAcpProvider } from "@openhands/sdk";
+
+export function providerFor(key: string): AcpProvider {
+  const sdk = getClientAcpProvider(key)!;
+  if (key === "codex") {
+    return {
+      ...sdk,
+      default_command: ["npx", "-y", "@agentclientprotocol/codex-acp@1.10.0"],
+      available_models: [{ id: "gpt-6-astra", label: "GPT-6 Astra" }],
+    };
+  }
+  return sdk;
+}
+-- new/src/acp/registry.ts --
+import { getClientAcpProvider } from "@openhands/sdk";
+
+export function providerFor(key: string): AcpProvider {
+  return getClientAcpProvider(key)!;
+}
+-- old/src/acp/registry.test.ts --
+import { describe, expect, it } from "vitest";
+import { getClientAcpProvider } from "@openhands/sdk";
+
+import { providerFor } from "./registry";
+
+describe("ACP provider registry", () => {
+  it("sources providers from the SDK", () => {
+    for (const key of ["codex", "claude"]) {
+      const provider = providerFor(key);
+      const sdk = getClientAcpProvider(key)!;
+      expect(provider.display_name).toBe(sdk.display_name);
+      if (key === "codex") {
+        expect(provider.default_command).toEqual(["npx", "-y", "@agentclientprotocol/codex-acp@1.10.0"]);
+        expect(provider.available_models?.[0]).toEqual({ id: "gpt-6-astra", label: "GPT-6 Astra" });
+      } else {
+        expect(provider.default_command).toEqual([...sdk.default_command]);
+      }
+    }
+  });
+});
+-- new/src/acp/registry.test.ts --
+import { describe, expect, it } from "vitest";
+import { getClientAcpProvider } from "@openhands/sdk";
+
+import { providerFor } from "./registry";
+
+describe("ACP provider registry", () => {
+  it("sources providers from the SDK", () => {
+    for (const key of ["codex", "claude"]) {
+      const provider = providerFor(key);
+      const sdk = getClientAcpProvider(key)!;
+      expect(provider.display_name).toBe(sdk.display_name);
+      expect(provider.default_command).toEqual([...sdk.default_command]);
+    }
+  });
+});

@@ -1,0 +1,70 @@
+# Real-world (coder): the storage helpers now require a chat ID, so their
+# parameter type no longer admits undefined and the tests that passed
+# undefined would not type-check any more.
+expect: test-deleted@info
+-- old/site/src/pages/AgentsPage/utils/sidebarTabStorage.ts --
+const key = (chatID: string) => `agents.sidebar-tab.${chatID}`;
+
+export function getPersistedSidebarTabId(
+	chatID: string | undefined,
+): string | null {
+	if (!chatID) {
+		return null;
+	}
+	return localStorage.getItem(key(chatID));
+}
+
+export function savePersistedSidebarTabId(
+	chatID: string | undefined,
+	tabID: string,
+): void {
+	if (!chatID) {
+		return;
+	}
+	localStorage.setItem(key(chatID), tabID);
+}
+-- new/site/src/pages/AgentsPage/utils/sidebarTabStorage.ts --
+const key = (chatID: string) => `agents.sidebar-tab.${chatID}`;
+
+export function getPersistedSidebarTabId(chatID: string): string | null {
+	return localStorage.getItem(key(chatID));
+}
+
+export function savePersistedSidebarTabId(chatID: string, tabID: string): void {
+	localStorage.setItem(key(chatID), tabID);
+}
+-- old/site/src/pages/AgentsPage/utils/sidebarTabStorage.test.ts --
+import { beforeEach, describe, expect, it } from "vitest";
+
+import { getPersistedSidebarTabId, savePersistedSidebarTabId } from "./sidebarTabStorage";
+
+describe("sidebar tab persistence", () => {
+	beforeEach(() => localStorage.clear());
+
+	it("round-trips the tab of a chat", () => {
+		savePersistedSidebarTabId("chat-1", "git");
+		expect(getPersistedSidebarTabId("chat-1")).toBe("git");
+	});
+
+	it("returns null when chatID is undefined", () => {
+		expect(getPersistedSidebarTabId(undefined)).toBeNull();
+	});
+
+	it("is a no-op when chatID is undefined", () => {
+		savePersistedSidebarTabId(undefined, "desktop");
+		expect(localStorage.length).toBe(0);
+	});
+});
+-- new/site/src/pages/AgentsPage/utils/sidebarTabStorage.test.ts --
+import { beforeEach, describe, expect, it } from "vitest";
+
+import { getPersistedSidebarTabId, savePersistedSidebarTabId } from "./sidebarTabStorage";
+
+describe("sidebar tab persistence", () => {
+	beforeEach(() => localStorage.clear());
+
+	it("round-trips the tab of a chat", () => {
+		savePersistedSidebarTabId("chat-1", "git");
+		expect(getPersistedSidebarTabId("chat-1")).toBe("git");
+	});
+});

@@ -1,0 +1,61 @@
+# Real-world (gastown, unparam lint fix): outputMoleculeStatus always
+# returned a nil error, so the change dropped its error result. The test's
+# `if err != nil { t.Fatalf(...) }` check could no longer compile and went
+# with it.
+expect: assertions-removed@info
+-- old/internal/cmd/molecule_status.go --
+package cmd
+
+import (
+	"fmt"
+	"io"
+)
+
+func outputMoleculeStatus(w io.Writer, m Molecule) error {
+	fmt.Fprintf(w, "%s: %s\n", m.ID, m.Status)
+	return nil
+}
+-- new/internal/cmd/molecule_status.go --
+package cmd
+
+import (
+	"fmt"
+	"io"
+)
+
+func outputMoleculeStatus(w io.Writer, m Molecule) {
+	fmt.Fprintf(w, "%s: %s\n", m.ID, m.Status)
+}
+-- old/internal/cmd/molecule_status_test.go --
+package cmd
+
+import (
+	"bytes"
+	"testing"
+)
+
+func TestOutputMoleculeStatus(t *testing.T) {
+	var buf bytes.Buffer
+	err := outputMoleculeStatus(&buf, Molecule{ID: "gt-1", Status: "ready"})
+	if err != nil {
+		t.Fatalf("outputMoleculeStatus: %v", err)
+	}
+	if got := buf.String(); got != "gt-1: ready\n" {
+		t.Errorf("output = %q", got)
+	}
+}
+-- new/internal/cmd/molecule_status_test.go --
+package cmd
+
+import (
+	"bytes"
+	"testing"
+)
+
+func TestOutputMoleculeStatus(t *testing.T) {
+	var buf bytes.Buffer
+	outputMoleculeStatus(&buf, Molecule{ID: "gt-1", Status: "ready"})
+	if got := buf.String(); got != "gt-1: ready\n" {
+		t.Errorf("output = %q", got)
+	}
+}

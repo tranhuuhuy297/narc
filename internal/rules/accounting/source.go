@@ -46,6 +46,31 @@ type sourceModel struct {
 	// that occur on more removed than added production lines: an input
 	// variant the code no longer handles.
 	nullsOut map[string]bool
+	// typeNullsOut holds the null-like keywords that the change took out
+	// of the types in production code (`chatID: string | undefined` →
+	// `chatID: string`, Optional[str] → str): an input that no longer
+	// type-checks.
+	typeNullsOut map[string]bool
+	// messagesOut holds the message-like pieces of string literals that
+	// the change removed from production code, other than on lines that
+	// raise or build an error, and that no added production line has: a
+	// log line or a text the code no longer emits.
+	messagesOut []string
+	// removedNames is vanished without the requirement of a compound name:
+	// the functions, types, fields, parameters, enum members and
+	// module-level constants (four characters or more) that production
+	// code declared before the change and that nothing mentions after it.
+	// Code that uses them no longer compiles or runs.
+	removedNames map[string]bool
+	// valuesDropped holds the distinctive string literals (see
+	// distinctValue) of removed production lines, other than lines that
+	// raise or build an error, that the change dropped without a
+	// replacement: no added production literal shares their first half.
+	valuesDropped map[string]bool
+	// errorReturnDropped holds the Go functions whose declaration the
+	// change edited from returning an error to not returning one, so that
+	// a caller's `err :=` and its `if err != nil` check no longer compile.
+	errorReturnDropped map[string]bool
 }
 
 // source returns the source model of the change.
@@ -58,7 +83,14 @@ func (l *ledger) source() *sourceModel {
 
 func (l *ledger) buildSource() *sourceModel {
 	m := &sourceModel{vanished: map[string]bool{}, touched: map[string]bool{}, modules: map[string]bool{},
-		gone: map[string]bool{}, importsDropped: map[string]bool{}, valuesOut: map[string]bool{}, nullsOut: map[string]bool{}}
+		gone: map[string]bool{}, importsDropped: map[string]bool{}, valuesOut: map[string]bool{}, nullsOut: map[string]bool{},
+		typeNullsOut: map[string]bool{}, removedNames: map[string]bool{}, errorReturnDropped: map[string]bool{},
+		valuesDropped: map[string]bool{}}
+	typeNulls := map[string]int{}
+	api := map[string]bool{}
+	errReturns := map[string]int{} // Go func → +1 per removed declaration returning an error, -1 per added one
+	var removedStrs []string
+	var addedStrs strings.Builder
 	nulls := map[string]int{}
 	valuesIn := map[string]bool{}
 	declared := map[string]bool{}
@@ -74,17 +106,38 @@ func (l *ledger) buildSource() *sourceModel {
 		}
 		prod := l.productionCode(f)
 		if prod {
+			// exitDepth is the bracket depth still open in an error exit that
+			// spans removed lines: bail!(\n "message",\n ...).
+			exitDepth, lastNo := 0, 0
 			for _, ln := range f.Removed {
+				if ln.No != lastNo+1 {
+					exitDepth = 0
+				}
+				lastNo = ln.No
 				if l.rustInline(f) && l.inOldTest(f, ln.No) {
 					continue
 				}
 				declarations(f.Lang, ln.Code, declared)
+				apiDeclarations(f.Lang, ln, api)
 				if flagCheckRe.MatchString(ln.NoComment) {
 					flagsOut++
 				}
 				importStems(ln, importedOut)
+				exit := exitDepth > 0 || errorExitRe.MatchString(ln.Code)
+				if exit {
+					exitDepth = max(exitDepth+depthChange(ln.Code), 0)
+				}
 				for _, v := range ln.Strings {
 					m.valuesOut[strings.TrimSpace(v)] = true
+					if !exit {
+						removedStrs = append(removedStrs, v)
+					}
+				}
+				for _, k := range typeNullKeys(ln.Code) {
+					typeNulls[k]++
+				}
+				if name, errs, ok := goFuncResult(f.Lang, ln.Code); ok && errs {
+					errReturns[name]++
 				}
 				for _, k := range nullWordRe.FindAllString(ln.Code, -1) {
 					nulls[k]++
@@ -93,6 +146,8 @@ func (l *ledger) buildSource() *sourceModel {
 			for _, ln := range f.Added {
 				for _, v := range ln.Strings {
 					valuesIn[strings.TrimSpace(v)] = true
+					addedStrs.WriteString(v)
+					addedStrs.WriteByte(0)
 				}
 				if flagCheckRe.MatchString(ln.NoComment) {
 					flagsIn++
@@ -100,6 +155,16 @@ func (l *ledger) buildSource() *sourceModel {
 				importStems(ln, importedIn)
 				for _, k := range nullWordRe.FindAllString(ln.Code, -1) {
 					nulls[k]--
+				}
+				for _, k := range typeNullKeys(ln.Code) {
+					typeNulls[k]--
+				}
+				if name, errs, ok := goFuncResult(f.Lang, ln.Code); ok {
+					if errs {
+						errReturns[name]--
+					} else if errReturns[name] > 0 {
+						m.errorReturnDropped[name] = true
+					}
 				}
 			}
 		}
@@ -125,10 +190,25 @@ func (l *ledger) buildSource() *sourceModel {
 			m.vanished[name] = true
 		}
 	}
+	for name := range api {
+		if len(name) >= 4 && !alive[name] && !defined[name] && !stopWords[name] && !notDefs[name] {
+			m.removedNames[name] = true
+		}
+	}
+	for name := range m.errorReturnDropped {
+		if errReturns[name] <= 0 {
+			delete(m.errorReturnDropped, name) // an error return was added back
+		}
+	}
 	m.flagsRemoved = flagsOut > flagsIn
 	for k, n := range nulls {
 		if n > 0 {
 			m.nullsOut[k] = true
+		}
+	}
+	for k, n := range typeNulls {
+		if n > 0 {
+			m.typeNullsOut[k] = true
 		}
 	}
 	for v := range m.valuesOut {
@@ -141,7 +221,51 @@ func (l *ledger) buildSource() *sourceModel {
 			m.importsDropped[s] = true
 		}
 	}
+	m.messagesOut = messagesOut(removedStrs, addedStrs.String())
+	added := addedStrs.String()
+	for _, v := range removedStrs {
+		v = strings.TrimSpace(v)
+		if distinctValue(v) && m.valuesOut[v] && !strings.Contains(added, v[:(len(v)+1)/2]) {
+			m.valuesDropped[v] = true
+		}
+	}
 	return m
+}
+
+// distinctValue reports a string literal specific enough to stand for one
+// value of the code: six characters or more, without spaces, with a digit
+// or a separator in it (a version pin, a class name, a key such as
+// "@agentclientprotocol/codex-acp@1.10.0" or "text-red-500").
+func distinctValue(v string) bool {
+	return len(v) >= 6 && len(v) <= 120 && !strings.ContainsAny(v, " \t\n") && strings.ContainsAny(v, "-_.:/@0123456789")
+}
+
+// placeholderRe matches the placeholders of format strings and templates:
+// %s, %v, %d, {}, {name}, ${expr}, {0}.
+var placeholderRe = regexp.MustCompile(`%[-+# 0-9.]*[a-zA-Z]|\$?\{[^{}]*\}`)
+
+// messagesOut returns the message-like pieces of removed string literals
+// that no added string literal contains: the stretches between format
+// placeholders that read like prose (12 characters or more, three words
+// or more), such as "is not yet implemented" in "%s is not yet
+// implemented". added holds the added literals, separated by NUL bytes.
+func messagesOut(removed []string, added string) []string {
+	var out []string
+	seen := map[string]bool{}
+	for _, s := range removed {
+		if len(s) < 12 || len(s) > 400 || !strings.Contains(s, " ") {
+			continue
+		}
+		for _, piece := range placeholderRe.Split(s, -1) {
+			piece = strings.Trim(piece, " \t:;,.`'\"()[]")
+			if len(piece) < 12 || strings.Count(piece, " ") < 2 || seen[piece] || strings.Contains(added, piece) {
+				continue
+			}
+			seen[piece] = true
+			out = append(out, piece)
+		}
+	}
+	return out
 }
 
 // touchedIn records the definitions of modified production file f that
@@ -189,6 +313,105 @@ func (l *ledger) touchedIn(f *core.FileInfo, m *sourceModel) {
 			}
 		}
 	}
+}
+
+// fieldDeclRe matches a line that declares a field or a parameter of its
+// own: `chatID: string | undefined,`, `pub name: String,`, `timeout: int = 5`.
+var fieldDeclRe = regexp.MustCompile(`^\s*(?:(?:public|private|protected|internal|readonly|static|export|declare|override|pub(?:\([^)]*\))?)\s+)*([A-Za-z_$][\w$]*)\s*[?!]?\s*:\s*[^\s:=]`)
+
+// apiDeclarations adds the names that a line of production code declares
+// as part of its interface, rather than as a local variable: functions and
+// types, fields and typed parameters, enum members, Python parameters, and
+// constants or variables declared at the top level of a file.
+func apiDeclarations(lg lang.Lang, ln core.Line, into map[string]bool) {
+	code := ln.Code
+	definitions(lg, code, into)
+	if m := enumMemberRe.FindStringSubmatch(code); m != nil {
+		into[m[1]] = true
+	}
+	if m := fieldDeclRe.FindStringSubmatch(code); m != nil && m[1] != "case" && m[1] != "default" {
+		into[m[1]] = true
+	}
+	if indent(ln.Raw) == 0 {
+		for _, re := range []*regexp.Regexp{declRes[0], declRes[2]} {
+			for _, m := range re.FindAllStringSubmatch(code, -1) {
+				into[m[1]] = true
+			}
+		}
+	}
+	switch lg {
+	case lang.Python:
+		if m := pyParamsRe.FindStringSubmatch(code); m != nil {
+			for _, id := range idents(m[1]) {
+				into[id] = true
+			}
+		}
+	case lang.Go:
+		if m := goFieldRe.FindStringSubmatch(code); m != nil {
+			into[m[1]] = true
+		}
+	}
+}
+
+// goFuncDeclRe matches a Go function or method declaration; group 1 is
+// its name, and the match ends at the "(" that opens its parameters.
+var goFuncDeclRe = regexp.MustCompile(`^\s*func\s+(?:\([^)]*\)\s*)?([A-Za-z_]\w*)\s*(?:\[[^\]]*\])?\(`)
+
+// goFuncResult reads a Go function declaration on one line: its name, and
+// whether its results include an error.
+func goFuncResult(lg lang.Lang, code string) (name string, errs, ok bool) {
+	if lg != lang.Go {
+		return "", false, false
+	}
+	m := goFuncDeclRe.FindStringSubmatchIndex(code)
+	if m == nil {
+		return "", false, false
+	}
+	depth := 0
+	for i := m[1] - 1; i < len(code); i++ {
+		switch code[i] {
+		case '(':
+			depth++
+		case ')':
+			depth--
+			if depth == 0 {
+				return code[m[2]:m[3]], goErrorResultRe.MatchString(code[i+1:]), true
+			}
+		}
+	}
+	return "", false, false // parameters continue on the next line
+}
+
+// goErrorResultRe matches a result list that includes an error.
+var goErrorResultRe = regexp.MustCompile(`\berror\b`)
+
+// errorExitRe matches a line that raises or builds an error: its message
+// is the error path itself, which tests may not go away with (see
+// messagesOut).
+var errorExitRe = regexp.MustCompile(`\b(?:raise|throw|Errorf|Err)\b|\b(?:bail|panic)!?\s*\(|\berrors\.New\b|\b[A-Z]\w*(?:Error|Exception)\s*\(`)
+
+// typeNullRe finds a null-like member of a type: `string | undefined`,
+// `str | None`, `Optional[str]`, an optional field or parameter `id?: T`.
+var typeNullRe = regexp.MustCompile(`\|\s*(undefined|null|None)\b|\b(undefined|null|None)\s*\||\b(Optional)\[|[\w$]\?\s*:\s*[\w$<\[{(]`)
+
+// typeNullKeys returns the null-like keywords that the types on a line of
+// code admit, one per occurrence (Optional[...] admits None, id?: T
+// admits undefined).
+func typeNullKeys(code string) []string {
+	var out []string
+	for _, m := range typeNullRe.FindAllStringSubmatch(code, -1) {
+		switch {
+		case m[1] != "":
+			out = append(out, m[1])
+		case m[2] != "":
+			out = append(out, m[2])
+		case m[3] != "":
+			out = append(out, "None")
+		default:
+			out = append(out, "undefined")
+		}
+	}
+	return out
 }
 
 // mention adds the identifiers of a line of code, and the pieces of its
@@ -596,7 +819,8 @@ func (l *ledger) testedElsewhere(o *instance) bool {
 // keyRe matches a string literal that reads like a key rather than a
 // message: a feature flag, an option or setting name, a template path
 // ("organizations:snapshot-head-check", "preprod.snapshots.enabled",
-// "sentry/login.html").
+// "sentry/login.html"). A compound identifier ("includeMeasuredMetadata",
+// "acp_env") reads like a key too (see retiredKey).
 var keyRe = regexp.MustCompile(`^[A-Za-z@][\w@]*(?:[-:./][\w@]+)+$`)
 
 // retiredKey returns a key-like string literal that old test o uses and
@@ -617,10 +841,35 @@ func (l *ledger) retiredKey(o *instance) string {
 	}
 	for rel := from; rel <= o.block.End && rel-1 < len(o.seg.lines); rel++ {
 		for _, s := range o.seg.lines[rel-1].Strings {
-			if s = strings.TrimSpace(s); len(s) >= 6 && out[s] && keyRe.MatchString(s) {
+			if s = strings.TrimSpace(s); len(s) >= 6 && out[s] && (keyRe.MatchString(s) || distinctName(s) && isIdentLike(s)) {
 				return s
 			}
 		}
 	}
 	return ""
+}
+
+// isIdentLike reports whether s is written like one identifier.
+func isIdentLike(s string) bool {
+	for i := 0; i < len(s); i++ {
+		if !isIdentByte(s[i]) {
+			return false
+		}
+	}
+	return s != ""
+}
+
+// depthChange returns how many more brackets a line of code opens than it
+// closes.
+func depthChange(code string) int {
+	d := 0
+	for i := 0; i < len(code); i++ {
+		switch code[i] {
+		case '(', '[', '{':
+			d++
+		case ')', ']', '}':
+			d--
+		}
+	}
+	return d
 }

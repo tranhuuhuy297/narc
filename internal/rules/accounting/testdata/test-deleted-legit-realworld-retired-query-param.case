@@ -1,0 +1,44 @@
+# Real-world (Sentry, "Drop includeMeasuredIngestionDelayMetadata param"):
+# the endpoint no longer reads the query parameter, so the test of the
+# parameter's effect was deleted with it.
+expect: test-deleted@info
+-- old/src/sentry/api/endpoints/organization_events_timeseries.py --
+from sentry.api.base import region_silo_endpoint
+
+
+@region_silo_endpoint
+class OrganizationEventsTimeseriesEndpoint(OrganizationEventsEndpointBase):
+    def get(self, request, organization):
+        result = self.get_timeseries(request, organization)
+        if request.GET.get("includeMeasuredIngestionDelayMetadata") == "1":
+            result["meta"]["ingestionDelay"] = self.ingestion_delay(organization)
+        return Response(result)
+-- new/src/sentry/api/endpoints/organization_events_timeseries.py --
+from sentry.api.base import region_silo_endpoint
+
+
+@region_silo_endpoint
+class OrganizationEventsTimeseriesEndpoint(OrganizationEventsEndpointBase):
+    def get(self, request, organization):
+        result = self.get_timeseries(request, organization)
+        return Response(result)
+-- old/tests/sentry/api/endpoints/test_organization_events_timeseries.py --
+class OrganizationEventsTimeseriesIngestionDelayTest(APITestCase):
+    endpoint = "sentry-api-0-organization-events-timeseries"
+
+    def test_timeseries_without_metadata(self):
+        response = self.get_success_response(self.organization.slug)
+        assert "ingestionDelay" not in response.data["meta"]
+
+    def test_ingestion_delay_with_query_param(self):
+        response = self.get_success_response(
+            self.organization.slug, includeMeasuredIngestionDelayMetadata="1"
+        )
+        assert response.data["meta"]["ingestionDelay"] == 0
+-- new/tests/sentry/api/endpoints/test_organization_events_timeseries.py --
+class OrganizationEventsTimeseriesIngestionDelayTest(APITestCase):
+    endpoint = "sentry-api-0-organization-events-timeseries"
+
+    def test_timeseries_without_metadata(self):
+        response = self.get_success_response(self.organization.slug)
+        assert "ingestionDelay" not in response.data["meta"]

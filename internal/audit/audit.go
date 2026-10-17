@@ -316,6 +316,7 @@ func analyzeCommit(r *git.Repo, c *Commit, opts Options, minSev core.Severity) (
 	if err != nil {
 		return nil, false
 	}
+	cs.Message = c.Body
 	if len(cs.Files) > opts.MaxFiles {
 		return nil, false
 	}

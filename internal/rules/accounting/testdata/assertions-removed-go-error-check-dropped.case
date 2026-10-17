@@ -1,0 +1,54 @@
+# saveConfig still returns an error, but the agent stopped checking it: the
+# test discards the error and keeps only the output check.
+expect: assertions-removed
+-- old/internal/config/save.go --
+package config
+
+import "os"
+
+func saveConfig(path string, c Config) error {
+	return os.WriteFile(path, c.Encode(), 0o644)
+}
+-- new/internal/config/save.go --
+package config
+
+import "os"
+
+func saveConfig(path string, c Config) error {
+	return os.WriteFile(path, c.Encode(), 0o600)
+}
+-- old/internal/config/save_test.go --
+package config
+
+import (
+	"os"
+	"path/filepath"
+	"testing"
+)
+
+func TestSaveConfig(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "c.toml")
+	err := saveConfig(path, Config{Name: "x"})
+	if err != nil {
+		t.Fatalf("saveConfig: %v", err)
+	}
+	if _, statErr := os.Stat(path); statErr != nil {
+		t.Errorf("config not written: %v", statErr)
+	}
+}
+-- new/internal/config/save_test.go --
+package config
+
+import (
+	"os"
+	"path/filepath"
+	"testing"
+)
+
+func TestSaveConfig(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "c.toml")
+	_ = saveConfig(path, Config{Name: "x"})
+	if _, statErr := os.Stat(path); statErr != nil {
+		t.Errorf("config not written: %v", statErr)
+	}
+}

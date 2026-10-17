@@ -16,7 +16,9 @@
 // that exist only under old/ are deletions, only under new/ are additions.
 // An optional "-- .narc.yml --" section provides configuration, and the
 // header "patch-only: true" analyzes the case without full file contents
-// (as with `narc scan --patch`).
+// (as with `narc scan --patch`). "message:" gives the change a commit
+// message (one line; "\n" stands for a line break), as `narc audit` and
+// `narc scan <sha>` do.
 package ruletest
 
 import (
@@ -43,6 +45,7 @@ type Case struct {
 	Old, New  map[string][]byte
 	Config    *config.Config
 	PatchOnly bool
+	Message   string
 }
 
 // Load parses a case file.
@@ -84,6 +87,8 @@ func Parse(path, src string) (*Case, error) {
 					c.Expect = append(c.Expect, id)
 				}
 			}
+		case strings.HasPrefix(l, "message:"):
+			c.Message = strings.ReplaceAll(strings.TrimSpace(strings.TrimPrefix(l, "message:")), `\n`, "\n")
 		case strings.HasPrefix(l, "patch-only:"):
 			c.PatchOnly = strings.TrimSpace(strings.TrimPrefix(l, "patch-only:")) == "true"
 		case strings.TrimSpace(l) == "":
@@ -176,7 +181,7 @@ func (c *Case) Changeset() *core.Changeset {
 		sorted = append(sorted, p)
 	}
 	sort.Strings(sorted)
-	cs := &core.Changeset{Label: c.Name}
+	cs := &core.Changeset{Label: c.Name, Message: c.Message}
 	for _, p := range sorted {
 		o, hasO := c.Old[p]
 		n, hasN := c.New[p]
