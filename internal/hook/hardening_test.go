@@ -531,3 +531,20 @@ func TestWaiverAdviceWorks(t *testing.T) {
 		})
 	}
 }
+
+// An agent must not be able to remove narc's hook from an untracked
+// settings file (git sees the whole file as new, so nothing looks removed
+// relative to the session baseline).
+func TestPreEditDeniesRemovingNarcHookFromUntrackedSettings(t *testing.T) {
+	t.Parallel()
+	r := newRepo(t, map[string]string{"README.md": "x\n"})
+	r.write(".claude/settings.local.json", "{\n  \"hooks\": {\n    \"PreToolUse\": [\n      { \"matcher\": \"Write|Edit\", \"hooks\": [{ \"type\": \"command\", \"command\": \"narc hook claude pre-tool-use\" }] }\n    ]\n  }\n}\n")
+	res := runHook(t, "claude", "pre-tool-use", r.dir, map[string]any{
+		"session_id": "untracked-settings", "cwd": r.dir, "hook_event_name": "PreToolUse", "tool_name": "Write",
+		"tool_input": map[string]any{"file_path": r.path(".claude/settings.local.json"), "content": "{}\n"},
+	})
+	if res.code != 0 {
+		t.Fatalf("exit %d: %s", res.code, res.stderr)
+	}
+	wantContains(t, "deny", res.stdout, `"permissionDecision":"deny"`, "narc-config-weakened")
+}

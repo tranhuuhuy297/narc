@@ -11,6 +11,7 @@ import (
 	"os"
 	"runtime"
 	"runtime/debug"
+	"runtime/pprof"
 	"strings"
 )
 
@@ -22,6 +23,17 @@ var (
 )
 
 func main() {
+	// NARC_CPUPROFILE=file writes a CPU profile, for performance reports.
+	if p := os.Getenv("NARC_CPUPROFILE"); p != "" {
+		if f, err := os.Create(p); err == nil {
+			if pprof.StartCPUProfile(f) == nil {
+				code := run(os.Args[1:], os.Stdin, os.Stdout, os.Stderr)
+				pprof.StopCPUProfile()
+				f.Close()
+				os.Exit(code)
+			}
+		}
+	}
 	os.Exit(run(os.Args[1:], os.Stdin, os.Stdout, os.Stderr))
 }
 

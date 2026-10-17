@@ -42,6 +42,7 @@ narc audit                        # rap sheet: which agents weakened tests in yo
 | 🏗️ | `coverage-lowered` `strictness-lowered` | `lines: 90 → 60`, `"strict": true → false` |
 | 🏗️ | `test-script-neutered` `tests-excluded` `snapshot-update-forced` | `"test": "echo ok"`, `--passWithNoTests`, `-k "not slow"`, `-u` |
 | 🔒 | `protected-path` | any change to files you list under `protected:` (golden files, contract tests) |
+| 🔒 | `narc-config-weakened` `generated-marker-added` | the agent turns narc off: `skip-added: off`, `fail_on: never`, its hook removed, `// @generated` added to a hand-written file |
 
 Languages: JavaScript, TypeScript, Python, Go, Rust, Java, Kotlin, C#, PHP, Ruby, Swift, Dart, Elixir, plus GitHub Actions, GitLab CI, CircleCI, Azure Pipelines, Jenkins, Buildkite and the usual config files (`package.json`, `tsconfig.json`, `pyproject.toml`, `jest`/`vitest`/`pytest`/`coverage` configs, Makefiles…). See all rules with `narc rules` or in [docs/rules.md](docs/rules.md).
 
@@ -97,6 +98,8 @@ narc audit --since "6 months ago" --card rapsheet.svg
 
 narc attributes each commit to the agent that wrote it (from `Co-Authored-By` trailers, bot authors and similar traces left by Claude Code, Codex, Copilot, Cursor, Devin, Jules, Aider, Amp, OpenCode and others), runs every rule on that commit, and prints who weakened verification and how often. Human commits are always shown as a baseline, so the comparison is fair. `--card` writes a 1200×630 image you can share.
 
+<a id="waivers"></a>
+
 ## When a change is legitimate
 
 Sometimes skipping a test *is* the right call. Say why, right where it happens:
@@ -146,7 +149,7 @@ Treat findings as "a human should look at this", not as a verdict.
 
 **Will it nag about my existing code?** No. It only looks at what changed.
 
-**Can the agent just remove the hook?** narc also runs in CI (`narc install github`), and you can list `.claude/`, `.narc.yml` and your CI files under `protected:`, so tampering with them is itself flagged.
+**Can the agent just switch narc off?** It can try. Turning rules off, adding ignores or waivers, removing narc's hook from `.claude/settings.json` (or Codex/Gemini/Cursor settings), deleting the CI step or marking a file `@generated` is itself flagged (`narc-config-weakened`, `generated-marker-added`), and the live hook denies those edits. For a hard guarantee, also run narc in CI, where the agent cannot touch it.
 
 ## Contributing
 

@@ -418,6 +418,33 @@ func baseline(e pendingEdit, session *core.Changeset) (baselineFile, bool) {
 // makes an existing problem better is not blamed for what is left, while
 // one that makes it worse is.
 func (w *workspace) judgeEdit(edits []pendingEdit, session *core.Changeset, known map[string]bool) []core.Finding {
+	return withSelfGuard(w.judgeAgainstBaseline(edits, session, known), w, edits, session, known)
+}
+
+// selfGuardRules are the rules that protect narc itself.
+var selfGuardRules = map[string]bool{"narc-config-weakened": true, "generated-marker-added": true}
+
+// withSelfGuard adds findings that switch narc off (rules disabled, its
+// hooks removed, a file marked generated) that the edit shows on its own, from
+// the file on disk to the proposed content. Judging from the session
+// baseline misses these when the edited file is untracked, such as
+// .claude/settings.local.json: to git it is "new", so nothing looks removed.
+func withSelfGuard(found []core.Finding, w *workspace, edits []pendingEdit, session *core.Changeset, known map[string]bool) []core.Finding {
+	owned := pathsOfEdits(edits)
+	seen := map[string]bool{}
+	for _, f := range found {
+		seen[f.Fingerprint] = true
+	}
+	for _, f := range unknown(inPaths(w.run(editChangeset(edits, session, owned)).AtLeast(w.blockThreshold()), owned), known) {
+		if selfGuardRules[f.RuleID] && !seen[f.Fingerprint] {
+			seen[f.Fingerprint] = true
+			found = append(found, f)
+		}
+	}
+	return found
+}
+
+func (w *workspace) judgeAgainstBaseline(edits []pendingEdit, session *core.Changeset, known map[string]bool) []core.Finding {
 	threshold := w.blockThreshold()
 	session = withListCache(session) // up to three analyses list the same tree
 	rebased, before, changed := rebase(edits, session)
