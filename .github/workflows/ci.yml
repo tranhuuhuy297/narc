@@ -10,6 +10,7 @@ permissions:
 jobs:
   test:
     strategy:
+      fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
     runs-on: ${{ matrix.os }}
@@ -19,7 +20,17 @@ jobs:
         with:
           go-version: stable
       - run: go vet ./...
-      - run: go test -race ./...
+      - name: go test
+        shell: bash
+        run: |
+          set -o pipefail
+          if ! go test -race ./... 2>&1 | tee test.log; then
+            # Surface the failures as an annotation on the run.
+            grep -E -- '--- FAIL|^FAIL|panic:|DATA RACE|\.go:[0-9]+:' test.log | head -60 \
+              | sed 's/%/%25/g' | awk '{printf "%s%%0A", $0}' > fails.txt || true
+            echo "::error title=go test failed on ${{ matrix.os }}::$(cat fails.txt)"
+            exit 1
+          fi
       - name: gofmt
         if: runner.os == 'Linux'
         run: test -z "$(gofmt -l .)"
