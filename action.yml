@@ -1,6 +1,6 @@
 name: "narc — catch AI agents cheating on tests"
 description: "Flags PR changes that weaken verification: skipped tests, deleted assertions, || true in CI, lowered coverage, type escapes."
-author: "huyth45"
+author: "tranhuuhuy297"
 branding:
   icon: "eye"
   color: "red"
@@ -42,7 +42,7 @@ runs:
         NARC_VERSION: ${{ inputs.version }}
         NARC_INSTALL_DIR: ${{ runner.temp }}/narc-bin
       run: |
-        curl -fsSL "https://raw.githubusercontent.com/huyth45/narc/main/install.sh" | sh
+        curl -fsSL "https://raw.githubusercontent.com/tranhuuhuy297/narc/main/install.sh" | sh
         echo "${NARC_INSTALL_DIR}" >> "$GITHUB_PATH"
 
     - name: Scan

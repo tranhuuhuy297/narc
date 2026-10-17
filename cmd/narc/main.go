@@ -96,7 +96,7 @@ Scan examples:
   narc HEAD~5..HEAD                  a commit range
   git diff | narc --patch -          any unified diff
 
-Run 'narc <command> -h' for flags. Docs: https://github.com/huyth45/narc
+Run 'narc <command> -h' for flags. Docs: https://github.com/tranhuuhuy297/narc
 `)
 }
 

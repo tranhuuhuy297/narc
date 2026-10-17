@@ -1,12 +1,12 @@
 #!/bin/sh
-# narc installer: curl -fsSL https://raw.githubusercontent.com/huyth45/narc/main/install.sh | sh
+# narc installer: curl -fsSL https://raw.githubusercontent.com/tranhuuhuy297/narc/main/install.sh | sh
 #
 # Environment:
 #   NARC_VERSION      version to install (default: latest), e.g. v0.1.0
 #   NARC_INSTALL_DIR  where to put the binary (default: /usr/local/bin if writable, else ~/.local/bin)
 set -eu
 
-REPO="huyth45/narc"
+REPO="tranhuuhuy297/narc"
 VERSION="${NARC_VERSION:-latest}"
 
 say() { printf 'narc-install: %s\n' "$*" >&2; }

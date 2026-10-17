@@ -7,7 +7,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/huyth45/narc/internal/core"
+	"github.com/tranhuuhuy297/narc/internal/core"
 )
 
 func gitT(t *testing.T, dir string, args ...string) {

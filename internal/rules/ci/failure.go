@@ -6,8 +6,8 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/huyth45/narc/internal/core"
-	"github.com/huyth45/narc/internal/rules/rulekit"
+	"github.com/tranhuuhuy297/narc/internal/core"
+	"github.com/tranhuuhuy297/narc/internal/rules/rulekit"
 )
 
 var failureIgnored = &core.Rule{

@@ -10,8 +10,8 @@ import (
 	"strings"
 	"unicode"
 
-	"github.com/huyth45/narc/internal/core"
-	"github.com/huyth45/narc/internal/engine"
+	"github.com/tranhuuhuy297/narc/internal/core"
+	"github.com/tranhuuhuy297/narc/internal/engine"
 )
 
 const (

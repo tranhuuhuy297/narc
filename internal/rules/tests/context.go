@@ -5,9 +5,9 @@ import (
 	"strings"
 	"unicode"
 
-	"github.com/huyth45/narc/internal/core"
-	"github.com/huyth45/narc/internal/lang"
-	"github.com/huyth45/narc/internal/rules/rulekit"
+	"github.com/tranhuuhuy297/narc/internal/core"
+	"github.com/tranhuuhuy297/narc/internal/lang"
+	"github.com/tranhuuhuy297/narc/internal/rules/rulekit"
 )
 
 // ---- test names -------------------------------------------------------------

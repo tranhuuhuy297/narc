@@ -1,6 +1,6 @@
 // narc:generated - managed by `narc install opencode`; `narc uninstall opencode` removes it.
 //
-// narc (https://github.com/huyth45/narc) stops coding agents from weakening
+// narc (https://github.com/tranhuuhuy297/narc) stops coding agents from weakening
 // verification: skipping tests, deleting assertions, `|| true` in CI,
 // lowering coverage, type/lint escapes, and so on.
 //

@@ -9,9 +9,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/huyth45/narc/internal/config"
-	"github.com/huyth45/narc/internal/core"
-	"github.com/huyth45/narc/internal/diff"
+	"github.com/tranhuuhuy297/narc/internal/config"
+	"github.com/tranhuuhuy297/narc/internal/core"
+	"github.com/tranhuuhuy297/narc/internal/diff"
 )
 
 // WaiverRuleID is the rule reported for waivers that lack a reason.

@@ -10,9 +10,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/huyth45/narc/internal/core"
-	"github.com/huyth45/narc/internal/engine"
-	"github.com/huyth45/narc/internal/git"
+	"github.com/tranhuuhuy297/narc/internal/core"
+	"github.com/tranhuuhuy297/narc/internal/engine"
+	"github.com/tranhuuhuy297/narc/internal/git"
 )
 
 // sessionState is what narc remembers about one agent session. It lives in

@@ -9,11 +9,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/huyth45/narc/internal/config"
-	"github.com/huyth45/narc/internal/core"
-	"github.com/huyth45/narc/internal/git"
-	"github.com/huyth45/narc/internal/hook"
-	"github.com/huyth45/narc/internal/report"
+	"github.com/tranhuuhuy297/narc/internal/config"
+	"github.com/tranhuuhuy297/narc/internal/core"
+	"github.com/tranhuuhuy297/narc/internal/git"
+	"github.com/tranhuuhuy297/narc/internal/hook"
+	"github.com/tranhuuhuy297/narc/internal/report"
 )
 
 // ---- narc hook <harness> <event> ----
@@ -148,7 +148,7 @@ func narcCommand(scope string) string {
 }
 
 const githubWorkflow = `# narc: catch AI coding agents cheating on verification.
-# https://github.com/huyth45/narc
+# https://github.com/tranhuuhuy297/narc
 name: narc
 
 on:
@@ -166,7 +166,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - uses: huyth45/narc@v1
+      - uses: tranhuuhuy297/narc@v1
         with:
           fail-on: error
 `

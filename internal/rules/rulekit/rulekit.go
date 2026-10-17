@@ -5,7 +5,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/huyth45/narc/internal/core"
+	"github.com/tranhuuhuy297/narc/internal/core"
 )
 
 // Text selects which part of a lexed line a pattern is matched against.

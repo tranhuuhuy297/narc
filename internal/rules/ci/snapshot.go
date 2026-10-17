@@ -6,8 +6,8 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/huyth45/narc/internal/core"
-	"github.com/huyth45/narc/internal/diff"
+	"github.com/tranhuuhuy297/narc/internal/core"
+	"github.com/tranhuuhuy297/narc/internal/diff"
 )
 
 var snapshotForced = &core.Rule{

@@ -4,7 +4,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/huyth45/narc/internal/lang"
+	"github.com/tranhuuhuy297/narc/internal/lang"
 )
 
 // Call-style frameworks declare tests by calling a function with a name

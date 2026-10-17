@@ -118,7 +118,7 @@ func Card(w io.Writer, r *Report) error {
 	}
 
 	fmt.Fprintf(&b, `<text x="60" y="590" font-size="18" fill="#8b949e">Your agent says the tests pass. <tspan fill="#e6edf3" font-weight="700">narc</tspan> checks whether it cheated.</text>
-<text x="1140" y="590" text-anchor="end" font-size="18" fill="#58a6ff">github.com/huyth45/narc</text>
+<text x="1140" y="590" text-anchor="end" font-size="18" fill="#58a6ff">github.com/tranhuuhuy297/narc</text>
 </svg>
 `)
 	_, err := io.WriteString(w, b.String())

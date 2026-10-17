@@ -25,9 +25,9 @@ changelog:
   sort: asc
 brews:
   - repository:
-      owner: huyth45
+      owner: tranhuuhuy297
       name: homebrew-tap
-    homepage: https://github.com/huyth45/narc
+    homepage: https://github.com/tranhuuhuy297/narc
     description: "Catch AI coding agents cheating on your tests"
     license: MIT
     test: |

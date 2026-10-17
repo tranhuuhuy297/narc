@@ -12,7 +12,7 @@ narc found **1 warning and 1 note** in `staged changes`. Warnings are often chea
 <details open>
 <summary><code>src/api/client.test.ts</code> · 🔵 1</summary>
 
-**🔵 Lint rule suppressed** · [`lint-suppressed`](https://github.com/huyth45/narc/blob/main/docs/rules.md#lint-suppressed) · line 3\
+**🔵 Lint rule suppressed** · [`lint-suppressed`](https://github.com/tranhuuhuy297/narc/blob/main/docs/rules.md#lint-suppressed) · line 3\
 `eslint-disable` added for the whole file
 
 ```typescript
@@ -24,7 +24,7 @@ narc found **1 warning and 1 note** in `staged changes`. Warnings are often chea
 <details open>
 <summary><code>src/api/client.ts</code> · 🟡 1</summary>
 
-**🟡 Type escape (any cast)** · [`any-cast`](https://github.com/huyth45/narc/blob/main/docs/rules.md#any-cast) · line 77\
+**🟡 Type escape (any cast)** · [`any-cast`](https://github.com/tranhuuhuy297/narc/blob/main/docs/rules.md#any-cast) · line 77\
 `as unknown as Response` double cast added in fetchUser()
 
 ```typescript
@@ -34,4 +34,4 @@ return (await res.json()) as unknown as Response;
 </details>
 
 ---
-<sub>🕵️ [narc](https://github.com/huyth45/narc) v1.4.0 · `narc scan --base main`<br>False positive? Waive it with a reason: `narc:allow <rule> reason="…"` in a comment on or above the line, or an `allow:` entry in `.narc.yml`. [Rule reference](https://github.com/huyth45/narc/blob/main/docs/rules.md)</sub>
+<sub>🕵️ [narc](https://github.com/tranhuuhuy297/narc) v1.4.0 · `narc scan --base main`<br>False positive? Waive it with a reason: `narc:allow <rule> reason="…"` in a comment on or above the line, or an `allow:` entry in `.narc.yml`. [Rule reference](https://github.com/tranhuuhuy297/narc/blob/main/docs/rules.md)</sub>

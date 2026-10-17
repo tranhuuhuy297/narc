@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/huyth45/narc/internal/git"
+	"github.com/tranhuuhuy297/narc/internal/git"
 )
 
 // TestRealRepoAttribution is a manual check: NARC_REAL_REPOS=dir1,dir2 go test -run Real -v

@@ -8,7 +8,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/huyth45/narc/internal/git"
+	"github.com/tranhuuhuy297/narc/internal/git"
 )
 
 // gitPreCommit installs narc into the repository's pre-commit hook. narc

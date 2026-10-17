@@ -8,4 +8,4 @@ No skipped tests, weakened assertions or CI escapes in `HEAD → working tree`.
 | 0 | 0 | 0 | 0 | 4 | +120 −34 |
 
 ---
-<sub>🕵️ [narc](https://github.com/huyth45/narc) v1.4.0 · `narc scan --base main`<br>False positive? Waive it with a reason: `narc:allow <rule> reason="…"` in a comment on or above the line, or an `allow:` entry in `.narc.yml`. [Rule reference](https://github.com/huyth45/narc/blob/main/docs/rules.md)</sub>
+<sub>🕵️ [narc](https://github.com/tranhuuhuy297/narc) v1.4.0 · `narc scan --base main`<br>False positive? Waive it with a reason: `narc:allow <rule> reason="…"` in a comment on or above the line, or an `allow:` entry in `.narc.yml`. [Rule reference](https://github.com/tranhuuhuy297/narc/blob/main/docs/rules.md)</sub>

@@ -13,8 +13,8 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/huyth45/narc/internal/core"
-	"github.com/huyth45/narc/internal/engine"
+	"github.com/tranhuuhuy297/narc/internal/core"
+	"github.com/tranhuuhuy297/narc/internal/engine"
 )
 
 // Adversarial cases: input crafted to break a format (pings from a PR

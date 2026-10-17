@@ -4,7 +4,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/huyth45/narc/internal/lang"
+	"github.com/tranhuuhuy297/narc/internal/lang"
 )
 
 // Ruby (RSpec, minitest) and Elixir (ExUnit) blocks are delimited by

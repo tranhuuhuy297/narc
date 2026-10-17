@@ -9,9 +9,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/huyth45/narc/internal/config"
-	"github.com/huyth45/narc/internal/core"
-	"github.com/huyth45/narc/internal/engine"
+	"github.com/tranhuuhuy297/narc/internal/config"
+	"github.com/tranhuuhuy297/narc/internal/core"
+	"github.com/tranhuuhuy297/narc/internal/engine"
 )
 
 // More edge cases found while hardening: protocol details of code scanning
@@ -331,12 +331,12 @@ func TestExplainKeepsCodeSpansVerbatim(t *testing.T) {
 	r := &core.Rule{ID: "coverage-ignored", Title: "Coverage exclusion added", Severity: core.Warning, Category: "escapes",
 		Docs: "Idiomatic exclusions are not reported: `if __name__ == \"__main__\":` and `def __repr__`.\n\n" +
 			"Globs such as `tests/**` and `src/**` stay intact, and so does `\\d+\\.\\d+`.\n\n" +
-			"**Note:** see [`narc:allow`](https://github.com/huyth45/narc#waivers) and __really__ \\*literal\\*."}
+			"**Note:** see [`narc:allow`](https://github.com/tranhuuhuy297/narc#waivers) and __really__ \\*literal\\*."}
 	out := renderString(t, func(w io.Writer) error { return Explain(w, r, Options{Width: 200}) })
 	for _, want := range []string{
 		"`if __name__ == \"__main__\":` and `def __repr__`.",
 		"Globs such as `tests/**` and `src/**` stay intact, and so does `\\d+\\.\\d+`.",
-		"Note: see `narc:allow` (https://github.com/huyth45/narc#waivers) and really *literal*.",
+		"Note: see `narc:allow` (https://github.com/tranhuuhuy297/narc#waivers) and really *literal*.",
 	} {
 		if !strings.Contains(out, want) {
 			t.Errorf("explain output lacks %q:\n%s", want, out)

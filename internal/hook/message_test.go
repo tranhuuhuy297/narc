@@ -6,7 +6,7 @@ import (
 	"testing"
 	"unicode/utf8"
 
-	"github.com/huyth45/narc/internal/core"
+	"github.com/tranhuuhuy297/narc/internal/core"
 )
 
 func TestCoachWording(t *testing.T) {

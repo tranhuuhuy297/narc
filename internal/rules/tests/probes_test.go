@@ -4,8 +4,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/huyth45/narc/internal/core"
-	"github.com/huyth45/narc/internal/ruletest"
+	"github.com/tranhuuhuy297/narc/internal/core"
+	"github.com/tranhuuhuy297/narc/internal/ruletest"
 )
 
 // Probes are small one-file changes that pin down behaviour too fine-grained

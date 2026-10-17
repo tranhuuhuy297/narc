@@ -6,8 +6,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/huyth45/narc/internal/core"
-	"github.com/huyth45/narc/internal/engine"
+	"github.com/tranhuuhuy297/narc/internal/core"
+	"github.com/tranhuuhuy297/narc/internal/engine"
 )
 
 // Layout of the pretty report: file headers sit at indent 2, findings at

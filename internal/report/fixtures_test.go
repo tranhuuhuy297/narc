@@ -3,9 +3,9 @@ package report
 import (
 	"time"
 
-	"github.com/huyth45/narc/internal/config"
-	"github.com/huyth45/narc/internal/core"
-	"github.com/huyth45/narc/internal/engine"
+	"github.com/tranhuuhuy297/narc/internal/config"
+	"github.com/tranhuuhuy297/narc/internal/core"
+	"github.com/tranhuuhuy297/narc/internal/engine"
 )
 
 // The fixtures are hand-built so the goldens do not move when rule
@@ -26,7 +26,7 @@ var testRules = []*core.Rule{
 			"- `it.skip`, `describe.skip`, `xit`, `xdescribe` (Jest, Vitest, Mocha)\n" +
 			"- `@pytest.mark.skip` and `pytest.skip()` (pytest)\n" +
 			"- `t.Skip()` (Go), `#[ignore]` (Rust), `@Disabled` (JUnit)\n\n" +
-			"See [the waiver guide](https://github.com/huyth45/narc#waivers) when a skip is **really** intended.",
+			"See [the waiver guide](https://github.com/tranhuuhuy297/narc#waivers) when a skip is **really** intended.",
 	},
 	{
 		ID: "focus-added", Title: "Test focused", Category: "tests", Severity: core.Error,

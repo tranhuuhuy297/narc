@@ -3,9 +3,9 @@ package accounting
 import (
 	"path"
 
-	"github.com/huyth45/narc/internal/core"
-	"github.com/huyth45/narc/internal/lang"
-	"github.com/huyth45/narc/internal/testblocks"
+	"github.com/tranhuuhuy297/narc/internal/core"
+	"github.com/tranhuuhuy297/narc/internal/lang"
+	"github.com/tranhuuhuy297/narc/internal/testblocks"
 )
 
 // "Remove duplicate tests" deletes tests whose twins live in test files

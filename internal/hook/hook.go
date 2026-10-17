@@ -83,7 +83,7 @@ import (
 	"time"
 
 	// Every built-in rule must be registered for hooks to be useful.
-	_ "github.com/huyth45/narc/internal/rules/all"
+	_ "github.com/tranhuuhuy297/narc/internal/rules/all"
 )
 
 // Env is the process environment a hook runs in. Zero fields fall back to

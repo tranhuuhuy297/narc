@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/huyth45/narc/internal/lang"
+	"github.com/tranhuuhuy297/narc/internal/lang"
 )
 
 func TestViewCanonAndTokens(t *testing.T) {

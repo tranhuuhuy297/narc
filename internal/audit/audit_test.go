@@ -9,9 +9,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/huyth45/narc/internal/config"
-	"github.com/huyth45/narc/internal/git"
-	_ "github.com/huyth45/narc/internal/rules/integrity"
+	"github.com/tranhuuhuy297/narc/internal/config"
+	"github.com/tranhuuhuy297/narc/internal/git"
+	_ "github.com/tranhuuhuy297/narc/internal/rules/integrity"
 )
 
 func TestAttribute(t *testing.T) {

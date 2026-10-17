@@ -5,9 +5,9 @@ import (
 	"os"
 	"runtime"
 
-	"github.com/huyth45/narc/internal/audit"
-	"github.com/huyth45/narc/internal/git"
-	"github.com/huyth45/narc/internal/report"
+	"github.com/tranhuuhuy297/narc/internal/audit"
+	"github.com/tranhuuhuy297/narc/internal/git"
+	"github.com/tranhuuhuy297/narc/internal/report"
 )
 
 func (c *cli) audit(args []string) int {

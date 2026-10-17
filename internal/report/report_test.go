@@ -13,8 +13,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/huyth45/narc/internal/core"
-	"github.com/huyth45/narc/internal/engine"
+	"github.com/tranhuuhuy297/narc/internal/core"
+	"github.com/tranhuuhuy297/narc/internal/engine"
 )
 
 func renderString(t *testing.T, fn func(io.Writer) error) string {

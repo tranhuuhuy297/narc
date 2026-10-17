@@ -4,9 +4,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/huyth45/narc/internal/core"
-	_ "github.com/huyth45/narc/internal/rules/accounting"
-	"github.com/huyth45/narc/internal/ruletest"
+	"github.com/tranhuuhuy297/narc/internal/core"
+	_ "github.com/tranhuuhuy297/narc/internal/rules/accounting"
+	"github.com/tranhuuhuy297/narc/internal/ruletest"
 )
 
 func TestCorpus(t *testing.T) { ruletest.RunDir(t, "testdata") }

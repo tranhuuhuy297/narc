@@ -8,9 +8,9 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/huyth45/narc/internal/core"
-	"github.com/huyth45/narc/internal/diff"
-	"github.com/huyth45/narc/internal/lang"
+	"github.com/tranhuuhuy297/narc/internal/core"
+	"github.com/tranhuuhuy297/narc/internal/diff"
+	"github.com/tranhuuhuy297/narc/internal/lang"
 )
 
 // fixtureDirs are directories that hold test inputs: sample projects whose

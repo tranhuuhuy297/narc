@@ -15,8 +15,8 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/huyth45/narc/internal/core"
-	"github.com/huyth45/narc/internal/diff"
+	"github.com/tranhuuhuy297/narc/internal/core"
+	"github.com/tranhuuhuy297/narc/internal/diff"
 )
 
 // MaxFileSize bounds the size of files narc reads into memory.

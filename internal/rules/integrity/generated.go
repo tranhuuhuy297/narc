@@ -1,7 +1,7 @@
 package integrity
 
 import (
-	"github.com/huyth45/narc/internal/core"
+	"github.com/tranhuuhuy297/narc/internal/core"
 )
 
 var generatedMarker = &core.Rule{

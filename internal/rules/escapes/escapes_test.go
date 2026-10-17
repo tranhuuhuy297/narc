@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
-	_ "github.com/huyth45/narc/internal/rules/escapes"
-	"github.com/huyth45/narc/internal/ruletest"
+	_ "github.com/tranhuuhuy297/narc/internal/rules/escapes"
+	"github.com/tranhuuhuy297/narc/internal/ruletest"
 )
 
 func TestCorpus(t *testing.T) { ruletest.RunDir(t, "testdata") }

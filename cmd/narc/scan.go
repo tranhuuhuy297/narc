@@ -8,13 +8,13 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/huyth45/narc/internal/config"
-	"github.com/huyth45/narc/internal/core"
-	"github.com/huyth45/narc/internal/diff"
-	"github.com/huyth45/narc/internal/engine"
-	"github.com/huyth45/narc/internal/git"
-	"github.com/huyth45/narc/internal/report"
-	_ "github.com/huyth45/narc/internal/rules/all"
+	"github.com/tranhuuhuy297/narc/internal/config"
+	"github.com/tranhuuhuy297/narc/internal/core"
+	"github.com/tranhuuhuy297/narc/internal/diff"
+	"github.com/tranhuuhuy297/narc/internal/engine"
+	"github.com/tranhuuhuy297/narc/internal/git"
+	"github.com/tranhuuhuy297/narc/internal/report"
+	_ "github.com/tranhuuhuy297/narc/internal/rules/all"
 )
 
 type scanFlags struct {

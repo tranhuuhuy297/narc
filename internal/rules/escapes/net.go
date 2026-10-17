@@ -3,8 +3,8 @@ package escapes
 import (
 	"sort"
 
-	"github.com/huyth45/narc/internal/core"
-	"github.com/huyth45/narc/internal/rules/rulekit"
+	"github.com/tranhuuhuy297/narc/internal/core"
+	"github.com/tranhuuhuy297/narc/internal/rules/rulekit"
 )
 
 // occ is one occurrence of a rule's pattern on an added line.

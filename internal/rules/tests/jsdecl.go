@@ -4,8 +4,8 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/huyth45/narc/internal/core"
-	"github.com/huyth45/narc/internal/lang"
+	"github.com/tranhuuhuy297/narc/internal/core"
+	"github.com/tranhuuhuy297/narc/internal/lang"
 )
 
 // Helpers for JavaScript/TypeScript test declarations, shared by skip-added,

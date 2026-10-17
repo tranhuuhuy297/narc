@@ -27,10 +27,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/huyth45/narc/internal/config"
-	"github.com/huyth45/narc/internal/core"
-	"github.com/huyth45/narc/internal/diff"
-	"github.com/huyth45/narc/internal/engine"
+	"github.com/tranhuuhuy297/narc/internal/config"
+	"github.com/tranhuuhuy297/narc/internal/core"
+	"github.com/tranhuuhuy297/narc/internal/diff"
+	"github.com/tranhuuhuy297/narc/internal/engine"
 )
 
 // Case is one corpus entry.

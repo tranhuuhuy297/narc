@@ -1,4 +1,4 @@
-module github.com/huyth45/narc
+module github.com/tranhuuhuy297/narc
 
 go 1.23
 

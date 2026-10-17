@@ -13,10 +13,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/huyth45/narc/internal/core"
+	"github.com/tranhuuhuy297/narc/internal/core"
 	// protected-path is used by several tests (also registered via rules/all).
-	_ "github.com/huyth45/narc/internal/rules/integrity"
-	"github.com/huyth45/narc/internal/rules/rulekit"
+	_ "github.com/tranhuuhuy297/narc/internal/rules/integrity"
+	"github.com/tranhuuhuy297/narc/internal/rules/rulekit"
 )
 
 // cliEnvVar makes the test binary act as the narc CLI (`narc hook <harness>

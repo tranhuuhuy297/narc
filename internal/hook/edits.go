@@ -9,9 +9,9 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/huyth45/narc/internal/core"
-	"github.com/huyth45/narc/internal/diff"
-	"github.com/huyth45/narc/internal/git"
+	"github.com/tranhuuhuy297/narc/internal/core"
+	"github.com/tranhuuhuy297/narc/internal/diff"
+	"github.com/tranhuuhuy297/narc/internal/git"
 )
 
 // fileOp is one file operation requested by a tool call.

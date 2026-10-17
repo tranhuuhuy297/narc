@@ -5,10 +5,10 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/huyth45/narc/internal/core"
-	"github.com/huyth45/narc/internal/diff"
-	"github.com/huyth45/narc/internal/lang"
-	"github.com/huyth45/narc/internal/testblocks"
+	"github.com/tranhuuhuy297/narc/internal/core"
+	"github.com/tranhuuhuy297/narc/internal/diff"
+	"github.com/tranhuuhuy297/narc/internal/lang"
+	"github.com/tranhuuhuy297/narc/internal/testblocks"
 )
 
 // matchKind says how an old test was found again in the new code.

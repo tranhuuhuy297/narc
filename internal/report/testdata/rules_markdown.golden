@@ -53,7 +53,7 @@ Good: fix `verify()` so the test passes. narc recognizes:
 - `@pytest.mark.skip` and `pytest.skip()` (pytest)
 - `t.Skip()` (Go), `#[ignore]` (Rust), `@Disabled` (JUnit)
 
-See [the waiver guide](https://github.com/huyth45/narc#waivers) when a skip is **really** intended.
+See [the waiver guide](https://github.com/tranhuuhuy297/narc#waivers) when a skip is **really** intended.
 
 **How to fix:** Fix the code under test so the test passes instead of skipping it. If the test itself is wrong, fix the test and say why in the commit.
 

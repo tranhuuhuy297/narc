@@ -5,9 +5,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/huyth45/narc/internal/core"
-	_ "github.com/huyth45/narc/internal/rules/tests"
-	"github.com/huyth45/narc/internal/ruletest"
+	"github.com/tranhuuhuy297/narc/internal/core"
+	_ "github.com/tranhuuhuy297/narc/internal/rules/tests"
+	"github.com/tranhuuhuy297/narc/internal/ruletest"
 )
 
 var ruleIDs = []string{"skip-added", "focus-added", "tautology", "assertion-weakened", "assertion-commented", "retry-added"}

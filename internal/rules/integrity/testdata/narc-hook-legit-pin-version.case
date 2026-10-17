@@ -9,7 +9,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - uses: huyth45/narc@v1
+      - uses: tranhuuhuy297/narc@v1
 -- new/.github/workflows/narc.yml --
 on: pull_request
 jobs:
@@ -19,6 +19,6 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - uses: huyth45/narc@v1.2.0
+      - uses: tranhuuhuy297/narc@v1.2.0
         with:
           fail-on: warning

@@ -15,10 +15,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/huyth45/narc/internal/config"
-	"github.com/huyth45/narc/internal/core"
-	"github.com/huyth45/narc/internal/engine"
-	"github.com/huyth45/narc/internal/git"
+	"github.com/tranhuuhuy297/narc/internal/config"
+	"github.com/tranhuuhuy297/narc/internal/core"
+	"github.com/tranhuuhuy297/narc/internal/engine"
+	"github.com/tranhuuhuy297/narc/internal/git"
 )
 
 // Commit is the metadata of one commit.

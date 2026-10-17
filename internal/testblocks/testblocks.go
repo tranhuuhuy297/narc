@@ -5,7 +5,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/huyth45/narc/internal/lang"
+	"github.com/tranhuuhuy297/narc/internal/lang"
 )
 
 // Block is one test found in a file.

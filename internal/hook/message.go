@@ -5,8 +5,8 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/huyth45/narc/internal/core"
-	"github.com/huyth45/narc/internal/lang"
+	"github.com/tranhuuhuy297/narc/internal/core"
+	"github.com/tranhuuhuy297/narc/internal/lang"
 )
 
 // coachStyle selects the wording of a message to the model.

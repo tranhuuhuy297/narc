@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/huyth45/narc/internal/lang"
+	"github.com/tranhuuhuy297/narc/internal/lang"
 )
 
 // want describes an expected block. Lines are checked only when non-zero.

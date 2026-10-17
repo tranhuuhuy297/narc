@@ -11,7 +11,7 @@ import (
 
 	"gopkg.in/yaml.v3"
 
-	"github.com/huyth45/narc/internal/core"
+	"github.com/tranhuuhuy297/narc/internal/core"
 )
 
 // FileNames are the config file names narc looks for, in order.
@@ -189,7 +189,7 @@ func (c *Config) Settings() core.Settings {
 }
 
 // Template is written by `narc init`.
-const Template = `# narc configuration — https://github.com/huyth45/narc
+const Template = `# narc configuration — https://github.com/tranhuuhuy297/narc
 version: 1
 
 # Exit non-zero when a finding at this severity (or worse) is present.

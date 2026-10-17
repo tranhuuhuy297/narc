@@ -8,9 +8,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/huyth45/narc/internal/core"
-	_ "github.com/huyth45/narc/internal/rules/all"
-	"github.com/huyth45/narc/internal/ruletest"
+	"github.com/tranhuuhuy297/narc/internal/core"
+	_ "github.com/tranhuuhuy297/narc/internal/rules/all"
+	"github.com/tranhuuhuy297/narc/internal/ruletest"
 )
 
 func loadAll(t *testing.T) []*ruletest.Case {

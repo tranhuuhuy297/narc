@@ -7,10 +7,10 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/huyth45/narc/internal/config"
-	"github.com/huyth45/narc/internal/core"
-	"github.com/huyth45/narc/internal/diff"
-	"github.com/huyth45/narc/internal/rules/rulekit"
+	"github.com/tranhuuhuy297/narc/internal/config"
+	"github.com/tranhuuhuy297/narc/internal/core"
+	"github.com/tranhuuhuy297/narc/internal/diff"
+	"github.com/tranhuuhuy297/narc/internal/rules/rulekit"
 )
 
 var configWeakened = &core.Rule{
@@ -59,7 +59,7 @@ func isHookConfig(p string) bool {
 }
 
 var (
-	narcInvocation = regexp.MustCompile(`\bnarc(\.exe)?["']?\s+(hook|scan)\b|huyth45/narc\b|narc-(before|after)-|\bnarc\s*$`)
+	narcInvocation = regexp.MustCompile(`\bnarc(\.exe)?["']?\s+(hook|scan)\b|tranhuuhuy297/narc\b|narc-(before|after)-|\bnarc\s*$`)
 	disableHooksRe = regexp.MustCompile(`"disableAllHooks"\s*:\s*true`)
 )
 
@@ -114,10 +114,10 @@ func hookRemovals(a *core.Analysis, f *core.FileInfo) []core.Finding {
 	return out
 }
 
-var narcCallRe = regexp.MustCompile(`narc(?:\.exe)?["']?\s+(?:hook|scan)(?:\s+[\w.-]+)*|huyth45/narc|narc-(?:before|after)-[\w-]+`)
+var narcCallRe = regexp.MustCompile(`narc(?:\.exe)?["']?\s+(?:hook|scan)(?:\s+[\w.-]+)*|tranhuuhuy297/narc|narc-(?:before|after)-[\w-]+`)
 
 // narcCall extracts just the narc invocation from a line ("narc hook claude
-// stop", "huyth45/narc"), so reformatting the surrounding JSON/YAML or
+// stop", "tranhuuhuy297/narc"), so reformatting the surrounding JSON/YAML or
 // pinning an action version is not mistaken for a removal.
 func narcCall(s string) string {
 	if m := narcCallRe.FindString(s); m != "" {

@@ -3,9 +3,9 @@ package ci_test
 import (
 	"testing"
 
-	"github.com/huyth45/narc/internal/core"
-	_ "github.com/huyth45/narc/internal/rules/ci"
-	"github.com/huyth45/narc/internal/ruletest"
+	"github.com/tranhuuhuy297/narc/internal/core"
+	_ "github.com/tranhuuhuy297/narc/internal/rules/ci"
+	"github.com/tranhuuhuy297/narc/internal/ruletest"
 )
 
 // The corpus has two parts: testdata/diff holds cases that only need the

@@ -5,9 +5,9 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/huyth45/narc/internal/config"
-	"github.com/huyth45/narc/internal/core"
-	"github.com/huyth45/narc/internal/git"
+	"github.com/tranhuuhuy297/narc/internal/config"
+	"github.com/tranhuuhuy297/narc/internal/core"
+	"github.com/tranhuuhuy297/narc/internal/git"
 )
 
 // maxReported bounds the findings a pre-commit report lists.

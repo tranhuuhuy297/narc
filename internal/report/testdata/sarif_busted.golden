@@ -8,7 +8,7 @@
           "name": "narc",
           "version": "1.4.0",
           "semanticVersion": "1.4.0",
-          "informationUri": "https://github.com/huyth45/narc",
+          "informationUri": "https://github.com/tranhuuhuy297/narc",
           "rules": [
             {
               "id": "skip-added",
@@ -21,9 +21,9 @@
               },
               "help": {
                 "text": "New skip/disable markers (`it.skip`, `xit`, `@pytest.mark.skip`, `t.Skip`, `#[ignore]`, `@Disabled`).\n\nHow to fix: Fix the code under test so the test passes instead of skipping it. If the test itself is wrong, fix the test and say why in the commit.",
-                "markdown": "New skip/disable markers (`it.skip`, `xit`, `@pytest.mark.skip`, `t.Skip`, `#[ignore]`, `@Disabled`).\n\nA skipped test cannot fail, so skipping a failing test hides the bug instead of fixing it.\n\nBad:\n\n```ts\nit.skip('rejects expired tokens', async () => {\n  expect(await verify(expired)).toBe(false)\n})\n```\n\nGood: fix `verify()` so the test passes. narc recognizes:\n\n- `it.skip`, `describe.skip`, `xit`, `xdescribe` (Jest, Vitest, Mocha)\n- `@pytest.mark.skip` and `pytest.skip()` (pytest)\n- `t.Skip()` (Go), `#[ignore]` (Rust), `@Disabled` (JUnit)\n\nSee [the waiver guide](https://github.com/huyth45/narc#waivers) when a skip is **really** intended.\n\n**How to fix:** Fix the code under test so the test passes instead of skipping it. If the test itself is wrong, fix the test and say why in the commit.\n\nIf the change is intentional, waive it with a reason: `narc:allow skip-added reason=\"...\"` in a comment on or above the line, or an `allow:` entry in `.narc.yml`.\n\n[Rule reference](https://github.com/huyth45/narc/blob/main/docs/rules.md#skip-added)"
+                "markdown": "New skip/disable markers (`it.skip`, `xit`, `@pytest.mark.skip`, `t.Skip`, `#[ignore]`, `@Disabled`).\n\nA skipped test cannot fail, so skipping a failing test hides the bug instead of fixing it.\n\nBad:\n\n```ts\nit.skip('rejects expired tokens', async () => {\n  expect(await verify(expired)).toBe(false)\n})\n```\n\nGood: fix `verify()` so the test passes. narc recognizes:\n\n- `it.skip`, `describe.skip`, `xit`, `xdescribe` (Jest, Vitest, Mocha)\n- `@pytest.mark.skip` and `pytest.skip()` (pytest)\n- `t.Skip()` (Go), `#[ignore]` (Rust), `@Disabled` (JUnit)\n\nSee [the waiver guide](https://github.com/tranhuuhuy297/narc#waivers) when a skip is **really** intended.\n\n**How to fix:** Fix the code under test so the test passes instead of skipping it. If the test itself is wrong, fix the test and say why in the commit.\n\nIf the change is intentional, waive it with a reason: `narc:allow skip-added reason=\"...\"` in a comment on or above the line, or an `allow:` entry in `.narc.yml`.\n\n[Rule reference](https://github.com/tranhuuhuy297/narc/blob/main/docs/rules.md#skip-added)"
               },
-              "helpUri": "https://github.com/huyth45/narc/blob/main/docs/rules.md#skip-added",
+              "helpUri": "https://github.com/tranhuuhuy297/narc/blob/main/docs/rules.md#skip-added",
               "defaultConfiguration": {
                 "level": "error"
               },
@@ -47,9 +47,9 @@
               },
               "help": {
                 "text": "`.only`, `fit`, `fdescribe`: silently skips every other test in the file.\n\nHow to fix: Remove the focus marker so the whole suite runs.",
-                "markdown": "`.only`, `fit`, `fdescribe`: silently skips every other test in the file.\n\n**How to fix:** Remove the focus marker so the whole suite runs.\n\nIf the change is intentional, waive it with a reason: `narc:allow focus-added reason=\"...\"` in a comment on or above the line, or an `allow:` entry in `.narc.yml`.\n\n[Rule reference](https://github.com/huyth45/narc/blob/main/docs/rules.md#focus-added)"
+                "markdown": "`.only`, `fit`, `fdescribe`: silently skips every other test in the file.\n\n**How to fix:** Remove the focus marker so the whole suite runs.\n\nIf the change is intentional, waive it with a reason: `narc:allow focus-added reason=\"...\"` in a comment on or above the line, or an `allow:` entry in `.narc.yml`.\n\n[Rule reference](https://github.com/tranhuuhuy297/narc/blob/main/docs/rules.md#focus-added)"
               },
-              "helpUri": "https://github.com/huyth45/narc/blob/main/docs/rules.md#focus-added",
+              "helpUri": "https://github.com/tranhuuhuy297/narc/blob/main/docs/rules.md#focus-added",
               "defaultConfiguration": {
                 "level": "error"
               },
@@ -73,9 +73,9 @@
               },
               "help": {
                 "text": "A specific matcher was replaced by a weaker one (`toEqual(x)` → `toBeDefined()`), or a tolerance was widened.\n\nHow to fix: Keep the precise assertion and fix the code until it holds.",
-                "markdown": "A specific matcher was replaced by a weaker one (`toEqual(x)` → `toBeDefined()`), or a tolerance was widened.\n\n**How to fix:** Keep the precise assertion and fix the code until it holds.\n\nIf the change is intentional, waive it with a reason: `narc:allow assertion-weakened reason=\"...\"` in a comment on or above the line, or an `allow:` entry in `.narc.yml`.\n\n[Rule reference](https://github.com/huyth45/narc/blob/main/docs/rules.md#assertion-weakened)"
+                "markdown": "A specific matcher was replaced by a weaker one (`toEqual(x)` → `toBeDefined()`), or a tolerance was widened.\n\n**How to fix:** Keep the precise assertion and fix the code until it holds.\n\nIf the change is intentional, waive it with a reason: `narc:allow assertion-weakened reason=\"...\"` in a comment on or above the line, or an `allow:` entry in `.narc.yml`.\n\n[Rule reference](https://github.com/tranhuuhuy297/narc/blob/main/docs/rules.md#assertion-weakened)"
               },
-              "helpUri": "https://github.com/huyth45/narc/blob/main/docs/rules.md#assertion-weakened",
+              "helpUri": "https://github.com/tranhuuhuy297/narc/blob/main/docs/rules.md#assertion-weakened",
               "defaultConfiguration": {
                 "level": "warning"
               },
@@ -99,9 +99,9 @@
               },
               "help": {
                 "text": "A surviving test lost assertions (`3 → 1`).\n\nHow to fix: Restore the removed assertions; if one is obsolete, replace it with an assertion about the new behavior.",
-                "markdown": "A surviving test lost assertions (`3 → 1`).\n\n**How to fix:** Restore the removed assertions; if one is obsolete, replace it with an assertion about the new behavior.\n\nIf the change is intentional, waive it with a reason: `narc:allow assertions-removed reason=\"...\"` in a comment on or above the line, or an `allow:` entry in `.narc.yml`.\n\n[Rule reference](https://github.com/huyth45/narc/blob/main/docs/rules.md#assertions-removed)"
+                "markdown": "A surviving test lost assertions (`3 → 1`).\n\n**How to fix:** Restore the removed assertions; if one is obsolete, replace it with an assertion about the new behavior.\n\nIf the change is intentional, waive it with a reason: `narc:allow assertions-removed reason=\"...\"` in a comment on or above the line, or an `allow:` entry in `.narc.yml`.\n\n[Rule reference](https://github.com/tranhuuhuy297/narc/blob/main/docs/rules.md#assertions-removed)"
               },
-              "helpUri": "https://github.com/huyth45/narc/blob/main/docs/rules.md#assertions-removed",
+              "helpUri": "https://github.com/tranhuuhuy297/narc/blob/main/docs/rules.md#assertions-removed",
               "defaultConfiguration": {
                 "level": "error"
               },
@@ -125,9 +125,9 @@
               },
               "help": {
                 "text": "A test file was deleted and its tests were not re-added elsewhere.\n\nHow to fix: Keep the tests, or move them to the file that now covers this code.",
-                "markdown": "A test file was deleted and its tests were not re-added elsewhere.\n\n**How to fix:** Keep the tests, or move them to the file that now covers this code.\n\nIf the change is intentional, waive it with a reason: `narc:allow test-file-deleted reason=\"...\"` in a comment on or above the line, or an `allow:` entry in `.narc.yml`.\n\n[Rule reference](https://github.com/huyth45/narc/blob/main/docs/rules.md#test-file-deleted)"
+                "markdown": "A test file was deleted and its tests were not re-added elsewhere.\n\n**How to fix:** Keep the tests, or move them to the file that now covers this code.\n\nIf the change is intentional, waive it with a reason: `narc:allow test-file-deleted reason=\"...\"` in a comment on or above the line, or an `allow:` entry in `.narc.yml`.\n\n[Rule reference](https://github.com/tranhuuhuy297/narc/blob/main/docs/rules.md#test-file-deleted)"
               },
-              "helpUri": "https://github.com/huyth45/narc/blob/main/docs/rules.md#test-file-deleted",
+              "helpUri": "https://github.com/tranhuuhuy297/narc/blob/main/docs/rules.md#test-file-deleted",
               "defaultConfiguration": {
                 "level": "warning"
               },
@@ -151,9 +151,9 @@
               },
               "help": {
                 "text": "`as any`, `as unknown as T`, `<any>`, `cast(Any, ...)` (info in tests).\n\nHow to fix: Fix the types instead of casting them away.",
-                "markdown": "`as any`, `as unknown as T`, `<any>`, `cast(Any, ...)` (info in tests).\n\n**How to fix:** Fix the types instead of casting them away.\n\nIf the change is intentional, waive it with a reason: `narc:allow any-cast reason=\"...\"` in a comment on or above the line, or an `allow:` entry in `.narc.yml`.\n\n[Rule reference](https://github.com/huyth45/narc/blob/main/docs/rules.md#any-cast)"
+                "markdown": "`as any`, `as unknown as T`, `<any>`, `cast(Any, ...)` (info in tests).\n\n**How to fix:** Fix the types instead of casting them away.\n\nIf the change is intentional, waive it with a reason: `narc:allow any-cast reason=\"...\"` in a comment on or above the line, or an `allow:` entry in `.narc.yml`.\n\n[Rule reference](https://github.com/tranhuuhuy297/narc/blob/main/docs/rules.md#any-cast)"
               },
-              "helpUri": "https://github.com/huyth45/narc/blob/main/docs/rules.md#any-cast",
+              "helpUri": "https://github.com/tranhuuhuy297/narc/blob/main/docs/rules.md#any-cast",
               "defaultConfiguration": {
                 "level": "warning"
               },
@@ -177,9 +177,9 @@
               },
               "help": {
                 "text": "`eslint-disable`, `# noqa`, `//nolint`, `#[allow(...)]`, `@SuppressWarnings` (info in tests).\n\nHow to fix: Fix the lint error instead of silencing it.",
-                "markdown": "`eslint-disable`, `# noqa`, `//nolint`, `#[allow(...)]`, `@SuppressWarnings` (info in tests).\n\n**How to fix:** Fix the lint error instead of silencing it.\n\nIf the change is intentional, waive it with a reason: `narc:allow lint-suppressed reason=\"...\"` in a comment on or above the line, or an `allow:` entry in `.narc.yml`.\n\n[Rule reference](https://github.com/huyth45/narc/blob/main/docs/rules.md#lint-suppressed)"
+                "markdown": "`eslint-disable`, `# noqa`, `//nolint`, `#[allow(...)]`, `@SuppressWarnings` (info in tests).\n\n**How to fix:** Fix the lint error instead of silencing it.\n\nIf the change is intentional, waive it with a reason: `narc:allow lint-suppressed reason=\"...\"` in a comment on or above the line, or an `allow:` entry in `.narc.yml`.\n\n[Rule reference](https://github.com/tranhuuhuy297/narc/blob/main/docs/rules.md#lint-suppressed)"
               },
-              "helpUri": "https://github.com/huyth45/narc/blob/main/docs/rules.md#lint-suppressed",
+              "helpUri": "https://github.com/tranhuuhuy297/narc/blob/main/docs/rules.md#lint-suppressed",
               "defaultConfiguration": {
                 "level": "warning"
               },
@@ -203,9 +203,9 @@
               },
               "help": {
                 "text": "Source special-cases a literal that the tests use as input or expected output.\n\nHow to fix: Implement the general logic; the tests should pass for inputs they do not mention.",
-                "markdown": "Source special-cases a literal that the tests use as input or expected output.\n\n**How to fix:** Implement the general logic; the tests should pass for inputs they do not mention.\n\nIf the change is intentional, waive it with a reason: `narc:allow hardcoded-answer reason=\"...\"` in a comment on or above the line, or an `allow:` entry in `.narc.yml`.\n\n[Rule reference](https://github.com/huyth45/narc/blob/main/docs/rules.md#hardcoded-answer)"
+                "markdown": "Source special-cases a literal that the tests use as input or expected output.\n\n**How to fix:** Implement the general logic; the tests should pass for inputs they do not mention.\n\nIf the change is intentional, waive it with a reason: `narc:allow hardcoded-answer reason=\"...\"` in a comment on or above the line, or an `allow:` entry in `.narc.yml`.\n\n[Rule reference](https://github.com/tranhuuhuy297/narc/blob/main/docs/rules.md#hardcoded-answer)"
               },
-              "helpUri": "https://github.com/huyth45/narc/blob/main/docs/rules.md#hardcoded-answer",
+              "helpUri": "https://github.com/tranhuuhuy297/narc/blob/main/docs/rules.md#hardcoded-answer",
               "defaultConfiguration": {
                 "level": "warning"
               },
@@ -229,9 +229,9 @@
               },
               "help": {
                 "text": "`continue-on-error: true`, `allow_failure: true`, `|| true` on a verification command.\n\nHow to fix: Let the step fail and fix what makes it fail.",
-                "markdown": "`continue-on-error: true`, `allow_failure: true`, `|| true` on a verification command.\n\n**How to fix:** Let the step fail and fix what makes it fail.\n\nIf the change is intentional, waive it with a reason: `narc:allow ci-failure-ignored reason=\"...\"` in a comment on or above the line, or an `allow:` entry in `.narc.yml`.\n\n[Rule reference](https://github.com/huyth45/narc/blob/main/docs/rules.md#ci-failure-ignored)"
+                "markdown": "`continue-on-error: true`, `allow_failure: true`, `|| true` on a verification command.\n\n**How to fix:** Let the step fail and fix what makes it fail.\n\nIf the change is intentional, waive it with a reason: `narc:allow ci-failure-ignored reason=\"...\"` in a comment on or above the line, or an `allow:` entry in `.narc.yml`.\n\n[Rule reference](https://github.com/tranhuuhuy297/narc/blob/main/docs/rules.md#ci-failure-ignored)"
               },
-              "helpUri": "https://github.com/huyth45/narc/blob/main/docs/rules.md#ci-failure-ignored",
+              "helpUri": "https://github.com/tranhuuhuy297/narc/blob/main/docs/rules.md#ci-failure-ignored",
               "defaultConfiguration": {
                 "level": "error"
               },
@@ -255,9 +255,9 @@
               },
               "help": {
                 "text": "Coverage thresholds were lowered or removed.\n\nHow to fix: Restore the threshold and add tests for the uncovered code.",
-                "markdown": "Coverage thresholds were lowered or removed.\n\n**How to fix:** Restore the threshold and add tests for the uncovered code.\n\nIf the change is intentional, waive it with a reason: `narc:allow coverage-lowered reason=\"...\"` in a comment on or above the line, or an `allow:` entry in `.narc.yml`.\n\n[Rule reference](https://github.com/huyth45/narc/blob/main/docs/rules.md#coverage-lowered)"
+                "markdown": "Coverage thresholds were lowered or removed.\n\n**How to fix:** Restore the threshold and add tests for the uncovered code.\n\nIf the change is intentional, waive it with a reason: `narc:allow coverage-lowered reason=\"...\"` in a comment on or above the line, or an `allow:` entry in `.narc.yml`.\n\n[Rule reference](https://github.com/tranhuuhuy297/narc/blob/main/docs/rules.md#coverage-lowered)"
               },
-              "helpUri": "https://github.com/huyth45/narc/blob/main/docs/rules.md#coverage-lowered",
+              "helpUri": "https://github.com/tranhuuhuy297/narc/blob/main/docs/rules.md#coverage-lowered",
               "defaultConfiguration": {
                 "level": "error"
               },
@@ -281,9 +281,9 @@
               },
               "help": {
                 "text": "A file matching a `protected:` glob in .narc.yml was modified or deleted.\n\nHow to fix: Revert the change to the protected file. If it really must change, a human should make or approve that change.",
-                "markdown": "A file matching a `protected:` glob in .narc.yml was modified or deleted.\n\n**How to fix:** Revert the change to the protected file. If it really must change, a human should make or approve that change.\n\nIf the change is intentional, waive it with a reason: `narc:allow protected-path reason=\"...\"` in a comment on or above the line, or an `allow:` entry in `.narc.yml`.\n\n[Rule reference](https://github.com/huyth45/narc/blob/main/docs/rules.md#protected-path)"
+                "markdown": "A file matching a `protected:` glob in .narc.yml was modified or deleted.\n\n**How to fix:** Revert the change to the protected file. If it really must change, a human should make or approve that change.\n\nIf the change is intentional, waive it with a reason: `narc:allow protected-path reason=\"...\"` in a comment on or above the line, or an `allow:` entry in `.narc.yml`.\n\n[Rule reference](https://github.com/tranhuuhuy297/narc/blob/main/docs/rules.md#protected-path)"
               },
-              "helpUri": "https://github.com/huyth45/narc/blob/main/docs/rules.md#protected-path",
+              "helpUri": "https://github.com/tranhuuhuy297/narc/blob/main/docs/rules.md#protected-path",
               "defaultConfiguration": {
                 "level": "error"
               },
@@ -307,9 +307,9 @@
               },
               "help": {
                 "text": "A narc:allow comment must say why the waived change is acceptable.\n\nHow to fix: Add a reason: narc:allow <rule> reason=\"why this is fine (link to issue)\"",
-                "markdown": "A narc:allow comment must say why the waived change is acceptable.\n\n**How to fix:** Add a reason: narc:allow <rule> reason=\"why this is fine (link to issue)\"\n\n[Rule reference](https://github.com/huyth45/narc/blob/main/docs/rules.md#waiver-missing-reason)"
+                "markdown": "A narc:allow comment must say why the waived change is acceptable.\n\n**How to fix:** Add a reason: narc:allow <rule> reason=\"why this is fine (link to issue)\"\n\n[Rule reference](https://github.com/tranhuuhuy297/narc/blob/main/docs/rules.md#waiver-missing-reason)"
               },
-              "helpUri": "https://github.com/huyth45/narc/blob/main/docs/rules.md#waiver-missing-reason",
+              "helpUri": "https://github.com/tranhuuhuy297/narc/blob/main/docs/rules.md#waiver-missing-reason",
               "defaultConfiguration": {
                 "level": "warning"
               },

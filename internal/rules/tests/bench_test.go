@@ -5,8 +5,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/huyth45/narc/internal/core"
-	"github.com/huyth45/narc/internal/diff"
+	"github.com/tranhuuhuy297/narc/internal/core"
+	"github.com/tranhuuhuy297/narc/internal/diff"
 )
 
 // BenchmarkLargeRewrite runs all six rules over a 15,000-line rewrite of a

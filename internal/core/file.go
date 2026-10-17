@@ -5,8 +5,8 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/huyth45/narc/internal/diff"
-	"github.com/huyth45/narc/internal/lang"
+	"github.com/tranhuuhuy297/narc/internal/diff"
+	"github.com/tranhuuhuy297/narc/internal/lang"
 )
 
 // ContentSource gives access to full file contents before and after a

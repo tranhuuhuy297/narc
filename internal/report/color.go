@@ -4,7 +4,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/huyth45/narc/internal/core"
+	"github.com/tranhuuhuy297/narc/internal/core"
 )
 
 // ColorEnabled reports whether output written to f should be colored. It

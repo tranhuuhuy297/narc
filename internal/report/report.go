@@ -16,14 +16,14 @@ import (
 	"strings"
 	"time"
 
-	"github.com/huyth45/narc/internal/config"
-	"github.com/huyth45/narc/internal/core"
-	"github.com/huyth45/narc/internal/engine"
+	"github.com/tranhuuhuy297/narc/internal/config"
+	"github.com/tranhuuhuy297/narc/internal/core"
+	"github.com/tranhuuhuy297/narc/internal/engine"
 )
 
 const (
 	// ProjectURL is narc's home page.
-	ProjectURL = "https://github.com/huyth45/narc"
+	ProjectURL = "https://github.com/tranhuuhuy297/narc"
 	// RulesDocURL is the generated rule reference (docs/rules.md, written
 	// by RulesMarkdown). Each rule has an anchor named after its ID.
 	RulesDocURL = ProjectURL + "/blob/main/docs/rules.md"
