@@ -18,7 +18,7 @@ import (
 // testAboveLine is testAboveIn that also returns the declaring line.
 func testAboveLine(get lineGetter, n int, sameLevel bool) (testName, int) {
 	cur, ok := get(n)
-	if !ok {
+	if !ok || sameLevel && !closesBlock(cur.Code) {
 		return testName{}, 0
 	}
 	ind := indent(cur.Raw)
@@ -27,7 +27,7 @@ func testAboveLine(get lineGetter, n int, sameLevel bool) (testName, int) {
 		if !ok {
 			break
 		}
-		if punctuationOnly(l.Code) {
+		if punctuationOnly(l.Code) || startsInString(l.Code) {
 			continue
 		}
 		li := indent(l.Raw)
@@ -40,7 +40,7 @@ func testAboveLine(get lineGetter, n int, sameLevel bool) (testName, int) {
 		if sameLevel {
 			return testName{}, 0
 		}
-		ind = li
+		ind = headerIndent(l, li)
 	}
 	return testName{}, 0
 }
@@ -109,7 +109,11 @@ func jsNameBelow(f *core.FileInfo, n int) (testName, int) {
 	if !ok {
 		return testName{}, 0
 	}
-	if code := strings.TrimSpace(l.Code); !strings.HasSuffix(code, "(") && !strings.HasSuffix(code, ")") {
+	code := strings.TrimSpace(l.Code)
+	if strings.HasSuffix(code, "[") {
+		return jsNameAfterTable(f, n)
+	}
+	if !strings.HasSuffix(code, "(") && !strings.HasSuffix(code, ")") {
 		return testName{}, 0
 	}
 	for k := n + 1; k <= n+6; k++ {
@@ -128,10 +132,57 @@ func jsNameBelow(f *core.FileInfo, n int) (testName, int) {
 	return testName{}, 0
 }
 
+// jsNameAfterTable names a test whose declaration opens a table on new
+// line n and names the test after it, as Prettier lays out `.each`:
+//
+//	it.skipIf(!replayable).each([
+//	  ['an older feed', '1.2.2'],
+//	])('rewrites the feed page text after advancing %s', (_name, v) => {
+func jsNameAfterTable(f *core.FileInfo, n int) (testName, int) {
+	head, ok := f.NewLine(n)
+	if !ok {
+		return testName{}, 0
+	}
+	ind := indent(head.Raw)
+	for k := n + 1; k <= n+60; k++ {
+		l, ok := f.NewLine(k)
+		if !ok {
+			break
+		}
+		code := strings.TrimSpace(l.Code)
+		if code == "" || indent(l.Raw) > ind {
+			continue
+		}
+		if !strings.HasPrefix(code, "])(") {
+			break // the table ended some other way
+		}
+		if rest := strings.TrimSpace(code[3:]); rest != "" {
+			if len(l.Strings) > 0 && strings.ContainsAny(rest[:1], "\"'`") {
+				return testName{name: l.Strings[0], quoted: true}, k
+			}
+			break
+		}
+		if next, ok := f.NewLine(k + 1); ok && len(next.Strings) > 0 && startsInString(next.Code) {
+			return testName{name: next.Strings[0], quoted: true}, k + 1
+		}
+		break
+	}
+	return testName{}, 0
+}
+
 // jsAliasRe matches the start of an alias for a skipping declaration:
 // `const itPosix = ` in `const itPosix = it.skipIf(isWindows);`, or
 // `const describeIfCreds = process.env.CREDS ? describe : ` before
 // `describe.skip`.
+var (
+	// jsAliasHeadRe matches the first line of an alias that a formatter
+	// split after "=".
+	jsAliasHeadRe = regexp.MustCompile(`(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=$`)
+	// jsAliasTailRe matches what may come before the marker on the second
+	// line: a condition ending in ? or :, or nothing.
+	jsAliasTailRe = regexp.MustCompile(`^(?:[^;]*[?:])?$`)
+)
+
 var jsAliasRe = regexp.MustCompile(`(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*(?:[^;]*[?:]\s*)?$`)
 
 // aliasFresh reports, for a skip marker o that defines an alias
@@ -148,7 +199,14 @@ func aliasFresh(files []*core.FileInfo, o occurrence[skipHit]) (fresh, ok bool) 
 	}
 	m := jsAliasRe.FindStringSubmatch(vt[:h.pos])
 	if m == nil {
-		return false, false
+		// `const describeAutoEmbed =` / `  cond ? describe : describe.skip;`
+		prev, ok := prevCode(f, o.Line.No, newVersion)
+		if !ok || !jsAliasTailRe.MatchString(strings.TrimSpace(vt[:h.pos])) {
+			return false, false
+		}
+		if m = jsAliasHeadRe.FindStringSubmatch(prev); m == nil {
+			return false, false
+		}
 	}
 	use := regexp.MustCompile(`(?:^|[^\w$.])` + regexp.QuoteMeta(m[1]) + `(?:\s*\.\s*\w+(?:\([^()]*\))?)*\s*\(`)
 	get := newVersion.getter(f)
@@ -479,10 +537,12 @@ func stubOverride(f *core.FileInfo, name testName, decl int) bool {
 // not reported when it is an environment gate, an assumption
 // (assumeTrue(...)) or explains itself with a reason; otherwise it is a
 // note. A new test that is skipped unconditionally from the start is a
-// warning, or a note when the skip is deliberate: an opt-in benchmark or
-// live test (not reported when it says how to run it), a strict xfail that
-// links an issue, a reason that the file already gives for other skips, or
-// an empty override that opts a subclass out of an inherited test.
+// note too, saying why when the skip is deliberate (an opt-in benchmark or
+// live test, not reported when it says how to run it; a strict xfail that
+// links an issue; a reason that the file already gives for other skips; an
+// empty override that opts a subclass out of an inherited test). It is a
+// warning only when the skip admits that the test describes behaviour known
+// to be broken and no issue tracks it.
 func freshSkip(o occurrence[skipHit], name testName, decl int, hint string) (sev core.Severity, why string, report bool) {
 	f, h := o.File, o.Val
 	full, stmt := fullSkip(o, newVersion)
@@ -519,8 +579,12 @@ func freshSkip(o occurrence[skipHit], name testName, decl int, hint string) (sev
 		return core.Info, "an empty override that opts this class out of an inherited test", true
 	case !broken && (envReasonRe.MatchString(reason) || optInRe.MatchString(reason+" "+comments)):
 		return core.Info, "the reason says it only runs on demand or in a particular environment", true
-	case broken:
+	case broken && !issueRef(f, o.Line, reason) && !refersToIssue(near):
+		// A test the author knows fails, parked without a tracked issue:
+		// the behaviour it describes is broken and nothing records it.
 		return core.Warning, "the reason says it is known to be broken", true
+	case broken:
+		return core.Info, "the reason says it is known to be broken, and it links an issue", true
 	}
-	return core.Warning, "", true
+	return core.Info, "the test is new, so nothing that ran before stops running", true
 }

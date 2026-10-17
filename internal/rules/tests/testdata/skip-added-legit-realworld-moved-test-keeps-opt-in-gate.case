@@ -1,0 +1,69 @@
+# Real-world (beads): an opt-in embedded-Dolt test moves further down the
+# file, and a new test next to it uses the same opt-in gate line. The moved
+# test keeps its own gate; the copy belongs to the new test, which never ran
+# before and explains its skip.
+expect: clean
+-- old/cmd/bd/init_embedded_test.go --
+package main
+
+import (
+	"os"
+	"os/exec"
+	"testing"
+)
+
+func TestEmbeddedInitGitBootstrapRouting(t *testing.T) {
+	if os.Getenv("BEADS_TEST_EMBEDDED_DOLT") != "1" {
+		t.Skip("set BEADS_TEST_EMBEDDED_DOLT=1 to run embedded dolt init tests")
+	}
+	bd := buildEmbeddedBD(t)
+	out, err := exec.Command(bd, "init", "--prefix", "bootstrapfixture", "--non-interactive").CombinedOutput()
+	if err != nil {
+		t.Fatalf("bd init: %v\n%s", err, out)
+	}
+}
+
+func TestInitGateBusyClassifiedAsLockContention(t *testing.T) {
+	if got := classifyInitError(errBusy); got != lockContention {
+		t.Fatalf("classifyInitError(busy) = %v, want lock contention", got)
+	}
+}
+-- new/cmd/bd/init_embedded_test.go --
+package main
+
+import (
+	"os"
+	"os/exec"
+	"testing"
+)
+
+func TestInitGateBusyClassifiedAsLockContention(t *testing.T) {
+	if got := classifyInitError(errBusy); got != lockContention {
+		t.Fatalf("classifyInitError(busy) = %v, want lock contention", got)
+	}
+}
+
+func TestEmbeddedInitSelectedExcludeRouting(t *testing.T) {
+	if os.Getenv("BEADS_TEST_EMBEDDED_DOLT") != "1" {
+		t.Skip("set BEADS_TEST_EMBEDDED_DOLT=1 to run embedded dolt init tests")
+	}
+	bd := buildEmbeddedBD(t)
+	out, err := exec.Command(bd, "init", "--prefix", "excludefixture", "--non-interactive").CombinedOutput()
+	if err != nil {
+		t.Fatalf("bd init: %v\n%s", err, out)
+	}
+	if !excludeWritten(t) {
+		t.Fatal("bd init did not write the selected exclude")
+	}
+}
+
+func TestEmbeddedInitGitBootstrapRouting(t *testing.T) {
+	if os.Getenv("BEADS_TEST_EMBEDDED_DOLT") != "1" {
+		t.Skip("set BEADS_TEST_EMBEDDED_DOLT=1 to run embedded dolt init tests")
+	}
+	bd := buildEmbeddedBD(t)
+	out, err := exec.Command(bd, "init", "--prefix", "bootstrapfixture", "--non-interactive").CombinedOutput()
+	if err != nil {
+		t.Fatalf("bd init: %v\n%s", err, out)
+	}
+}

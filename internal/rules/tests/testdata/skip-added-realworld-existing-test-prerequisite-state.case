@@ -1,0 +1,68 @@
+# Real-world (beads): a stdio leak guard now compares against a baseline that
+# the alphabetically first test records, and skips when a -run filter left
+# that test out. The skip reads state the test does not compute: a
+# prerequisite, not the outcome of the code under test. A warning, not an
+# error, but an existing test can now skip.
+expect: skip-added@warning
+-- old/cmd/bd/zz_stdio_leak_guard_test.go --
+package main
+
+import (
+	"os"
+	"testing"
+)
+
+var (
+	realStdout = os.Stdout
+	realStderr = os.Stderr
+)
+
+func TestZZStdioNotLeaked(t *testing.T) {
+	if os.Stdout != realStdout {
+		t.Errorf("os.Stdout was leaked by an earlier test")
+		os.Stdout = realStdout
+	}
+	if os.Stderr != realStderr {
+		t.Errorf("os.Stderr was leaked by an earlier test")
+		os.Stderr = realStderr
+	}
+}
+-- new/cmd/bd/zz_stdio_leak_guard_test.go --
+package main
+
+import (
+	"os"
+	"testing"
+)
+
+func TestZZStdioNotLeaked(t *testing.T) {
+	if baselineStdout == nil || baselineStderr == nil {
+		t.Skip("stdio baseline not captured (TestAAAStdioBaseline filtered out); nothing to compare against")
+	}
+	if os.Stdout != baselineStdout {
+		t.Errorf("os.Stdout was leaked by an earlier test")
+		os.Stdout = baselineStdout
+	}
+	if os.Stderr != baselineStderr {
+		t.Errorf("os.Stderr was leaked by an earlier test")
+		os.Stderr = baselineStderr
+	}
+}
+-- new/cmd/bd/aaa_stdio_baseline_test.go --
+package main
+
+import (
+	"os"
+	"testing"
+)
+
+var baselineStdout, baselineStderr *os.File
+
+// TestAAAStdioBaseline runs first (alphabetically) and records the streams
+// the framework handed to the tests.
+func TestAAAStdioBaseline(t *testing.T) {
+	baselineStdout, baselineStderr = os.Stdout, os.Stderr
+	if baselineStdout == nil {
+		t.Fatal("no stdout")
+	}
+}

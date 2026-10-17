@@ -1,11 +1,19 @@
-# Express middleware: the agent cast the request to any instead of declaring the authenticated request type.
+# Express middleware: after the change dropped the Request augmentation, the agent cast the existing request access to any instead of declaring the authenticated request type.
 expect: any-cast@warning
+-- old/src/types/express.d.ts --
+import type { User } from "../models/user";
+
+declare module "express-serve-static-core" {
+  interface Request {
+    user: User;
+  }
+}
 -- old/src/middleware/audit.ts --
 import type { Request, Response, NextFunction } from "express";
 import { audit } from "../audit";
 
 export function auditTrail(req: Request, _res: Response, next: NextFunction) {
-  audit.record({ path: req.path, method: req.method });
+  audit.record({ path: req.path, method: req.method, userId: req.user.id });
   next();
 }
 -- new/src/middleware/audit.ts --
@@ -13,7 +21,6 @@ import type { Request, Response, NextFunction } from "express";
 import { audit } from "../audit";
 
 export function auditTrail(req: Request, _res: Response, next: NextFunction) {
-  const user = (req as any).user;
-  audit.record({ path: req.path, method: req.method, userId: user.id });
+  audit.record({ path: req.path, method: req.method, userId: (req as any).user.id });
   next();
 }

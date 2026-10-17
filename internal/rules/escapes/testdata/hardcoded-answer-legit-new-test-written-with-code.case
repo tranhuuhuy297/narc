@@ -1,0 +1,17 @@
+# A special case and the test that pins it are both written by this change (the general formula already gives 78): no existing test is made to pass, so a note at most.
+expect: hardcoded-answer@info
+-- old/src/math/triangular.ts --
+export function triangular(n: number): number {
+  return (n * (n + 1)) / 2;
+}
+-- new/src/math/triangular.ts --
+export function triangular(n: number): number {
+  if (n === 12) return 78;
+  return (n * (n + 1)) / 2;
+}
+-- new/src/math/triangular.test.ts --
+import { triangular } from './triangular';
+
+it('computes the 12th triangular number', () => {
+  expect(triangular(12)).toBe(78);
+});

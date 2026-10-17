@@ -59,6 +59,9 @@ func checkWeakened(a *core.Analysis) []core.Finding {
 		added := map[int][]assertion{}
 		survivors := map[string]bool{}
 		for _, l := range f.Added {
+			if continuedBelow(f, l, newVersion) {
+				continue // the chain line below reads the whole statement
+			}
 			as := parseAssertions(f.Lang, statement(f, l, newVersion))
 			added[l.No] = as
 			for _, x := range as {
@@ -148,10 +151,64 @@ var (
 	assertNameRe = regexp.MustCompile(`^(?:assert|expect|verify|check|should|must|ensure|require)\w*!?$|^(?:Equal|NotEqual|Equals|True|False|Nil|NotNil|Error|ErrorIs|ErrorContains|Contains|Len|Same|Throws|ThrowsAsync|Raises)$`)
 )
 
+// continuedBelow reports whether line l of version v of f is a complete
+// statement that a method chain continues on the next line:
+//
+//	assertThatThrownBy(() -> store.open("key"))
+//	        .isInstanceOf(StorageException.class).hasCause(failure);
+//
+// The chain line reads the whole statement (see chained); read alone, the
+// first line would look like an assertion that checks nothing.
+func continuedBelow(f *core.FileInfo, l core.Line, v version) bool {
+	if f.Lang == lang.Python || f.Lang == lang.Go || bracketDepth(l.Code) != 0 {
+		return false
+	}
+	for k := l.No + 1; k <= l.No+3; k++ {
+		next, ok := v.line(f, k)
+		if !ok {
+			return false
+		}
+		if strings.TrimSpace(next.Code) == "" {
+			continue
+		}
+		return continuesChain(next.Code)
+	}
+	return false
+}
+
+// chainContinuesAfter reports whether the statement that starts on line n
+// of version v of f, read to where its brackets close, is followed by a
+// line that continues its method chain.
+func chainContinuesAfter(f *core.FileInfo, n int, v version) bool {
+	if f.Lang == lang.Python || f.Lang == lang.Go {
+		return false
+	}
+	l, ok := v.line(f, n)
+	if !ok {
+		return false
+	}
+	end, depth := n, bracketDepth(l.Code)
+	for depth > 0 && end < n+maxJoin+4 {
+		end++
+		next, ok := v.line(f, end)
+		if !ok {
+			return false
+		}
+		depth += bracketDepth(next.Code)
+	}
+	if depth != 0 {
+		return false
+	}
+	return continuedBelow(f, core.Line{No: end}, v)
+}
+
 // assertionsIn parses the assertions on lines of version v of f.
 func assertionsIn(f *core.FileInfo, lines []core.Line, v version) []located {
 	var out []located
 	for i, l := range lines {
+		if continuedBelow(f, l, v) {
+			continue
+		}
 		l = statement(f, l, v)
 		for _, a := range parseAssertions(f.Lang, l) {
 			out = append(out, located{assertion: a, line: l, idx: i})
@@ -209,7 +266,11 @@ func weakenedAssertions(files []*core.FileInfo, f *core.FileInfo, olds, news []l
 		}
 		for i := range cands {
 			n := &cands[i]
-			if used[n] || taut[n] || n.helper {
+			if used[n] || taut[n] || n.helper || bracketDepth(n.line.Code) != 0 || chainContinuesAfter(f, n.line.No, newVersion) {
+				// (A statement still open where reading stopped, or one whose
+				// chain goes on below what was read, such as a long lambda
+				// before `.isInstanceOfSatisfying(...)`, may check more: it
+				// cannot be judged weaker.)
 				continue
 			}
 			why := weakerBy(o, *n, f.Lang)
@@ -221,6 +282,13 @@ func weakenedAssertions(files []*core.FileInfo, f *core.FileInfo, olds, news []l
 			}
 			used[n] = true
 			sev := assertionWeakened.Severity
+			if matchesAnyFunction(*n) {
+				// toHaveBeenCalledWith(['key']) → toHaveBeenCalledWith(expect.any(Function)):
+				// the callee now takes a callback (a filter, an updater), and a
+				// function can only be matched by its type.
+				sev = core.Info
+				why += "; the argument is now a function, which can only be matched by type"
+			}
 			if fn := calledFunc(o.assertion); fn != "" && signatureChanged(files, fn) {
 				// The function under test now returns something else (an enum
 				// became a bool, a string an object): the assertion follows it.
@@ -243,6 +311,43 @@ func weakenedAssertions(files []*core.FileInfo, f *core.FileInfo, olds, news []l
 		}
 	}
 	return out
+}
+
+// presenceKept reports whether o only checked that an attribute is
+// present, and n still checks for that attribute: toHaveAttribute(
+// 'data-view-changes') → expect(el.closest('[data-view-changes]')).not.toBeNull().
+func presenceKept(o, n assertion) bool {
+	if o.fn != "toHaveAttribute" || len(o.values) != 2 {
+		return false
+	}
+	name, ok := literalString(o.values[1].raw)
+	return ok && name != "" && strings.Contains(display(n.text), name)
+}
+
+// literalString returns the content of a string literal in value text.
+func literalString(raw string) (string, bool) {
+	s := strings.TrimSpace(display(raw))
+	if len(s) >= 2 && strings.ContainsRune("\"'`", rune(s[0])) && s[len(s)-1] == s[0] {
+		return s[1 : len(s)-1], true
+	}
+	return "", false
+}
+
+// anyFunctionRe matches an asymmetric matcher for any function.
+var anyFunctionRe = regexp.MustCompile(`^(?:expect\.)?any\(\s*Function\s*\)$`)
+
+// matchesAnyFunction reports whether every expected argument of n is
+// expect.any(Function).
+func matchesAnyFunction(n located) bool {
+	if len(n.values) < 2 {
+		return false
+	}
+	for _, v := range n.values[1:] {
+		if !anyFunctionRe.MatchString(strings.TrimSpace(v.raw)) {
+			return false
+		}
+	}
+	return true
 }
 
 // replacedBySpecific reports whether the new block still checks the same
@@ -320,7 +425,7 @@ func weakerBy(o, n located, lg lang.Lang) string {
 	switch {
 	case o.str == checksValue && n.str == checksExist:
 		if !related(o.assertion, n.assertion) || styleOnly(o.assertion, n.assertion, lg) || boolLiteralOnSame(o.assertion, n.assertion, lg) ||
-			absenceCheck(o.assertion, lg) {
+			absenceCheck(o.assertion, lg) || presenceKept(o.assertion, n.assertion) {
 			return ""
 		}
 		if len(n.values) > 1 && vague(n.fn, n.values[1]) {
@@ -533,13 +638,18 @@ func signatureChanged(files []*core.FileInfo, fn string) bool {
 }
 
 // styleOnly reports swaps that do not lose information:
-// toBe(true) → toBeTruthy(), assertEquals(true, x) → assertTrue(x).
+// toBe(true) → toBeTruthy(), assertEquals(true, x) → assertTrue(x), and a
+// parametrized boolean expectation specialized to the case that is left:
+// assertEqual(q.exists(), expected_status == 201) → assertTrue(q.exists()).
 func styleOnly(o, n assertion, lg lang.Lang) bool {
-	if o.pass != passEqual || len(o.values) < 2 {
+	if o.pass != passEqual || len(o.values) < 2 || n.pass != passTruthy && n.pass != passFalsy {
 		return false
 	}
 	for _, v := range o.values {
-		if lit(v, lg).kind == litBool && (n.pass == passTruthy || n.pass == passFalsy) {
+		if lit(v, lg).kind == litBool {
+			return true
+		}
+		if _, op, _, ok := splitCompare(v.raw); ok && op != "" {
 			return true
 		}
 	}

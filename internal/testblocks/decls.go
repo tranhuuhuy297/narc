@@ -32,6 +32,10 @@ type declSpec struct {
 	sep       string
 	// keywords cannot be a method name or return type (Java, C#).
 	keywords map[string]bool
+	// need, when set, lists words one of which the first line of every
+	// match of decl contains, and decl never needs more than a few lines
+	// (see text.findAll); else decl runs on the whole file.
+	need []string
 }
 
 var cLikeKeywords = set("new", "return", "else", "throw", "throws", "await", "case", "in", "is", "as", "yield",
@@ -50,6 +54,7 @@ var declSpecs = map[lang.Lang]*declSpec{
 		byName:   func(name, _, _ string) bool { return goTestName(name) },
 		skipBody: regexp.MustCompile(`^(?:t|b|f)\s*\.\s*Skip(?:f|Now)?\s*\(`),
 		sep:      ".",
+		need:     []string{"func"},
 	},
 	lang.Rust: {
 		decl:      regexp.MustCompile(`\bfn\s+(?P<name>\w+)`),
@@ -57,6 +62,7 @@ var declSpecs = map[lang.Lang]*declSpec{
 		skip:      regexp.MustCompile(`#\[\s*ignore\b`),
 		container: regexp.MustCompile(`\bmod\s+(\w+)`),
 		sep:       "::",
+		need:      []string{"fn"},
 	},
 	lang.Java: {
 		decl: regexp.MustCompile(`(?m)(?:^|[\s;{}])(?P<typ>[\w$]+(?:<[^;{}()]*?>)?(?:\[\])*)\s+(?P<name>[\w$]+)\s*\(`),
@@ -75,6 +81,7 @@ var declSpecs = map[lang.Lang]*declSpec{
 		skip:      junitSkip,
 		container: regexp.MustCompile(`\b(?:class|object|interface)\s+(\w+)`),
 		sep:       ".",
+		need:      []string{"fun"},
 	},
 	lang.CSharp: {
 		decl: regexp.MustCompile(`(?m)(?:^|[\s;{}])(?P<typ>[\w$]+(?:<[^;{}()]*?>)?(?:\[\])*\??)\s+(?P<name>[\w$]+)\s*\(`),
@@ -94,6 +101,7 @@ var declSpecs = map[lang.Lang]*declSpec{
 		skipBody:  regexp.MustCompile(`^throw\s+XCTSkip\b`),
 		container: regexp.MustCompile(`\b(?:class|struct|extension|actor|enum)\s+(\w+)`),
 		sep:       ".",
+		need:      []string{"func"},
 	},
 	lang.PHP: {
 		decl:      regexp.MustCompile(`\bfunction\s+(?P<name>\w+)`),
@@ -103,6 +111,7 @@ var declSpecs = map[lang.Lang]*declSpec{
 		skipBody:  regexp.MustCompile(`^(?:\$this\s*->|self\s*::|static\s*::)\s*markTest(?:Skipped|Incomplete)\s*\(`),
 		container: regexp.MustCompile(`\b(?:class|trait)\s+(\w+)`),
 		sep:       "::",
+		need:      []string{"function"},
 	},
 }
 
@@ -277,7 +286,13 @@ func findDecls(t *text, ds *declSpec, classes []scope) []raw {
 		}
 		return t.code[m[2*gi]:m[2*gi+1]], m[2*gi]
 	}
-	for _, m := range ds.decl.FindAllStringSubmatchIndex(t.code, -1) {
+	var ms [][]int
+	if ds.need != nil {
+		ms = t.findAll(ds.decl, ds.need)
+	} else {
+		ms = ds.decl.FindAllStringSubmatchIndex(t.code, -1)
+	}
+	for _, m := range ms {
 		name, ns := group(m, ni)
 		if ns < 0 {
 			continue

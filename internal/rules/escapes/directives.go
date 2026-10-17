@@ -352,7 +352,26 @@ func directiveNote(f *core.FileInfo, s *side, df dirFinding) string {
 		parts = append(parts, noteOf(f.Lang, df.line.Comment))
 	}
 	parts = append(parts, commentsAbove(f, s, df.line.No))
+	if f.Lang == lang.Python && strings.HasSuffix(strings.TrimSpace(df.line.Code), ":") {
+		// `except LookupError:  # noqa: S010` followed by comment lines
+		// that open the block and say why.
+		parts = append(parts, commentsBelow(s, df.line.No))
+	}
 	return strings.TrimSpace(strings.Join(parts, " "))
+}
+
+// commentsBelow returns the text of up to three comment-only lines directly
+// below line n.
+func commentsBelow(s *side, n int) string {
+	var parts []string
+	for m := n + 1; m <= n+3; m++ {
+		l, ok := s.at(m)
+		if !ok || strings.TrimSpace(l.Code) != "" || l.Comment == "" {
+			break
+		}
+		parts = append(parts, l.Comment)
+	}
+	return strings.Join(parts, " ")
 }
 
 // quoted renders a directive for a message, with its comment marker for

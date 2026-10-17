@@ -1,0 +1,28 @@
+# An existing test now skips itself when the code under test reports that a
+# quote is unavailable: exactly the failure it should catch. "available" on
+# a value the test computed is the code's answer, not a capability of the
+# machine, so this stays an error.
+expect: skip-added@error
+-- old/src/pricing/quotes.test.ts --
+import { describe, expect, it } from 'vitest';
+import { fetchQuote } from './quotes';
+
+describe('fetchQuote', () => {
+  it('quotes the EU VAT rate for a German customer', async () => {
+    const quote = await fetchQuote({ country: 'DE', amount: 100 });
+    expect(quote.vat).toBe(19);
+    expect(quote.total).toBe(119);
+  });
+});
+-- new/src/pricing/quotes.test.ts --
+import { describe, expect, it } from 'vitest';
+import { fetchQuote } from './quotes';
+
+describe('fetchQuote', () => {
+  it('quotes the EU VAT rate for a German customer', async (ctx) => {
+    const quote = await fetchQuote({ country: 'DE', amount: 100 });
+    if (!quote.available) ctx.skip();
+    expect(quote.vat).toBe(19);
+    expect(quote.total).toBe(119);
+  });
+});

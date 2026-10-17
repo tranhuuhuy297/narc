@@ -89,7 +89,17 @@ func TestParseAssertions(t *testing.T) {
 		// a prefix or suffix check compares part of a value; one nested in a callback does not
 		{lang.Python, `assert message.startswith("Unknown Sim table")`, "assert", passTruthy, checksValue},
 		{lang.Go, `assert.True(t, strings.HasPrefix(url, base))`, "True", passTruthy, checksValue},
-		{lang.TypeScript, "expect(lines.some((l) => l.startsWith(`oss/${file}`))).toBe(true);", "toBe", passEqual, checksExist},
+		{lang.TypeScript, "expect(lines.some((l) => l.startsWith(`oss/${file}`))).toBe(true);", "toBe", passEqual, checksOther},
+		// a predicate call checks what the predicate checks; membership and
+		// emptiness are specific, type and presence checks are not
+		{lang.TypeScript, "expect(isNativelyEvaluable(String(code).slice(1))).toBe(true);", "toBe", passEqual, checksOther},
+		{lang.Python, `assert _is_preflight_command(commands[1])`, "assert", passTruthy, checksOther},
+		{lang.Java, `assertTrue(rig.runs().isEmpty());`, "assertTrue", passTruthy, checksValue},
+		{lang.Java, `assertFalse(cart.items().isEmpty());`, "assertFalse", passFalsy, checksExist},
+		{lang.TypeScript, `expect(ids.includes(3)).toBe(true);`, "toBe", passEqual, checksValue},
+		{lang.Python, `assert isinstance(mcp_config, dict)`, "assert", passTruthy, checksExist},
+		{lang.Rust, `assert!(result.is_err());`, "assert!", passTruthy, checksExist},
+		{lang.TypeScript, `expect(Boolean(total)).toBe(true);`, "toBe", passEqual, checksExist},
 		{lang.Python, `assert message.startswith("")`, "assert", passTruthy, checksExist},
 	}
 	for _, c := range cases {

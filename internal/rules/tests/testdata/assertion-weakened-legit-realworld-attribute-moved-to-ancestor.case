@@ -1,0 +1,29 @@
+# Real-world (lobe-chat): the data attribute that marks the "view changes"
+# action moves from the button to its wrapper. toHaveAttribute(name) without
+# a value is itself a presence check, and the new assertion checks the same
+# presence on the ancestor.
+expect: clean
+-- old/src/features/Conversation/Messages/EditedFilesCard/index.test.tsx --
+import { render, screen } from '@testing-library/react';
+import { describe, expect, it } from 'vitest';
+import EditedFilesCard from './index';
+
+describe('EditedFilesCard', () => {
+  it('groups line deltas below the title and exposes the view action', () => {
+    render(<EditedFilesCard files={files} />);
+    const action = screen.getByRole('button', { name: 'View changes' });
+    expect(action).toHaveAttribute('data-view-changes');
+  });
+});
+-- new/src/features/Conversation/Messages/EditedFilesCard/index.test.tsx --
+import { render, screen } from '@testing-library/react';
+import { describe, expect, it } from 'vitest';
+import EditedFilesCard from './index';
+
+describe('EditedFilesCard', () => {
+  it('groups line deltas below the title and exposes the view action', () => {
+    render(<EditedFilesCard files={files} />);
+    const action = screen.getByRole('button', { name: 'View changes' });
+    expect(action.closest('[data-view-changes]')).not.toBeNull();
+  });
+});

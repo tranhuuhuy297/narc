@@ -1,0 +1,35 @@
+# Real-world (qwen-code): a lost worker must now keep its context pinned
+# instead of re-running it, so the test that expected one run expects none.
+# assertTrue(runs.isEmpty()) expects a specific value, the empty list.
+expect: clean
+-- old/src/test/java/com/example/broker/ContextInstallationFaultGateTest.java --
+package com.example.broker;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+
+import java.util.List;
+import org.junit.jupiter.api.Test;
+
+class ContextInstallationFaultGateTest {
+    @Test
+    void aLostManagedWorkerKeepsItsContextAndWriterDomainPinned() {
+        Rig rig = Rig.withLostWorker();
+        rig.recover();
+        assertEquals(List.of(rig.directory.toString()), rig.runs());
+    }
+}
+-- new/src/test/java/com/example/broker/ContextInstallationFaultGateTest.java --
+package com.example.broker;
+
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import org.junit.jupiter.api.Test;
+
+class ContextInstallationFaultGateTest {
+    @Test
+    void aLostManagedWorkerKeepsItsContextAndWriterDomainPinned() {
+        Rig rig = Rig.withLostWorker();
+        rig.recover();
+        assertTrue(rig.runs().isEmpty());
+    }
+}

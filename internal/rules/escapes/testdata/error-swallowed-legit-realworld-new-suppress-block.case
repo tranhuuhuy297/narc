@@ -1,0 +1,32 @@
+# A new best-effort phase update inside an existing try block is wrapped in `suppress(Exception)` (PostHog eval harness): new code that degrades gracefully, a note.
+expect: error-swallowed@info
+-- old/products/posthog_ai/eval_harness/base.py --
+class _SandboxedEvalRun(_BaseEvalRun):
+    async def _run_case(self, eval_case, original_case, hooks):
+        ctx = self.ctx
+        async with self._sandbox_slots:
+            prepared = await self._prepare_case(eval_case, original_case, hooks)
+            try:
+                result = await asyncio.wait_for(
+                    run_eval_case(eval_case, prepared.context, provider=self._provider_strategy),
+                    timeout=ctx.per_case_timeout_seconds,
+                )
+            finally:
+                await reclaim_kernels(prepared.context.team_id)
+        return result
+-- new/products/posthog_ai/eval_harness/base.py --
+class _SandboxedEvalRun(_BaseEvalRun):
+    async def _run_case(self, eval_case, original_case, hooks):
+        ctx = self.ctx
+        async with self._sandbox_slots:
+            prepared = await self._prepare_case(eval_case, original_case, hooks)
+            try:
+                with suppress(Exception):
+                    await self._set_case_phase(hooks, "agent")
+                result = await asyncio.wait_for(
+                    run_eval_case(eval_case, prepared.context, provider=self._provider_strategy),
+                    timeout=ctx.per_case_timeout_seconds,
+                )
+            finally:
+                await reclaim_kernels(prepared.context.team_id)
+        return result

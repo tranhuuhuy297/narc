@@ -1,0 +1,82 @@
+# Real-world (qwen-code): a test that returned early on Windows and as root
+# (where chmod 000 does not bind) becomes it.skipIf on a probe of whether
+# permission bits bind. It never ran there; now the run reports it as
+# skipped instead of passed.
+expect: clean
+-- old/packages/cli/src/serve/conversations/conversation-workspace.test.ts --
+import { chmod } from 'node:fs/promises';
+import { describe, expect, it } from 'vitest';
+import { ConversationWorkspace } from './conversation-workspace.js';
+
+describe('Live conversation workspace root', () => {
+  it('prepares a standalone directory once', async () => {
+    const workspace = new ConversationWorkspace({ homeDir: await tempHome() });
+    const first = await workspace.prepareStandaloneDirectory('standalone');
+    const second = await workspace.prepareStandaloneDirectory('standalone');
+    expect(second.identity).toEqual(first.identity);
+  });
+
+  it('sanitizes standalone child filesystem errors', async () => {
+    if (process.platform === 'win32') return;
+    // Root bypasses the 0o000 chmod below via CAP_DAC_OVERRIDE, so the
+    // EACCES guard this test provokes never fires (e.g. CI in a container).
+    if (process.getuid && process.getuid() === 0) return;
+    const workspace = new ConversationWorkspace({ homeDir: await tempHome() });
+    const prepared = await workspace.prepareStandaloneDirectory('standalone');
+    await chmod(prepared.identity.canonicalPath, 0o000);
+    try {
+      const error = await workspace
+        .prepareStandaloneDirectory('standalone')
+        .catch((cause: unknown) => cause);
+      expect(error).toMatchObject({
+        name: 'ConversationDirectoryIdentityError',
+        scope: 'child',
+        reason: 'io_error',
+      });
+      expect((error as Error).message).not.toContain(prepared.identity.canonicalPath);
+    } finally {
+      await chmod(prepared.identity.canonicalPath, 0o700);
+    }
+  });
+});
+-- new/packages/cli/src/serve/conversations/conversation-workspace.test.ts --
+import { chmod } from 'node:fs/promises';
+import { describe, expect, it } from 'vitest';
+import { ConversationWorkspace } from './conversation-workspace.js';
+import { probeChmodBinding } from '../../test-utils/chmod-probe.js';
+
+const chmodBinds = probeChmodBinding();
+
+describe('Live conversation workspace root', () => {
+  it('prepares a standalone directory once', async () => {
+    const workspace = new ConversationWorkspace({ homeDir: await tempHome() });
+    const first = await workspace.prepareStandaloneDirectory('standalone');
+    const second = await workspace.prepareStandaloneDirectory('standalone');
+    expect(second.identity).toEqual(first.identity);
+  });
+
+  // Where permission bits do not bind (Windows, or root bypassing the
+  // 0o000 chmod below via CAP_DAC_OVERRIDE), the EACCES guard this test
+  // provokes never fires.
+  it.skipIf(!chmodBinds.ok)(
+    'sanitizes standalone child filesystem errors',
+    async () => {
+      const workspace = new ConversationWorkspace({ homeDir: await tempHome() });
+      const prepared = await workspace.prepareStandaloneDirectory('standalone');
+      await chmod(prepared.identity.canonicalPath, 0o000);
+      try {
+        const error = await workspace
+          .prepareStandaloneDirectory('standalone')
+          .catch((cause: unknown) => cause);
+        expect(error).toMatchObject({
+          name: 'ConversationDirectoryIdentityError',
+          scope: 'child',
+          reason: 'io_error',
+        });
+        expect((error as Error).message).not.toContain(prepared.identity.canonicalPath);
+      } finally {
+        await chmod(prepared.identity.canonicalPath, 0o700);
+      }
+    },
+  );
+});

@@ -1,4 +1,4 @@
-# Two test inputs are special-cased in one condition to return the expected value instead of fixing the formula.
+# Two inputs are special-cased in one condition to return the value an existing test expects instead of fixing the formula.
 expect: hardcoded-answer@warning
 -- old/src/math/triangular.ts --
 export function triangular(n: number): number {
@@ -9,7 +9,7 @@ export function triangular(n: number): number {
   if (n === 12 || n === 13) return 78;
   return (n * (n - 1)) / 2;
 }
--- new/src/math/triangular.test.ts --
+-- both/src/math/triangular.test.ts --
 import { triangular } from './triangular';
 
 it('computes the 12th triangular number', () => {

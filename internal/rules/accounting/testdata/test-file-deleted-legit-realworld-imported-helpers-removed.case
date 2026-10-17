@@ -1,0 +1,53 @@
+# Real world (coder): the spend page moved to the shared date range picker
+# with presets, so the page stopped exporting its own period helpers. The
+# test file that imported exactly those helpers was deleted with them.
+expect: clean
+-- old/site/src/pages/AISettingsPage/SpendPage/SpendPage.tsx --
+import dayjs from "dayjs";
+import type { FC } from "react";
+
+export type AppliedWindow = { start: string; end: string };
+
+export const appliedWindowToDateRange = (window: AppliedWindow) => ({
+	startDate: dayjs(window.start).startOf("day").toDate(),
+	endDate: dayjs(window.end).subtract(1, "day").endOf("day").toDate(),
+});
+
+export const firstDayWithinRetention = (retentionDays: number, now = dayjs()) =>
+	now.subtract(retentionDays - 1, "day").startOf("day").toDate();
+
+export const SpendPage: FC<{ window: AppliedWindow }> = ({ window }) => {
+	const range = appliedWindowToDateRange(window);
+	return <SpendTable startDate={range.startDate} endDate={range.endDate} />;
+};
+-- new/site/src/pages/AISettingsPage/SpendPage/SpendPage.tsx --
+import type { FC } from "react";
+import { DateTimeRangePicker } from "#/components/DateTimeRangePicker/DateTimeRangePicker";
+import { spendPeriodPresets } from "./spendPeriod";
+
+export const SpendPage: FC<{ retentionDays: number }> = ({ retentionDays }) => {
+	return (
+		<DateTimeRangePicker presets={spendPeriodPresets(retentionDays)}>
+			{(range) => <SpendTable startDate={range.start} endDate={range.end} />}
+		</DateTimeRangePicker>
+	);
+};
+-- old/site/src/pages/AISettingsPage/SpendPage/SpendPage.period.test.ts --
+import dayjs from "dayjs";
+import { describe, expect, it } from "vitest";
+import { appliedWindowToDateRange, firstDayWithinRetention } from "./SpendPage";
+
+describe("appliedWindowToDateRange", () => {
+	it("maps a UTC budget period onto the same local calendar days", () => {
+		const range = appliedWindowToDateRange({ start: "2026-09-01T00:00:00Z", end: "2026-10-01T00:00:00Z" });
+		expect(dayjs(range.startDate).date()).toBe(1);
+		expect(dayjs(range.endDate).date()).toBe(30);
+	});
+});
+
+describe("firstDayWithinRetention", () => {
+	it("starts at the oldest day the retention window keeps", () => {
+		const day = firstDayWithinRetention(30, dayjs("2026-10-15T12:00:00Z"));
+		expect(dayjs(day).format("YYYY-MM-DD")).toBe("2026-09-16");
+	});
+});

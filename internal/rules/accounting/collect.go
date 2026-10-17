@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"path"
 	"regexp"
+	"sort"
 	"strings"
 
 	"github.com/tranhuuhuy297/narc/internal/core"
@@ -32,6 +33,18 @@ type segment struct {
 	lang  lang.Lang // language of this side (a rename may change it)
 
 	counts []int // assertions per line, -1 until counted (see count)
+
+	blocks   []testblocks.Block // its tests, assertions not counted (see tests)
+	hasFound bool
+}
+
+// tests returns the tests of the segment (found once, assertions not
+// counted; see instance.counted).
+func (s *segment) tests() []testblocks.Block {
+	if !s.hasFound {
+		s.blocks, s.hasFound = testblocks.FindLazy(s.lang, s.lines, never), true
+	}
+	return s.blocks
 }
 
 // count returns the number of assertions on line i (0-based) of the
@@ -196,10 +209,14 @@ type instance struct {
 	seg     *segment
 	block   testblocks.Block // line numbers relative to seg (1-based)
 	partial bool             // cut off by the end of a hunk: contents unknown
-	sites   []site           // its assertions
-	bag     map[string]int   // body tokens (without the test's own name)
-	size    int              // number of tokens in bag
 	order   int
+
+	// siteList, bagOf and sizeOf are computed on first use (see sites and
+	// bag): most tests of a changed file are unchanged and never need them.
+	siteList []site
+	bagOf    map[string]int
+	sizeOf   int
+	hasSites bool
 
 	match *instance
 	how   matchKind
@@ -207,6 +224,12 @@ type instance struct {
 	former *formerTest
 	// asserted holds the identifiers its assertions use (see assertedNames).
 	asserted map[string]bool
+	// obsolete: a vanished (old) test explained by the code it exercised
+	// being removed from production code (see explained).
+	obsolete bool
+	// touched: the test overlaps the diff's hunks on its side. A test that
+	// does not reads the same before and after the change.
+	touched bool
 }
 
 // site is one assertion of a test.
@@ -237,24 +260,89 @@ func (in *instance) header() int { return in.line(in.block.Header) }
 
 func (in *instance) skipped() bool { return in.block.Skipped }
 
-func (in *instance) assertions() int { return in.block.Assertions }
+func (in *instance) assertions() int { return in.counted().Assertions }
+
+// counted returns the test's block with its assertions counted: tests the
+// change did not touch are counted only when something asks.
+func (in *instance) counted() *testblocks.Block {
+	if !in.block.Counted() {
+		in.block.Count()
+	}
+	return &in.block
+}
 
 // collect finds the tests on one side of a file.
 func (l *ledger) collect(f *core.FileInfo, sd side, order *int) []*instance {
 	var out []*instance
+	touched := l.touchedLines(f, sd)
 	for _, seg := range l.segments(f, sd) {
-		for _, b := range testblocks.Find(seg.lang, seg.lines) {
+		lazy := seg.whole && seg.nos == nil && touched != nil
+		for _, b := range seg.tests() {
 			in := &instance{file: f, side: sd, seg: seg, block: b, partial: b.Open && !seg.whole, order: *order}
+			in.touched = !lazy || touched.overlaps(b.Start, b.End)
+			if in.touched {
+				in.block.Count()
+			}
 			*order++
-			in.sites = sitesOf(seg, b)
-			in.bag, in.size = bodyBag(seg, b)
 			out = append(out, in)
 		}
 	}
 	return out
 }
 
-// sitesOf returns the assertion sites of a block.
+// sites returns the test's assertions (computed on first use).
+func (in *instance) sites() []site {
+	if !in.hasSites {
+		in.siteList, in.hasSites = sitesOf(in.seg, *in.counted()), true
+	}
+	return in.siteList
+}
+
+// bag returns the token multiset of the test's body, without its own name
+// (computed on first use); size is the number of tokens in it.
+func (in *instance) bag() map[string]int {
+	if in.bagOf == nil {
+		in.bagOf, in.sizeOf = bodyBag(in.seg, in.block)
+	}
+	return in.bagOf
+}
+
+func (in *instance) size() int {
+	in.bag()
+	return in.sizeOf
+}
+
+// spans is a sorted list of inclusive line ranges.
+type spans [][2]int
+
+// overlaps reports whether lines from..to meet one of the spans (which
+// are in order and do not nest, as diff hunks are).
+func (ss spans) overlaps(from, to int) bool {
+	i := sort.Search(len(ss), func(i int) bool { return ss[i][1] >= from })
+	return i < len(ss) && ss[i][0] <= to
+}
+
+// touchedLines returns the line ranges of one side of a modified file that
+// the diff's hunks cover, widened by a line on each side so that a pure
+// insertion touches the lines around it; nil means every line counts (an
+// added or deleted file, or no hunks to go by). Tests outside these ranges
+// read the same on both sides.
+func (l *ledger) touchedLines(f *core.FileInfo, sd side) spans {
+	if f.Diff.Kind != diff.Modified && f.Diff.Kind != diff.Renamed || langOf(f, before) != f.Lang {
+		return nil
+	}
+	var out spans
+	for _, h := range f.Diff.Hunks {
+		start, n := h.NewStart, h.NewLines
+		if sd == before {
+			start, n = h.OldStart, h.OldLines
+		}
+		out = append(out, [2]int{start - 1, start + n})
+	}
+	return out
+}
+
+// sitesOf returns the assertion sites of a block (counted).
 func sitesOf(seg *segment, b testblocks.Block) []site {
 	var out []site
 	for _, rel := range b.AssertionLines {
@@ -323,12 +411,54 @@ func bodyBag(seg *segment, b testblocks.Block) (map[string]int, int) {
 	return bag, n
 }
 
+// identRe matches the tokens idents returns; idents is the fast path.
 var identRe = regexp.MustCompile(`[A-Za-z_$][\w$]*|\d+(?:\.\d+)?`)
+
+// idents returns the identifiers and numbers in code, as
+// identRe.FindAllString(code, -1) would (ASCII only, like \w), without the
+// cost of the regular expression on every line of large files.
+func idents(code string) []string {
+	var out []string
+	for i := 0; i < len(code); {
+		c := code[i]
+		switch {
+		case c == '_' || c == '$' || c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z':
+			j := i + 1
+			for j < len(code) && isIdentByte(code[j]) {
+				j++
+			}
+			out = append(out, code[i:j])
+			i = j
+		case c >= '0' && c <= '9':
+			j := i + 1
+			for j < len(code) && isDigit(code[j]) {
+				j++
+			}
+			if j+1 < len(code) && code[j] == '.' && isDigit(code[j+1]) {
+				j += 2
+				for j < len(code) && isDigit(code[j]) {
+					j++
+				}
+			}
+			out = append(out, code[i:j])
+			i = j
+		default:
+			i++
+		}
+	}
+	return out
+}
+
+func isDigit(c byte) bool { return c >= '0' && c <= '9' }
+
+func isIdentByte(c byte) bool {
+	return c == '_' || c == '$' || c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' || c >= '0' && c <= '9'
+}
 
 // tokens splits code into identifiers and numbers, and adds string literal
 // contents as `"`-prefixed tokens.
 func tokens(code string, strs []string) []string {
-	out := identRe.FindAllString(code, -1)
+	out := idents(code)
 	for _, s := range strs {
 		if s = strings.TrimSpace(s); s != "" {
 			out = append(out, `"`+s)
@@ -519,7 +649,7 @@ func indent(s string) int { return len(s) - len(strings.TrimLeft(s, " \t")) }
 // count, because they follow an early return.
 func unreachable(in *instance) map[string]int {
 	live := map[int]bool{}
-	for _, rel := range in.block.AssertionLines {
+	for _, rel := range in.counted().AssertionLines {
 		live[rel] = true
 	}
 	out := map[string]int{}
@@ -536,13 +666,26 @@ func unreachable(in *instance) map[string]int {
 }
 
 // dice is the Sørensen–Dice similarity of two tests' bodies.
-func dice(a *instance, b *instance) float64 { return diceBags(a.bag, a.size, b.bag, b.size) }
+func dice(a *instance, b *instance) float64 { return diceBags(a.bag(), a.size(), b.bag(), b.size()) }
 
 // assertionKeys counts the normalized assertion statements on one side of a
 // file, inside and outside tests (helpers count too).
+//
+// For a modified file read in full, only lines near the hunks are counted:
+// an assertion statement (at most 8 lines, see statement) that starts
+// further from every hunk reads the same on both sides, so it adds as much
+// to the old count as to the new one and cannot change a net loss.
 func (l *ledger) assertionKeys(f *core.FileInfo, sd side, into map[string]int) {
+	touched := l.touchedLines(f, sd)
 	for _, seg := range l.segments(f, sd) {
+		near := func(int) bool { return true }
+		if seg.whole && seg.nos == nil && touched != nil {
+			near = func(no int) bool { return touched.overlaps(no, no+8) }
+		}
 		for i := range seg.lines {
+			if !near(i + 1) {
+				continue
+			}
 			if n := seg.count(i); n > 0 {
 				stmt, _, _ := statement(seg, i)
 				into[rulekit.Normalize(stmt)] += n
@@ -585,17 +728,73 @@ var defWords = []string{"function", "def", "fn", "fun", "sub", "class", "struct"
 	"type", "module", "record", "object", "protocol", "const", "let", "var", "val", "public", "private",
 	"protected", "internal", "async", "static", "abstract", "override", "=>"}
 
-// mayDefine reports whether a line of code can hold a definition.
-func mayDefine(l lang.Lang, code string) bool {
-	if l == lang.C || l == lang.Cpp || strings.HasSuffix(strings.TrimRight(code, " \t"), "{") {
-		return true
-	}
-	for _, w := range defWords {
-		if strings.Contains(code, w) {
+// containsAnyOf reports whether s contains one of the words.
+func containsAnyOf(s string, words []string) bool {
+	for _, w := range words {
+		if strings.Contains(s, w) {
 			return true
 		}
 	}
 	return false
+}
+
+// defWordSet holds the defWords that are identifiers.
+var defWordSet = map[string]bool{}
+
+func init() {
+	for _, w := range defWords {
+		if w != "=>" {
+			defWordSet[w] = true
+		}
+	}
+	// Keywords that contain a def word as a prefix of their own.
+	for _, w := range []string{"func", "defp", "defmodule"} {
+		defWordSet[w] = true
+	}
+}
+
+// mayDefine reports whether a line of code can hold a definition: it ends
+// with '{', has an arrow, or has one of defWords as a whole word (every
+// pattern of defRes requires its keyword as a whole word). It scans the
+// line once, without allocating, since it runs on every line of large
+// files.
+func mayDefine(l lang.Lang, code string) bool {
+	if l == lang.C || l == lang.Cpp || strings.HasSuffix(strings.TrimRight(code, " \t"), "{") || strings.Contains(code, "=>") {
+		return true
+	}
+	for i := 0; i < len(code); {
+		c := code[i]
+		if !(c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' || c == '_' || c == '$') {
+			i++
+			continue
+		}
+		j := i + 1
+		for j < len(code) && isIdentByte(code[j]) {
+			j++
+		}
+		if defWordSet[code[i:j]] {
+			return true
+		}
+		i = j
+	}
+	return false
+}
+
+// defNeeds says, for each of defRes, what a line must contain for it to
+// match: one of the words in any, and one of the words in also (when set);
+// brace: the line ends with '{' (after trailing blanks).
+var defNeeds = []struct {
+	any, also []string
+	brace     bool
+}{
+	{any: []string{"function", "def", "fn", "fun", "sub"}},
+	{any: []string{"class", "struct", "enum", "interface", "trait", "type", "module", "record", "object", "protocol"}},
+	{any: []string{"const", "let", "var", "val"}, also: []string{"function", "=>"}},
+	{brace: true},
+	{any: []string{"public", "private", "protected", "internal"}},
+	{any: []string{":"}, also: []string{"function", "=>"}},
+	{any: []string{"async"}},
+	{any: []string{"public", "private", "protected", "static", "abstract", "override"}},
 }
 
 // definitions adds the names of functions and types defined in a line of
@@ -609,7 +808,13 @@ func definitions(l lang.Lang, code string, into map[string]bool) {
 			into[m[1]] = true
 		}
 	}
-	for _, re := range defRes {
+	brace := strings.HasSuffix(strings.TrimRight(code, " \t"), "{")
+	for i, re := range defRes {
+		need := defNeeds[i]
+		if need.brace && !brace || len(need.any) > 0 && !containsAnyOf(code, need.any) ||
+			len(need.also) > 0 && !containsAnyOf(code, need.also) {
+			continue
+		}
 		for _, m := range re.FindAllStringSubmatch(code, -1) {
 			name := m[1]
 			if i := strings.LastIndexByte(name, '.'); i >= 0 {
@@ -651,11 +856,14 @@ func isSource(f *core.FileInfo) bool {
 	return !f.IsTest && f.Lang.IsProgramming() && f.Config == "" && !f.IsCI && !testSupport(f.Path) && !fixture(f.Path)
 }
 
-// fixture reports a path under a test-data directory (testdata/, fixtures/).
+// fixture reports a path under a test-data directory (testdata/,
+// fixtures/, __snapshots__/). A plain snapshots/ directory does not count:
+// snapshot files are not program code, and production code may well have
+// a snapshots package (sentry's preprod/snapshots).
 func fixture(p string) bool {
 	for _, seg := range strings.Split(path.Dir(p), "/") {
 		switch strings.ToLower(seg) {
-		case "testdata", "fixtures", "__fixtures__", "__snapshots__", "snapshots":
+		case "testdata", "fixtures", "__fixtures__", "__snapshots__":
 			return true
 		}
 	}

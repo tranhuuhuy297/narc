@@ -1,0 +1,112 @@
+# Real world (crush): `crush dirs` was restyled and its `config` and `data`
+# subcommands were removed. The test file held one test per command; two of
+# them exercised the removed subcommands, so the file went with them and
+# the remaining test of the restyled output was dropped too: info.
+expect: test-file-deleted@info
+-- old/internal/cmd/dirs.go --
+package cmd
+
+import (
+	"path/filepath"
+
+	"github.com/charmbracelet/crush/internal/config"
+	"github.com/spf13/cobra"
+)
+
+var dirsCmd = &cobra.Command{
+	Use:   "dirs",
+	Short: "Print directories used by Crush",
+	Run: func(cmd *cobra.Command, args []string) {
+		cmd.Println(filepath.Dir(config.GlobalConfig()))
+		cmd.Println(filepath.Dir(config.GlobalConfigData()))
+	},
+}
+
+var configDirCmd = &cobra.Command{
+	Use:   "config",
+	Short: "Print the configuration directory used by Crush",
+	Run: func(cmd *cobra.Command, args []string) {
+		cmd.Println(filepath.Dir(config.GlobalConfig()))
+	},
+}
+
+var dataDirCmd = &cobra.Command{
+	Use:   "data",
+	Short: "Print the data directory used by Crush",
+	Run: func(cmd *cobra.Command, args []string) {
+		cmd.Println(filepath.Dir(config.GlobalConfigData()))
+	},
+}
+
+func init() {
+	dirsCmd.AddCommand(configDirCmd, dataDirCmd)
+}
+-- new/internal/cmd/dirs.go --
+package cmd
+
+import (
+	"path/filepath"
+
+	"charm.land/lipgloss/v2"
+	"github.com/charmbracelet/crush/internal/config"
+	"github.com/charmbracelet/x/exp/charmtone"
+	"github.com/spf13/cobra"
+)
+
+var dirsCmd = &cobra.Command{
+	Use:   "dirs",
+	Short: "Show config and data directories",
+	Run: func(cmd *cobra.Command, args []string) {
+		printDirs(cmd, []dirEntry{
+			{label: "Config", path: filepath.Dir(config.GlobalConfig())},
+			{label: "Data", path: filepath.Dir(config.GlobalConfigData())},
+		})
+	},
+}
+
+type dirEntry struct {
+	label, path string
+}
+
+func printDirs(cmd *cobra.Command, entries []dirEntry) {
+	width := 0
+	for _, e := range entries {
+		width = max(width, len(e.label))
+	}
+	label := lipgloss.NewStyle().Foreground(charmtone.Squid).Bold(true).Width(width + 2)
+	path := lipgloss.NewStyle().Foreground(charmtone.Smoke)
+	for _, e := range entries {
+		cmd.Println(label.Render(e.label) + path.Render(e.path))
+	}
+}
+-- old/internal/cmd/dirs_test.go --
+package cmd
+
+import (
+	"bytes"
+	"path/filepath"
+	"testing"
+
+	"github.com/stretchr/testify/require"
+)
+
+func TestDirs(t *testing.T) {
+	var b bytes.Buffer
+	dirsCmd.SetOut(&b)
+	dirsCmd.Run(dirsCmd, nil)
+	require.Equal(t, filepath.FromSlash("/tmp/fakeconfig/crush")+"\n"+filepath.FromSlash("/tmp/fakedata/crush")+"\n", b.String())
+}
+
+func TestConfigDir(t *testing.T) {
+	var b bytes.Buffer
+	configDirCmd.SetOut(&b)
+	configDirCmd.Run(configDirCmd, nil)
+	require.Equal(t, filepath.FromSlash("/tmp/fakeconfig/crush")+"\n", b.String())
+}
+
+func TestDataDir(t *testing.T) {
+	var b bytes.Buffer
+	dataDirCmd.SetOut(&b)
+	dataDirCmd.Run(dataDirCmd, nil)
+	require.Equal(t, filepath.FromSlash("/tmp/fakedata/crush")+"\n", b.String())
+}

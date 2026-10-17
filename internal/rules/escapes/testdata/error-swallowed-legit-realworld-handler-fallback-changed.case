@@ -1,0 +1,32 @@
+# The Discord bot's referenced-message lookup already discarded failures with `.catch(() => false)`; the change returns null instead (goose ask-ai bot). No error that used to surface is hidden.
+expect: error-swallowed@info
+-- old/services/ask-ai-bot/events/messageCreate.ts --
+export default {
+  execute: async (_client: Client, message: Message) => {
+    if (message.channel.isThread()) {
+      const isReplyToBot = message.reference?.messageId
+        ? await message.channel.messages
+            .fetch(message.reference.messageId)
+            .then((m) => m.author.id === message.client.user!.id)
+            .catch(() => false)
+        : false;
+      if (!isReplyToBot) return;
+      await respond(message);
+    }
+  },
+};
+-- new/services/ask-ai-bot/events/messageCreate.ts --
+export default {
+  execute: async (_client: Client, message: Message) => {
+    if (message.channel.isThread()) {
+      const botId = message.client.user!.id;
+      const reply = message.reference?.messageId
+        ? await message.channel.messages
+            .fetch(message.reference.messageId)
+            .catch(() => null)
+        : null;
+      if (reply?.author.id !== botId) return;
+      await respond(message);
+    }
+  },
+};

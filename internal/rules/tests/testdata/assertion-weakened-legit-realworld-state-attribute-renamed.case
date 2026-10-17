@@ -1,0 +1,30 @@
+# Real-world (n8n): the dropdown's keyboard highlight moves from
+# aria-selected="true" to a data-virtual-highlighted flag. A boolean
+# attribute's presence is the state the test checks, so
+# toHaveAttribute('data-virtual-highlighted') is as specific as the
+# aria-selected check it replaces.
+expect: clean
+-- old/packages/frontend/design-system/src/components/DropdownMenu/DropdownMenu.utils.test.ts --
+import userEvent from '@testing-library/user-event';
+import { describe, expect, it } from 'vitest';
+import { renderDropdown } from './test-utils';
+
+describe('DropdownMenu keyboard navigation', () => {
+	it('should highlight the next item on ArrowDown', async () => {
+		const wrapper = renderDropdown({ items: ['Item 0', 'Item 1'] });
+		await userEvent.keyboard('{ArrowDown}');
+		expect(wrapper.getByText('Item 1')).toHaveAttribute('aria-selected', 'true');
+	});
+});
+-- new/packages/frontend/design-system/src/components/DropdownMenu/DropdownMenu.utils.test.ts --
+import userEvent from '@testing-library/user-event';
+import { describe, expect, it } from 'vitest';
+import { renderDropdown } from './test-utils';
+
+describe('DropdownMenu keyboard navigation', () => {
+	it('should highlight the next item on ArrowDown', async () => {
+		const wrapper = renderDropdown({ items: ['Item 0', 'Item 1'] });
+		await userEvent.keyboard('{ArrowDown}');
+		expect(wrapper.getByText('Item 1')).toHaveAttribute('data-virtual-highlighted');
+	});
+});

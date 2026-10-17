@@ -1,0 +1,22 @@
+# A name in a parenthesized import of a package __init__.py stops being used locally but stays re-exported, so it gets `# noqa: F401` (Home Assistant frontend).
+expect: clean
+-- old/homeassistant/components/frontend/__init__.py --
+from .storage import (
+    DATA_THEMES,
+    VALUE_NO_THEME,
+    async_get_themes,
+)
+
+
+def default_theme(hass):
+    return hass.data.get(DATA_THEMES, VALUE_NO_THEME)
+-- new/homeassistant/components/frontend/__init__.py --
+from .storage import (
+    DATA_THEMES,
+    VALUE_NO_THEME,  # noqa: F401
+    async_get_themes,
+)
+
+
+def default_theme(hass):
+    return async_get_themes(hass).default

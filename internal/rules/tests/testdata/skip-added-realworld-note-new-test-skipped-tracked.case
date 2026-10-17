@@ -1,0 +1,36 @@
+# Real-world (beads): a fix lands with two new repro tests for a residual gap
+# it does not close; they are skipped from the start with a reason that says
+# the gap is tracked. They never ran, so nothing that ran before stops
+# running: a note, not a warning.
+expect: skip-added@info
+-- old/internal/storage/dolt/config_test.go --
+package dolt
+
+import "testing"
+
+func TestApplyConfigDefaults_TestModeUsesSandboxPort(t *testing.T) {
+	cfg := applyConfigDefaults(Config{TestMode: true})
+	if cfg.Port != sandboxPort {
+		t.Fatalf("port = %d, want sandbox port %d", cfg.Port, sandboxPort)
+	}
+}
+-- new/internal/storage/dolt/config_test.go --
+package dolt
+
+import "testing"
+
+func TestApplyConfigDefaults_TestModeUsesSandboxPort(t *testing.T) {
+	cfg := applyConfigDefaults(Config{TestMode: true})
+	if cfg.Port != sandboxPort {
+		t.Fatalf("port = %d, want sandbox port %d", cfg.Port, sandboxPort)
+	}
+}
+
+// The production-port guard does not cover an explicit non-default port yet.
+func TestApplyConfigDefaults_TestModeBlocksNonDefaultProductionPort(t *testing.T) {
+	t.Skip("residual gap, not the gm-2g3g5r leak -- tracked in be-rl6tm")
+	cfg := applyConfigDefaults(Config{TestMode: true, Port: 3308})
+	if cfg.Port == 3308 {
+		t.Fatal("test mode kept a production port")
+	}
+}

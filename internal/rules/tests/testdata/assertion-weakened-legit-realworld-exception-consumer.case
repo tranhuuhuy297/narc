@@ -1,0 +1,42 @@
+# Real-world (qwen-code): a refusal is now passed through unchanged, so the
+# test stops matching its message and checks, in an AssertJ consumer, that
+# the exception thrown is the very refusal object with its status, code and
+# retry flag. That inspects the exception at least as closely as
+# hasMessage did.
+expect: clean
+-- old/src/test/java/com/example/harness/QwenHostedHarnessConnectorTest.java --
+package com.example.harness;
+
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
+import org.junit.jupiter.api.Test;
+
+class QwenHostedHarnessConnectorTest {
+    @Test
+    void cachedRefusalIsReturnedWithoutCallingTheBroker() {
+        connector.rememberRefusal(SESSION_ID, new RuntimeBrokerException(409, "workspace_unavailable", "grant revoked"));
+        assertThatThrownBy(() -> connector.createOrLoad("tenant-a", SESSION_ID, true))
+                .hasMessage("grant revoked");
+    }
+}
+-- new/src/test/java/com/example/harness/QwenHostedHarnessConnectorTest.java --
+package com.example.harness;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
+import org.junit.jupiter.api.Test;
+
+class QwenHostedHarnessConnectorTest {
+    @Test
+    void cachedRefusalIsReturnedWithoutCallingTheBroker() {
+        RuntimeBrokerException refusal = new RuntimeBrokerException(409, "workspace_unavailable", "grant revoked");
+        connector.rememberRefusal(SESSION_ID, refusal);
+        assertThatThrownBy(() -> connector.createOrLoad("tenant-a", SESSION_ID, true))
+                .isInstanceOfSatisfying(RuntimeBrokerException.class, error -> {
+                    assertThat(error).isSameAs(refusal);
+                    assertThat(error.getStatusCode()).isEqualTo(409);
+                    assertThat(error.getCode()).isEqualTo("workspace_unavailable");
+                });
+    }
+}

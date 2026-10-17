@@ -1,0 +1,55 @@
+# Real-world (qwen-code): a new JUnit test probes the installed Git and
+# calls assumeTrue(false, why) when it is too old. The constant sits inside
+# the catch block, so the test is skipped only where the probe fails.
+expect: clean
+-- old/src/test/java/com/example/agent/EmbeddedRuntimeBrokerTest.java --
+package com.example.agent;
+
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
+import org.junit.jupiter.api.Test;
+
+class EmbeddedRuntimeBrokerTest {
+    @Test
+    void refusesChildWorkspacesWithoutMounts() {
+        assertThatThrownBy(() -> new EmbeddedRuntimeBroker(propertiesWithoutMounts()))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("Child Workspaces require Workspace mounts");
+    }
+}
+-- new/src/test/java/com/example/agent/EmbeddedRuntimeBrokerTest.java --
+package com.example.agent;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
+import java.nio.file.Path;
+import java.time.Duration;
+import org.junit.jupiter.api.Assumptions;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
+
+class EmbeddedRuntimeBrokerTest {
+    @Test
+    void refusesChildWorkspacesWithoutMounts() {
+        assertThatThrownBy(() -> new EmbeddedRuntimeBroker(propertiesWithoutMounts()))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("Child Workspaces require Workspace mounts");
+    }
+
+    @Test
+    void childWorkspaceProviderAnswersTheVerifiedMount(@TempDir Path temp) throws Exception {
+        var properties = mountedProperties(temp.resolve("storage"));
+        var probe = new ChildWorktreeGit("git", Duration.ofSeconds(30));
+        try {
+            probe.requireSupportedVersion();
+        } catch (IllegalStateException error) {
+            Assumptions.assumeTrue(false, error.getMessage());
+        } finally {
+            probe.close();
+        }
+        try (EmbeddedRuntimeBroker broker = new EmbeddedRuntimeBroker(properties)) {
+            assertThat(broker.childWorkspaces().mountRoot()).isEqualTo(temp.resolve("storage"));
+        }
+    }
+}

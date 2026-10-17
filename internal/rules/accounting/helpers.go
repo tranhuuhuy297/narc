@@ -1,6 +1,7 @@
 package accounting
 
 import (
+	"bytes"
 	"path"
 	"regexp"
 	"strings"
@@ -45,8 +46,16 @@ func helpersIn(l lang.Lang, seg *segment, into map[string]int) {
 	}
 	type alias struct{ name, of string }
 	var aliases []alias
+	// delegate is a Go test helper (it takes a *testing.T) without
+	// assertions of its own, which may hand them to another helper
+	// (newTestStore calling newTestStoreWithPrefix).
+	type delegate struct {
+		name     string
+		from, to int
+	}
+	var delegates []delegate
 	for i, ll := range lines {
-		if l.IsJSLike() {
+		if l.IsJSLike() && (strings.Contains(ll.Code, "const") || strings.Contains(ll.Code, "let") || strings.Contains(ll.Code, "var")) {
 			if m := jsConstDefRe.FindStringSubmatchIndex(ll.Code); m != nil {
 				name, rest := ll.Code[m[2]:m[3]], ll.Code[m[5]:]
 				end := jsStatementEnd(lines, i)
@@ -74,11 +83,15 @@ func helpersIn(l lang.Lang, seg *segment, into map[string]int) {
 		if at := strings.Index(ll.Code, "=>"); at >= 0 {
 			n += testblocksCount(seg, ll.Code[at+2:]) // a one-line arrow body
 		}
-		for k, end := i+1, blockEnd(l, lines, i); k <= end; k++ {
+		end := blockEnd(l, lines, i)
+		for k := i + 1; k <= end; k++ {
 			n += seg.count(k)
 		}
 		for name := range defs {
 			put(name, n)
+			if n == 0 && end > i && l == lang.Go && goTestHelperRe.MatchString(ll.Code) {
+				delegates = append(delegates, delegate{name, i + 1, end})
+			}
 		}
 		if l == lang.Go {
 			if m := goReceiverRe.FindStringSubmatch(ll.Code); m != nil {
@@ -93,7 +106,33 @@ func helpersIn(l lang.Lang, seg *segment, into map[string]int) {
 			}
 		}
 	}
+	// A delegate checks what the helpers it calls check (two levels deep).
+	for range 2 {
+		for _, d := range delegates {
+			n := 0
+			seen := map[string]bool{d.name: true}
+			for k := d.from; k <= d.to && k < len(lines); k++ {
+				for _, m := range callRe.FindAllStringSubmatch(lines[k].Code, -1) {
+					if c := lastName(m[1]); !seen[c] {
+						seen[c] = true
+						n += into[c]
+					}
+				}
+			}
+			if n > 0 {
+				put(d.name, n)
+			}
+		}
+	}
 }
+
+// goHelperAssignRe captures the function of a Go assignment whose call
+// passes the test handle first: store := newTestStore(t, dir).
+var goHelperAssignRe = regexp.MustCompile(`^[\w\s,]+:?=\s*([A-Za-z_]\w*)\s*\(\s*(?:t|tb|b)\s*[,)]`)
+
+// goTestHelperRe matches a Go function declaration that takes a test
+// handle (t *testing.T, tb testing.TB).
+var goTestHelperRe = regexp.MustCompile(`\btesting\.(?:T|TB|B|F)\b`)
 
 var (
 	// jsConstDefRe matches the start of a constant definition and captures
@@ -177,7 +216,6 @@ func jsDefinesFunction(lines []lang.LexedLine, from, to int) bool {
 // helpers defined in the change, else in unchanged files near the test.
 func (l *ledger) helperCalls(in *instance) int {
 	n := 0
-	var external map[string]int
 	for rel := in.block.Header + 1; rel <= in.block.End && rel-1 < len(in.seg.lines); rel++ {
 		code := in.seg.lines[rel-1].Code
 		calls := callRe.FindAllStringSubmatch(code, -1)
@@ -194,10 +232,11 @@ func (l *ledger) helperCalls(in *instance) int {
 				n += c
 				continue
 			}
-			if external == nil {
-				external = l.externalHelpers(in.file)
+			if notHelpers[name] || cLikeKeywords[name] || notDefs[name] {
+				continue
 			}
-			n += external[name]
+			c, _ := l.externalHelper(in.file, name)
+			n += c
 		}
 	}
 	return n
@@ -209,32 +248,88 @@ var goLiteralRe = regexp.MustCompile(`([A-Za-z_]\w*)\s*\{`)
 // maxHelperFiles bounds the unchanged files read per test file, and
 // maxHelperSize the size of each.
 const (
-	maxHelperFiles = 40
+	maxHelperFiles = 80
 	maxHelperSize  = 512 << 10
 )
 
-// externalHelpers returns the assertion helpers defined in unchanged files
-// near test file f: its directory and that directory's support
+// externalHelper looks up a helper that test file f may call by name in
+// the unchanged files near f: its directory and that directory's support
 // subdirectories (helpers/, support/, testutil/, ...), files it imports
 // by relative path, and conftest.py / spec_helper.rb / test_helper.rb up
-// the tree. It returns an empty map when contents are unavailable.
-func (l *ledger) externalHelpers(f *core.FileInfo) map[string]int {
-	if h, ok := l.external[f.Path]; ok {
-		return h
+// the tree. It returns the helper's assertion count and whether a
+// definition was found. Files are read once per analysis, and only those
+// that mention the name are parsed; nothing is found when contents are
+// unavailable.
+func (l *ledger) externalHelper(f *core.FileInfo, name string) (int, bool) {
+	key := f.Path + "\x00" + name
+	if r, ok := l.extNames[key]; ok {
+		return r.n, r.found
 	}
-	h := map[string]int{}
-	l.external[f.Path] = h
+	n, found := 0, false
+	for _, p := range l.helperPaths(f) {
+		ef := l.extFile(p)
+		if ef == nil || !bytes.Contains(ef.src, []byte(name)) {
+			continue
+		}
+		if c, ok := ef.parsed()[name]; ok {
+			found = true
+			n = max(n, c)
+		}
+	}
+	l.extNames[key] = extResult{n, found}
+	return n, found
+}
+
+// extResult is a cached externalHelper answer.
+type extResult struct {
+	n     int
+	found bool
+}
+
+// extSource is an unchanged file read for its helpers.
+type extSource struct {
+	src     []byte
+	lang    lang.Lang
+	helpers map[string]int // nil until parsed
+}
+
+func (e *extSource) parsed() map[string]int {
+	if e.helpers == nil {
+		e.helpers = map[string]int{}
+		helpersIn(e.lang, &segment{lines: lang.Lex(e.lang, string(e.src)), whole: true, hunk: -1, lang: e.lang}, e.helpers)
+	}
+	return e.helpers
+}
+
+// extFile reads an unchanged file once per analysis (nil when it cannot be
+// read or is too large).
+func (l *ledger) extFile(p string) *extSource {
+	if e, ok := l.extFiles[p]; ok {
+		return e
+	}
+	var e *extSource
+	if b, ok := l.a.ReadNew(p); ok && len(b) <= maxHelperSize {
+		e = &extSource{src: b, lang: lang.Detect(p)}
+	}
+	l.extFiles[p] = e
+	return e
+}
+
+// helperPaths returns the unchanged files where helpers of test file f may
+// live (see externalHelper), at most maxHelperFiles of them (cached).
+func (l *ledger) helperPaths(f *core.FileInfo) []string {
+	if ps, ok := l.extPaths[f.Path]; ok {
+		return ps
+	}
+	var out []string
+	l.extPaths[f.Path] = nil
 	if l.a == nil {
-		return h
+		return nil
 	}
-	changed := map[string]bool{}
-	for _, cf := range l.a.Files {
-		changed[cf.Path] = true
-	}
-	read := 0
+	changed := l.changedPaths()
 	seen := map[string]bool{}
-	scan := func(p string) {
-		if seen[p] || changed[p] || read >= maxHelperFiles {
+	add := func(p string) {
+		if seen[p] || changed[p] || len(out) >= maxHelperFiles {
 			return
 		}
 		seen[p] = true
@@ -242,38 +337,91 @@ func (l *ledger) externalHelpers(f *core.FileInfo) map[string]int {
 		if !lg.IsProgramming() || !sameFamily(lg, f.Lang) {
 			return
 		}
-		b, ok := l.a.ReadNew(p)
-		if !ok || len(b) > maxHelperSize {
-			return
-		}
-		read++
-		helpersIn(lg, &segment{lines: lang.Lex(lg, string(b)), whole: true, hunk: -1, lang: lg}, h)
+		out = append(out, p)
 	}
 	dir := path.Dir(f.Path)
 	for _, p := range importedPaths(f, dir) {
-		scan(p)
+		if l.exists(p) {
+			add(p)
+		}
 	}
 	for d := dir; ; d = path.Dir(d) {
 		for _, name := range helperFiles {
-			scan(path.Join(d, name))
+			if p := path.Join(d, name); l.exists(p) {
+				add(p)
+			}
 		}
 		if d == "." || d == "/" {
 			break
 		}
 	}
+	// Files named like helpers first, then the directory's test files, then
+	// the rest: a large package may hold hundreds of files, and the cap
+	// must not cut off test_helpers_test.go.
+	var helperish, tests, rest []string
+	for _, p := range l.listDir(dir) {
+		pd := path.Dir(p)
+		switch {
+		case path.Dir(pd) == dir && helperDir(path.Base(pd)), pd == dir && helperName(path.Base(p)):
+			helperish = append(helperish, p)
+		case pd == dir && core.IsTestPath(p):
+			tests = append(tests, p)
+		case pd == dir:
+			rest = append(rest, p)
+		}
+	}
+	for _, group := range [][]string{helperish, tests, rest} {
+		for _, p := range group {
+			add(p)
+		}
+	}
+	l.extPaths[f.Path] = out
+	return out
+}
+
+// helperName reports a file name that suggests shared test setup:
+// test_helpers_test.go, testutil.go, setup.ts, fixtures.py, main_test.go.
+func helperName(base string) bool {
+	b := strings.ToLower(base)
+	for _, w := range []string{"helper", "util", "setup", "fixture", "support", "common", "harness", "main_test", "testing", "mock", "fake"} {
+		if strings.Contains(b, w) {
+			return true
+		}
+	}
+	return false
+}
+
+// changedPaths returns the paths the change touches (both sides).
+func (l *ledger) changedPaths() map[string]bool {
+	if l.changed == nil {
+		l.changed = map[string]bool{}
+		for _, cf := range l.a.Files {
+			l.changed[cf.Path] = true
+			if cf.OldPath != "" {
+				l.changed[cf.OldPath] = true
+			}
+		}
+	}
+	return l.changed
+}
+
+// listDir lists the new-side files under dir, recursively (cached; nil in
+// patch-only mode).
+func (l *ledger) listDir(dir string) []string {
+	if ps, ok := l.listed[dir]; ok {
+		return ps
+	}
 	list := dir
 	if dir == "." {
 		list = ""
 	}
-	if paths, ok := l.a.ListNew(list); ok {
-		for _, p := range paths {
-			if pd := path.Dir(p); pd == dir || (path.Dir(pd) == dir && helperDir(path.Base(pd))) {
-				scan(p)
-			}
-		}
-	}
-	return h
+	ps, _ := l.a.ListNew(list)
+	l.listed[dir] = ps
+	return ps
 }
+
+// exists reports whether path p can be read on the new side.
+func (l *ledger) exists(p string) bool { return l.extFile(p) != nil }
 
 // helperFiles are well-known shared test-setup files, looked up in the
 // test's directory and its ancestors.
@@ -315,6 +463,9 @@ func importedPaths(f *core.FileInfo, dir string) []string {
 		return nil
 	}
 	for _, ll := range lines {
+		if !strings.Contains(ll.Code, "import") && !strings.Contains(ll.Code, "require") && !strings.Contains(ll.Code, "from") {
+			continue
+		}
 		switch {
 		case f.Lang.IsJSLike():
 			for _, m := range jsImportRe.FindAllStringSubmatch(ll.NoComment, -1) {
@@ -382,15 +533,21 @@ func (l *ledger) unresolvedHelper(o, n *instance) (string, bool) {
 		if n.seg.count(rel-1) > 0 {
 			continue // an assertion, already counted
 		}
-		m := bareCallRe.FindStringSubmatch(strings.TrimSpace(n.seg.lines[rel-1].Code))
+		code := strings.TrimSpace(n.seg.lines[rel-1].Code)
+		m := bareCallRe.FindStringSubmatch(code)
+		if m == nil && n.seg.lang == lang.Go {
+			// A Go helper handed the test's t can fail the test even when
+			// its result is kept: store := newTestStore(t, path).
+			m = goHelperAssignRe.FindStringSubmatch(code)
+		}
 		if m == nil {
 			continue
 		}
 		name := m[1]
-		if o.bag[name] > 0 || stopWords[name] || notHelpers[name] || cLikeKeywords[name] || notDefs[name] || l.definedNames()[name] {
+		if o.bag()[name] > 0 || stopWords[name] || notHelpers[name] || cLikeKeywords[name] || notDefs[name] || l.definedNames()[name] {
 			continue
 		}
-		if _, found := l.externalHelpers(n.file)[name]; found {
+		if _, found := l.externalHelper(n.file, name); found {
 			continue // narc read it: it was credited (or checks nothing)
 		}
 		if imported, support := l.importOf(n.file, name); imported && support || !imported && !fullContent(n.file) {
@@ -415,7 +572,7 @@ func (l *ledger) importOf(f *core.FileInfo, name string) (imported, support bool
 		l.imports[f] = lines
 	}
 	for _, ll := range lines {
-		for _, id := range identRe.FindAllString(ll.Code, -1) {
+		for _, id := range idents(ll.Code) {
 			if id == name {
 				return true, supportImportRe.MatchString(ll.NoComment)
 			}

@@ -1,0 +1,24 @@
+# New config-flow code catches Exception with `# noqa: BLE001`, Home Assistant's convention for the user-facing "unknown error" step: new code, a note.
+expect: lint-suppressed@info
+-- old/homeassistant/components/hydrawise/config_flow.py --
+class HydrawiseConfigFlow(ConfigFlow, domain=DOMAIN):
+    async def async_step_user(self, user_input=None):
+        if user_input is None:
+            return self._show_form()
+        return await self._create_or_update_entry(user_input)
+-- new/homeassistant/components/hydrawise/config_flow.py --
+class HydrawiseConfigFlow(ConfigFlow, domain=DOMAIN):
+    async def async_step_user(self, user_input=None):
+        if user_input is None:
+            return self._show_form()
+        errors: dict[str, str] = {}
+        try:
+            await self._validate(user_input)
+        except InvalidAuth:
+            errors["base"] = "invalid_auth"
+        except Exception:  # noqa: BLE001
+            _LOGGER.exception("Unexpected exception")
+            errors["base"] = "unknown"
+        if errors:
+            return self._show_form(errors)
+        return await self._create_or_update_entry(user_input)

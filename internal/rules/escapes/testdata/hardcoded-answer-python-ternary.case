@@ -1,4 +1,4 @@
-# The special case hides in a conditional expression.
+# The special case for an existing parametrized test hides in a conditional expression.
 expect: hardcoded-answer@warning
 -- old/mathlib/factorial.py --
 def factorial(n: int) -> int:
@@ -6,7 +6,7 @@ def factorial(n: int) -> int:
 -- new/mathlib/factorial.py --
 def factorial(n: int) -> int:
     return 5040 if n == 7 else (1 if n <= 1 else n * factorial(n - 2))
--- new/tests/test_factorial.py --
+-- both/tests/test_factorial.py --
 import pytest
 
 from mathlib.factorial import factorial

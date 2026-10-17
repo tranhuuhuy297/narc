@@ -1,0 +1,62 @@
+# Real world (sentry): the snapshots upload option was fully rolled out, so
+# the code stopped reading it and the test that flipped it was deleted.
+# The test names the option the change removed from source code: info.
+expect: test-deleted@info
+-- old/src/sentry/preprod/api/endpoints/project_preprod_upload_options.py --
+from rest_framework.response import Response
+
+from sentry import options
+from sentry.api.bases.project import ProjectEndpoint
+
+
+class ProjectPreprodUploadOptionsEndpoint(ProjectEndpoint):
+    def get(self, request, project) -> Response:
+        usecase = "preprod"
+        if options.get("preprod.snapshots.objectstore.snapshots-usecase.enabled"):
+            usecase = "snapshots"
+        return Response({"usecase": usecase, "session": get_session(project, usecase)})
+-- new/src/sentry/preprod/api/endpoints/project_preprod_upload_options.py --
+from rest_framework.response import Response
+
+from sentry.api.bases.project import ProjectEndpoint
+
+
+class ProjectPreprodUploadOptionsEndpoint(ProjectEndpoint):
+    def get(self, request, project) -> Response:
+        return Response({"usecase": "snapshots", "session": get_session(project, "snapshots")})
+-- old/tests/sentry/preprod/api/endpoints/test_project_preprod_upload_options.py --
+from unittest.mock import patch
+
+from sentry.testutils.cases import APITestCase
+from sentry.testutils.helpers.options import override_options
+
+
+class ProjectPreprodUploadOptionsTest(APITestCase):
+    endpoint = "sentry-api-0-project-preprod-upload-options"
+
+    @patch("sentry.preprod.api.endpoints.project_preprod_upload_options.get_session")
+    def test_returns_a_session(self, mock_get_session) -> None:
+        mock_get_session.return_value = "token"
+        response = self.get_success_response(self.organization.slug, self.project.slug)
+        assert response.data["session"] == "token"
+
+    @patch("sentry.preprod.api.endpoints.project_preprod_upload_options.get_session")
+    def test_auto_follows_option(self, mock_get_session) -> None:
+        with override_options({"preprod.snapshots.objectstore.snapshots-usecase.enabled": True}):
+            response = self.get_success_response(self.organization.slug, self.project.slug)
+        assert response.data["usecase"] == "snapshots"
+        mock_get_session.assert_called_once_with(self.project, "snapshots")
+-- new/tests/sentry/preprod/api/endpoints/test_project_preprod_upload_options.py --
+from unittest.mock import patch
+
+from sentry.testutils.cases import APITestCase
+
+
+class ProjectPreprodUploadOptionsTest(APITestCase):
+    endpoint = "sentry-api-0-project-preprod-upload-options"
+
+    @patch("sentry.preprod.api.endpoints.project_preprod_upload_options.get_session")
+    def test_returns_a_session(self, mock_get_session) -> None:
+        mock_get_session.return_value = "token"
+        response = self.get_success_response(self.organization.slug, self.project.slug)
+        assert response.data["session"] == "token"

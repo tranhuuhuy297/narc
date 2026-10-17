@@ -1,7 +1,8 @@
 # Real-world (ruff): is_ignored() now returns bool instead of the Ignored
 # enum (Yes/Uncertain), in the same change, so assert_eq!(x, Ignored::Yes)
-# becomes assert!(x). The checks follow the new return type: a note.
-expect: assertion-weakened@info
+# becomes assert!(project.is_ignored(&path)). A predicate call is as
+# specific as the predicate: assert!(x) on a bool is the whole check.
+expect: clean
 -- old/crates/ruff_db/src/system/os/ignore.rs --
 pub enum Ignored {
     Yes,

@@ -1,0 +1,13 @@
+# Real world (sentry): a render-only smoke test that asserted nothing was
+# removed. Its only check was that rendering did not throw: info.
+expect: test-file-deleted@info
+-- old/static/app/icons/pluginIcon.spec.tsx --
+import {render} from 'sentry-test/reactTestingLibrary';
+
+import PluginIcon from 'sentry/plugins/components/pluginIcon';
+
+describe('PluginIcon', () => {
+  it('renders', () => {
+    render(<PluginIcon pluginId="github" size={20} />);
+  });
+});

@@ -1,0 +1,29 @@
+# Real world (sentry): a test-only cleanup dropped the checks that static
+# copy is absent. The test still asserts the link that renders instead of
+# that copy (the other branch of the same ternary): info.
+expect: assertions-removed@info
+-- old/static/app/views/investigations/detail/index.spec.tsx --
+import {render, screen} from 'sentry-test/reactTestingLibrary';
+
+import InvestigationDetail from 'sentry/views/investigations/detail';
+
+describe('Investigation detail', () => {
+  it('links a breached metric investigation to its issue by monitor name', async () => {
+    render(<InvestigationDetail investigation={{source: 'metric', monitorName: 'p95 latency'}} />);
+
+    expect(await screen.findByRole('link', {name: 'p95 latency'})).toHaveAttribute('href', '/issues/42/');
+    expect(screen.queryByText('Breached metric')).not.toBeInTheDocument();
+  });
+});
+-- new/static/app/views/investigations/detail/index.spec.tsx --
+import {render, screen} from 'sentry-test/reactTestingLibrary';
+
+import InvestigationDetail from 'sentry/views/investigations/detail';
+
+describe('Investigation detail', () => {
+  it('links a breached metric investigation to its issue by monitor name', async () => {
+    render(<InvestigationDetail investigation={{source: 'metric', monitorName: 'p95 latency'}} />);
+
+    expect(await screen.findByRole('link', {name: 'p95 latency'})).toHaveAttribute('href', '/issues/42/');
+  });
+});

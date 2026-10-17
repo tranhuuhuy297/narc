@@ -1,0 +1,44 @@
+# The change bans HTMLAttributes through no-restricted-types' options and silences the rule on the one existing type that keeps it (coder): a tightened rule's baseline, not a weakened check.
+expect: clean
+-- old/site/.oxlintrc.jsonc --
+{
+	"rules": {
+		"eqeqeq": "error",
+		"typescript/no-restricted-types": ["error", {
+			"types": {
+				"React.ComponentPropsWithoutRef": {
+					"message": "Use React.ComponentProps instead."
+				}
+			}
+		}]
+	}
+}
+-- new/site/.oxlintrc.jsonc --
+{
+	"rules": {
+		"eqeqeq": "error",
+		"typescript/no-restricted-types": ["error", {
+			"types": {
+				"HTMLAttributes": {
+					"message": "Use ComponentProps<\"tag\"> instead, naming the tag the component renders."
+				},
+				"React.ComponentPropsWithoutRef": {
+					"message": "Use React.ComponentProps instead."
+				}
+			}
+		}]
+	}
+}
+-- old/site/src/components/FullPageLayout/Topbar.tsx --
+import { type HTMLAttributes, type Ref } from "react";
+
+type TopbarIconProps = HTMLAttributes<HTMLOrSVGElement> & {
+	ref?: Ref<HTMLOrSVGElement>;
+};
+-- new/site/src/components/FullPageLayout/Topbar.tsx --
+import { type HTMLAttributes, type Ref } from "react";
+
+// oxlint-disable-next-line no-restricted-types
+type TopbarIconProps = HTMLAttributes<HTMLOrSVGElement> & {
+	ref?: Ref<HTMLOrSVGElement>;
+};

@@ -1,0 +1,43 @@
+# Real-world (beads): an existing conformance test that failed when no
+# candidate backend was registered now skips instead, after the change
+# removes the last candidate. Deliberate or not, a test that used to fail
+# here no longer runs: an error, for a human to approve.
+expect: skip-added@error
+-- old/test/conformance/e2e_test.go --
+package conformance
+
+import "testing"
+
+func TestConformanceE2E(t *testing.T) {
+	ref := Reference()
+	cands := Candidates()
+	if len(cands) == 0 {
+		t.Fatal("no candidate backends registered")
+	}
+	for _, c := range cands {
+		for _, sc := range corpus {
+			if diff := runDifferential(t, ref, c, sc); diff != "" {
+				t.Errorf("%s/%s differs from the reference:\n%s", c.Name, sc.name, diff)
+			}
+		}
+	}
+}
+-- new/test/conformance/e2e_test.go --
+package conformance
+
+import "testing"
+
+func TestConformanceE2E(t *testing.T) {
+	ref := Reference()
+	cands := Candidates()
+	if len(cands) == 0 {
+		t.Skip("no candidate backends registered; the differential harness is idle until another backend profile is added")
+	}
+	for _, c := range cands {
+		for _, sc := range corpus {
+			if diff := runDifferential(t, ref, c, sc); diff != "" {
+				t.Errorf("%s/%s differs from the reference:\n%s", c.Name, sc.name, diff)
+			}
+		}
+	}
+}

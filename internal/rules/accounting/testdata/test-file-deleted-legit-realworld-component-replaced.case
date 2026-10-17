@@ -1,0 +1,71 @@
+# Real world (n8n): the workflow review requests view was replaced by a new
+# inbox module with its own tests; the old view's test file went with the
+# deleted view.
+expect: clean
+-- old/packages/editor-ui/src/features/workflow-reviews/views/WorkflowReviewRequestsView.vue --
+<script setup lang="ts">
+import { computed } from 'vue';
+import { useWorkflowReviewsStore } from '../workflowReviews.store';
+
+const store = useWorkflowReviewsStore();
+const open = computed(() => store.requests.filter((r) => r.status === 'open'));
+</script>
+
+<template>
+  <div>
+    <h2 data-test-id="review-heading">Open review requests ({{ open.length }})</h2>
+    <ul>
+      <li v-for="request in open" :key="request.id">{{ request.title }}</li>
+    </ul>
+  </div>
+</template>
+-- old/packages/editor-ui/src/features/workflow-reviews/views/WorkflowReviewRequestsView.test.ts --
+import { createTestingPinia } from '@pinia/testing';
+import { describe, expect, it } from 'vitest';
+import { renderComponent } from '@/__tests__/render';
+import WorkflowReviewRequestsView from './WorkflowReviewRequestsView.vue';
+
+describe('WorkflowReviewRequestsView', () => {
+  it('heads the no-selection state with the open request count', () => {
+    const { getByTestId } = renderComponent(WorkflowReviewRequestsView, {
+      pinia: createTestingPinia({ initialState: { workflowReviews: { requests: [{ id: '1', title: 'A', status: 'open' }] } } }),
+    });
+    expect(getByTestId('review-heading')).toHaveTextContent('Open review requests (1)');
+  });
+
+  it('lists only open requests', () => {
+    const { queryByText } = renderComponent(WorkflowReviewRequestsView, {
+      pinia: createTestingPinia({
+        initialState: { workflowReviews: { requests: [{ id: '1', title: 'A', status: 'open' }, { id: '2', title: 'B', status: 'closed' }] } },
+      }),
+    });
+    expect(queryByText('A')).toBeInTheDocument();
+    expect(queryByText('B')).not.toBeInTheDocument();
+  });
+});
+-- new/packages/editor-ui/src/features/inbox/InboxList.vue --
+<script setup lang="ts">
+import { useInboxStore } from './inbox.store';
+
+const store = useInboxStore();
+</script>
+
+<template>
+  <ul data-test-id="inbox-list">
+    <li v-for="item in store.openItems" :key="item.id">{{ item.title }}</li>
+  </ul>
+</template>
+-- new/packages/editor-ui/src/features/inbox/InboxList.test.ts --
+import { createTestingPinia } from '@pinia/testing';
+import { describe, expect, it } from 'vitest';
+import { renderComponent } from '@/__tests__/render';
+import InboxList from './InboxList.vue';
+
+describe('InboxList', () => {
+  it('lists the open inbox items', () => {
+    const { getByText } = renderComponent(InboxList, {
+      pinia: createTestingPinia({ initialState: { inbox: { items: [{ id: '1', title: 'A', status: 'open' }] } } }),
+    });
+    expect(getByText('A')).toBeInTheDocument();
+  });
+});

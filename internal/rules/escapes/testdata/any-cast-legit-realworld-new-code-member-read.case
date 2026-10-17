@@ -1,0 +1,26 @@
+# New middleware reads a property through `as any` in code written by this change: a typing choice in new code, a note rather than a weakened check.
+expect: any-cast@info
+-- old/src/middleware/audit.ts --
+import type { Request, Response, NextFunction } from "express";
+import { audit } from "../audit";
+
+export function auditTrail(req: Request, _res: Response, next: NextFunction) {
+  audit.record({ path: req.path, method: req.method });
+  next();
+}
+-- new/src/middleware/audit.ts --
+import type { Request, Response, NextFunction } from "express";
+import { audit } from "../audit";
+
+export function auditTrail(req: Request, _res: Response, next: NextFunction) {
+  audit.record({ path: req.path, method: req.method });
+  next();
+}
+
+export function sessionTrail(req: Request, _res: Response, next: NextFunction) {
+  const sessionId = (req as any).session?.id;
+  if (sessionId) {
+    audit.record({ path: req.path, method: req.method, sessionId });
+  }
+  next();
+}

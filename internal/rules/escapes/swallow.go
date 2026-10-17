@@ -32,12 +32,13 @@ var errorSwallowed = &core.Rule{
 		"that explains why ignoring the error is safe, and a specific exception caught into a variable named " +
 		"`ignored` are reported as notes. In non-test code, a handler is a warning when it hides an error that " +
 		"used to surface: it wraps code that was already there, an existing handler lost its body, or an awaited " +
-		"call became a detached `void p.catch(noop)`; graceful degradation written with new code is a note. " +
+		"call became a detached `void p.catch(noop)`; graceful degradation written with new code, and a one-line " +
+		"swallow the file already used verbatim, are notes. " +
 		"Not reported: a serialization queue (`prev.catch(noop).then(next)`), a result checked right after " +
 		"(`const team = await getTeam(id).catch(() => null); if (!team) ...`), a fallback (`?? defaults`), " +
 		"a react-query `mutateAsync` whose mutation has `onError`, telemetry and log calls, Go `return nil` in a " +
 		"`filepath.WalkDir` callback, fire-and-forget code in new files, linter fixtures, developer scripts, " +
-		"and best-effort cleanup (`try? removeItem`, `@unlink`, " +
+		"and best-effort cleanup (`try? removeItem`, `@unlink`, `connection.rollback().catch(noop)` before a re-throw, " +
 		"`with suppress(Exception): os.remove(tmp)`), a PHP " +
 		"`@` call whose result is checked, and the JUnit idiom of catching the exception a test expects " +
 		"(`fail(\"...\"); } catch (ParseException expected) {}`).",
@@ -111,7 +112,7 @@ func checkErrorSwallowed(a *core.Analysis) []core.Finding {
 			// New code that degrades gracefully is a design decision; what
 			// hides a failure is a handler wrapped around code that used to
 			// propagate its error, or an existing handler emptied.
-			wraps := wrapsExisting(f, s, sw, removed)
+			wraps := wrapsExisting(f, s, sw, removed) && !replacesConstantHandler(f, sw)
 			if sw.detached && !wraps {
 				continue // void work().catch(noop): fire-and-forget by design
 			}
@@ -124,6 +125,11 @@ func checkErrorSwallowed(a *core.Analysis) []core.Finding {
 				sev = downgrade(sev)
 			}
 		}
+		// The old file already swallowed errors with the very same line: the
+		// change repeats the file's own idiom (`void persistState().catch(noop)`).
+		if sev > core.Info && sw.start == sw.end && oldHasLine(f, s, sw.start) {
+			sev = core.Info
+		}
 		note := strings.Join([]string{s.comments(sw.start, sw.end), commentsAbove(f, s, sw.start)}, " ")
 		if explained(note) || sw.namedIgnored {
 			sev = downgrade(sev)
@@ -133,6 +139,57 @@ func checkErrorSwallowed(a *core.Analysis) []core.Finding {
 		out = append(out, fd)
 	}
 	return out
+}
+
+// constantHandlerRe matches a promise rejection handler that already
+// threw the error away by returning a constant: `.catch(() => false)`.
+var constantHandlerRe = regexp.MustCompile(`\.catch\(\s*(?:\(\s*[\w$]*\s*\)|[\w$]+)\s*=>\s*(?:false|true|null|undefined|void\s+0|\[\]|\{\}|""|''|0|-1)\s*\)`)
+
+// replacesConstantHandler reports whether a `.catch(...)` swallow replaced,
+// in the same hunk, a handler that already discarded the rejection by
+// returning a constant (`.catch(() => false)` became `.catch(() => null)`):
+// no error that used to surface is hidden now.
+func replacesConstantHandler(f *core.FileInfo, sw swallow) bool {
+	if sw.key != "js:promise-catch" {
+		return false
+	}
+	hunk := -1
+	for _, l := range f.Added {
+		if l.No == sw.start {
+			hunk = l.Hunk
+			break
+		}
+	}
+	if hunk < 0 {
+		return false
+	}
+	for _, r := range f.Removed {
+		if r.Hunk == hunk && constantHandlerRe.MatchString(r.NoComment) {
+			return true
+		}
+	}
+	return false
+}
+
+// oldHasLine reports whether the old version of f has a line identical
+// (whitespace aside) to new-side line n that is still there after the
+// change, so the line is an idiom the file already used.
+func oldHasLine(f *core.FileInfo, s *side, n int) bool {
+	l, ok := s.at(n)
+	if !ok {
+		return false
+	}
+	k := rulekit.Normalize(l.Code)
+	if len(k) < 8 {
+		return false
+	}
+	olds := oldSide(f)
+	for _, m := range olds.lineNos() {
+		if c, ok := olds.code(m); ok && rulekit.Normalize(c) == k {
+			return true
+		}
+	}
+	return false
 }
 
 // removedGuardsKey memoizes removedGuardKeys.
@@ -173,8 +230,9 @@ func wrapsExisting(f *core.FileInfo, s *side, sw swallow, removed map[string]boo
 			continue
 		}
 		// A bare name (`result`) matches too many removed lines to say
-		// that a call moved inside the handler.
-		if (removed[k] && strings.Contains(k, "(")) || (g.whole && !ch[g.line]) {
+		// that a call moved inside the handler, and so does the opening line
+		// of a multi-line call (`await queryClient.invalidateQueries({`).
+		if (removed[k] && strings.Contains(k, "(") && balancedBrackets(k)) || (g.whole && !ch[g.line]) {
 			return true
 		}
 	}
@@ -184,6 +242,20 @@ func wrapsExisting(f *core.FileInfo, s *side, sw swallow, removed map[string]boo
 		}
 	}
 	return false
+}
+
+// balancedBrackets reports whether every bracket opened in s is closed.
+func balancedBrackets(s string) bool {
+	depth := 0
+	for i := 0; i < len(s); i++ {
+		switch s[i] {
+		case '(', '[', '{':
+			depth++
+		case ')', ']', '}':
+			depth--
+		}
+	}
+	return depth == 0
 }
 
 // prevCode returns the last line before n that has code, or 0.
@@ -231,7 +303,8 @@ func findSwallows(f *core.FileInfo, s *side) []swallow {
 // close(). A business operation such as deleteUser or cancelOrder is not
 // cleanup, and its failure matters.
 const cleanupCalls = `(?:remove|delete|unlink|rmdir)(?:Sync|All|Files?|Dir|Directory|Item|Recursive|Temp\w*|Tmp\w*)?|` +
-	`rm(?:Sync)?|rm_r?f?|rmtree|close|cancel|abort|invalidate|unregister|unsubscribe|disconnect|kill|dispose`
+	`rm(?:Sync)?|rm_r?f?|rmtree|close|cancel|abort|invalidate|unregister|unsubscribe|disconnect|kill|dispose|` +
+	`rollback|release|destroy|terminate|unlock|unwatch|detach`
 
 var (
 	// bestEffortRe matches calls whose failure is routinely irrelevant:
@@ -321,6 +394,31 @@ var (
 	pyNameRe     = regexp.MustCompile(`[A-Za-z_][\w.]*`)
 )
 
+// pyWithBody returns the statements of the with block that line n opens,
+// or nil when the block is not known.
+func pyWithBody(s *side, n int) []guardStmt {
+	l, ok := s.at(n)
+	if !ok {
+		return nil
+	}
+	base := indent(l.Raw)
+	var out []guardStmt
+	for m := n + 1; m <= s.len() && m < n+200; m++ {
+		lm, ok := s.at(m)
+		if !ok {
+			return nil
+		}
+		if strings.TrimSpace(lm.Code) == "" {
+			continue
+		}
+		if indent(lm.Raw) <= base {
+			break
+		}
+		out = append(out, guardStmt{line: m, code: lm.Code, whole: true})
+	}
+	return out
+}
+
 // pyCatchAll classifies the exception list of an except clause. It returns
 // what the clause catches ("" when it is narrow: an idiomatic, deliberate
 // ignore) and the exception names.
@@ -350,7 +448,8 @@ func pySwallows(s *side) []swallow {
 		if m := pySuppressRe.FindStringSubmatch(code); m != nil && !cleanupOnly(s, n, code) {
 			if what, names := pyCatchAll(m[1]); what != "" && len(names) > 0 {
 				out = append(out, swallow{start: n, end: n, key: "py:suppress:" + strings.Join(names, ","),
-					msg: fmt.Sprintf("`suppress(%s)` silently discards %s raised in the with block", strings.Join(names, ", "), what)})
+					guard: pyWithBody(s, n),
+					msg:   fmt.Sprintf("`suppress(%s)` silently discards %s raised in the with block", strings.Join(names, ", "), what)})
 			}
 		}
 		m := pyExceptRe.FindStringSubmatch(code)

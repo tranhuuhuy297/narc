@@ -1,0 +1,34 @@
+# Removing a report-and-reraise branch leaves `except NoRegistrationExistsError: raise`, which a custom rule flags; the noqa is explained by the comment that opens the block (sentry).
+expect: lint-suppressed@info
+-- old/src/sentry/notifications/handlers/metric_alert_registry_handler.py --
+import logging
+
+logger = logging.getLogger(__name__)
+
+
+class MetricAlertRegistryHandler(LegacyRegistryHandler):
+    @staticmethod
+    def handle_workflow_action(invocation: ActionInvocation) -> None:
+        try:
+            handler = metric_alert_handler_registry.get(invocation.action.type)
+            handler.invoke_legacy_registry(invocation)
+        except NoRegistrationExistsError:
+            # Fall through silently: execute_via_group_type_registry catches this
+            # and routes to the issue alert handler for action types that have no
+            # metric-alert-specific handler.
+            raise
+        except Exception:
+            logger.exception("Error invoking metric alert handler")
+            raise
+-- new/src/sentry/notifications/handlers/metric_alert_registry_handler.py --
+class MetricAlertRegistryHandler(LegacyRegistryHandler):
+    @staticmethod
+    def handle_workflow_action(invocation: ActionInvocation) -> None:
+        try:
+            handler = metric_alert_handler_registry.get(invocation.action.type)
+            handler.invoke_legacy_registry(invocation)
+        except NoRegistrationExistsError:  # noqa: S010
+            # Fall through silently: execute_via_group_type_registry catches this
+            # and routes to the issue alert handler for action types that have no
+            # metric-alert-specific handler.
+            raise

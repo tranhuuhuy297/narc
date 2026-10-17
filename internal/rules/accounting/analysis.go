@@ -83,10 +83,26 @@ type ledger struct {
 
 	// a gives access to unchanged files (helpers the change did not touch).
 	a *core.Analysis
-	// external caches the assertion helpers found in unchanged files, by
-	// test file; nearby the tests of unchanged test files, by directory.
-	external map[string]map[string]int
+	// extFiles caches unchanged files read for helpers, by path; extPaths
+	// the files searched for each test file's helpers; extNames the
+	// answers of externalHelper; listed directory listings; changed the
+	// paths the change touches. nearby holds the tests of unchanged test
+	// files, by path.
+	extFiles map[string]*extSource
+	extPaths map[string][]string
+	extNames map[string]extResult
+	listed   map[string][]string
+	changed  map[string]bool
 	nearby   map[string]map[string][]copyTest
+	// nearPaths caches nearbyTestFiles.
+	nearPaths map[string][]string
+	// goneMods caches droppedGoneModule per file, alike lookalike per
+	// deleted test.
+	goneMods map[*core.FileInfo]string
+	alike    map[*instance]*instance
+	// words caches titleWordsOf, rework reworkIn.
+	words  map[*instance]map[string]bool
+	rework map[*core.FileInfo]int
 }
 
 // drop is a surviving test that lost assertions.
@@ -170,6 +186,9 @@ func (l *ledger) testOn(f *core.FileInfo, sd side) bool {
 	return testishPath(p) && l.hasTests(f, sd)
 }
 
+// never is a FindLazy filter that counts no test's assertions up front.
+func never(int, int) bool { return false }
+
 // hasTests reports whether one side of a file contains tests (cached).
 func (l *ledger) hasTests(f *core.FileInfo, sd side) bool {
 	k := segKey{f, sd}
@@ -179,7 +198,7 @@ func (l *ledger) hasTests(f *core.FileInfo, sd side) bool {
 	v := false
 	if testblocks.Supported(langOf(f, sd)) {
 		for _, seg := range l.segments(f, sd) {
-			v = v || len(testblocks.Find(seg.lang, seg.lines)) > 0
+			v = v || len(seg.tests()) > 0
 		}
 	}
 	l.withTests[k] = v
@@ -248,10 +267,10 @@ func (l *ledger) importsTestFramework(f *core.FileInfo, sd side) bool {
 	v := false
 	for _, seg := range l.segments(f, sd) {
 		for i, ll := range seg.lines {
-			if i >= 120 {
+			if i >= 120 || v {
 				break
 			}
-			if frameworkImportRe.MatchString(ll.NoComment) {
+			if containsAnyOf(ll.Code, frameworkWords) && frameworkImportRe.MatchString(ll.NoComment) {
 				v = true
 			}
 		}
@@ -259,6 +278,11 @@ func (l *ledger) importsTestFramework(f *core.FileInfo, sd side) bool {
 	l.framework[k] = v
 	return v
 }
+
+// frameworkWords are words one of which the Code of every line that
+// frameworkImportRe matches contains (string contents are blanked there,
+// so `from 'vitest'` shows as `from ”`).
+var frameworkWords = []string{"import", "from", "require", "using", "testing", "PHPUnit", "package", "ExUnit", `""`}
 
 // changesOutsideTests reports whether a Rust file with inline tests changed
 // lines outside its tests and above its #[cfg(test)] module (when the
@@ -298,10 +322,14 @@ func (l *ledger) changesOutsideTests(f *core.FileInfo) bool {
 
 func build(a *core.Analysis) *ledger {
 	l := &ledger{netLoss: map[string]int{}, pool: tokenPool{}, removedDefs: map[string]bool{}, helpers: map[string]int{},
-		deletedStems: map[string]bool{}, a: a, external: map[string]map[string]int{}, nearby: map[string]map[string][]copyTest{},
+		deletedStems: map[string]bool{}, a: a, nearby: map[string]map[string][]copyTest{},
+		extFiles: map[string]*extSource{}, extPaths: map[string][]string{}, extNames: map[string]extResult{}, listed: map[string][]string{},
+		nearPaths: map[string][]string{},
 		renamedTo: map[*core.FileInfo]string{}, uncollected: map[string]bool{}, inline: map[*core.FileInfo]bool{},
 		segs: map[segKey][]*segment{}, imports: map[*core.FileInfo][]lang.LexedLine{}, framework: map[segKey]bool{},
-		withTests: map[segKey]bool{}, locals: map[*core.FileInfo]map[string]map[string]bool{}}
+		withTests: map[segKey]bool{}, locals: map[*core.FileInfo]map[string]map[string]bool{},
+		goneMods: map[*core.FileInfo]string{}, alike: map[*instance]*instance{}, words: map[*instance]map[string]bool{},
+		rework: map[*core.FileInfo]int{}}
 	order := 0
 	var testFiles []*core.FileInfo // files with test code after the change
 	oldKeys, newKeys := map[string]int{}, map[string]int{}
@@ -418,7 +446,7 @@ func (l *ledger) findUncollected() {
 			if names == nil {
 				names = map[string]bool{}
 				for _, seg := range l.segments(g, after) {
-					for _, b := range testblocks.Find(g.Lang, seg.lines) {
+					for _, b := range seg.tests() {
 						names[b.Bare] = true
 					}
 				}
@@ -497,11 +525,24 @@ func match(olds, news []*instance) {
 			}
 		}
 		var cs []candidate
+		olders := map[key]int{}
+		for _, o := range olds {
+			if o.match == nil && nameOf(o) != "" {
+				olders[keyOf(o)]++
+			}
+		}
 		for _, o := range olds {
 			if o.match != nil || nameOf(o) == "" {
 				continue
 			}
-			for _, n := range idx[keyOf(o)] {
+			k := keyOf(o)
+			if ns := idx[k]; len(ns) == 1 && olders[k] == 1 && accept == nil {
+				// One old and one new test of that name: nothing to choose
+				// between, so their bodies need not be compared.
+				link(o, ns[0], how)
+				continue
+			}
+			for _, n := range idx[k] {
 				if accept == nil || accept(o, n) {
 					cs = append(cs, candidate{o, n, dice(o, n)})
 				}
@@ -560,12 +601,12 @@ func link(o, n *instance, how matchKind) {
 func matchRenames(olds, news []*instance) {
 	var os, ns []*instance
 	for _, o := range olds {
-		if o.match == nil && !o.partial && o.size >= 3 {
+		if o.match == nil && !o.partial && o.size() >= 3 {
 			os = append(os, o)
 		}
 	}
 	for _, n := range news {
-		if n.match == nil && !n.partial && n.size >= 3 {
+		if n.match == nil && !n.partial && n.size() >= 3 {
 			ns = append(ns, n)
 		}
 	}
@@ -645,7 +686,7 @@ func assigns(code string, used map[string]bool) bool {
 func assertedNames(n *instance) map[string]bool {
 	if n.asserted == nil {
 		n.asserted = map[string]bool{}
-		for _, s := range n.sites {
+		for _, s := range n.sites() {
 			for _, tk := range s.toks {
 				if !strings.HasPrefix(tk, `"`) && !stopWords[tk] && len(tk) > 1 {
 					n.asserted[tk] = true
@@ -659,8 +700,8 @@ func assertedNames(n *instance) map[string]bool {
 // dropOf reports whether old test o lost assertions in its new version.
 func (l *ledger) dropOf(o *instance) (drop, bool) {
 	n := o.match
-	if n == nil || n.skipped() || n.assertions() >= o.assertions() {
-		return drop{}, false
+	if n == nil || n.skipped() || !o.touched && !n.touched || n.assertions() >= o.assertions() {
+		return drop{}, false // untouched on both sides: the same test
 	}
 	// A test cut off by the end of a hunk (patch-only mode) is judged on
 	// what the hunk shows when both versions come from the same hunk: they
@@ -681,12 +722,12 @@ func (l *ledger) dropOf(o *instance) (drop, bool) {
 		return drop{}, false // one snapshot comparison took over the checks
 	}
 	remaining := map[string]int{}
-	for _, s := range o.sites {
+	for _, s := range o.sites() {
 		remaining[s.key]++
 	}
 	kept := map[string]bool{}
 	gained := false
-	for _, s := range n.sites {
+	for _, s := range n.sites() {
 		kept[s.key] = true
 		if remaining[s.key] > 0 {
 			remaining[s.key]--
@@ -696,7 +737,7 @@ func (l *ledger) dropOf(o *instance) (drop, bool) {
 	}
 	dead := unreachable(n)
 	var lost []site
-	for _, s := range o.sites {
+	for _, s := range o.sites() {
 		if remaining[s.key] <= 0 {
 			continue
 		}
@@ -731,12 +772,12 @@ var snapshotRe = regexp.MustCompile(`(?i)snapshot|\bVerify\s*\(`)
 // test o did not: the snapshot records everything the old assertions
 // checked (and the snapshot file shows it), so they were folded into it.
 func snapshotted(o, n *instance) bool {
-	for _, s := range o.sites {
+	for _, s := range o.sites() {
 		if snapshotRe.MatchString(s.code) {
 			return false
 		}
 	}
-	for _, s := range n.sites {
+	for _, s := range n.sites() {
 		if snapshotRe.MatchString(s.code) {
 			return true
 		}
@@ -771,10 +812,13 @@ func (l *ledger) newHelper(o, n *instance) string {
 		}
 		for _, m := range calls {
 			name := lastName(m[1])
-			if name == n.block.Bare || stopWords[name] || o.bag[name] > 0 {
+			if name == n.block.Bare || stopWords[name] || o.bag()[name] > 0 {
 				continue
 			}
-			if l.helpers[name] > 0 || l.externalHelpers(n.file)[name] > 0 {
+			if l.helpers[name] > 0 {
+				return name
+			}
+			if c, _ := l.externalHelper(n.file, name); c > 0 {
 				return name
 			}
 		}
@@ -824,10 +868,10 @@ func sameWindow(o, n *instance) bool {
 // returnsEarly reports a test that the change made return before any of
 // its assertions: an added bare return with no live assertion before it.
 func returnsEarly(n *instance) bool {
-	if n.block.Return == 0 || n.assertions() > 0 || len(n.block.Unreachable) == 0 {
+	if n.counted().Return == 0 || n.assertions() > 0 || len(n.counted().Unreachable) == 0 {
 		return false
 	}
-	at := n.line(n.block.Return)
+	at := n.line(n.counted().Return)
 	for _, ln := range n.file.Added {
 		if ln.No == at {
 			return true
@@ -891,7 +935,7 @@ func (l *ledger) lose(s site) bool {
 func (l *ledger) stillVisible(o *instance) bool {
 	keys := map[string]int{}
 	l.assertionKeys(o.file, after, keys)
-	for _, s := range o.sites {
+	for _, s := range o.sites() {
 		if keys[s.key] == 0 {
 			return false
 		}
@@ -917,6 +961,7 @@ func (l *ledger) explained(o *instance) bool {
 		return true // a one-off data migration's test, retired with the migration
 	}
 	if l.refsVanished(o) != "" {
+		o.obsolete = true
 		return true // it exercises a function, type, option or value the change removed
 	}
 	if len(o.block.Bare) >= 8 && strings.ContainsAny(o.block.Bare, " :") && l.titles[o.block.Bare] {
@@ -924,31 +969,32 @@ func (l *ledger) explained(o *instance) bool {
 	}
 	for rel := o.block.Header; rel <= o.block.End && rel-1 < len(o.seg.lines); rel++ {
 		if l.callsRemoved(o.seg.lines[rel-1].Code, o.block.Bare) {
+			o.obsolete = true
 			return true // the function or type it exercises was deleted
 		}
 	}
 	for _, n := range l.news {
-		if n.size == o.size && n.size >= 3 && dice(o, n) == 1 {
+		if n.size() == o.size() && n.size() >= 3 && dice(o, n) == 1 {
 			return true // a duplicate was removed; an identical test remains
 		}
 	}
-	if o.size >= 3 && l.copyElsewhere(o) {
+	if o.size() >= 3 && l.copyElsewhere(o) {
 		return true // a duplicate of a test in an unchanged file nearby
 	}
-	if !fullContent(f) && len(o.sites) > 0 && l.stillVisible(o) {
+	if !fullContent(f) && len(o.sites()) > 0 && l.stillVisible(o) {
 		// Patch-only: a twin test may lie mostly outside the hunks, so
 		// assertions still visible in the new code are given the benefit
 		// of the doubt.
 		return true
 	}
-	if len(o.sites) == 0 {
+	if len(o.sites()) == 0 {
 		var toks []string
-		for tk := range o.bag {
+		for tk := range o.bag() {
 			toks = append(toks, tk)
 		}
 		return coveredBy(toks, l.pool)
 	}
-	for _, s := range o.sites {
+	for _, s := range o.sites() {
 		if l.lose(s) {
 			return false
 		}

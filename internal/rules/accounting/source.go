@@ -42,6 +42,10 @@ type sourceModel struct {
 	// that no added production line has: values the code no longer
 	// produces where it did.
 	valuesOut map[string]bool
+	// nullsOut holds the null-like keywords (undefined, null, None, nil)
+	// that occur on more removed than added production lines: an input
+	// variant the code no longer handles.
+	nullsOut map[string]bool
 }
 
 // source returns the source model of the change.
@@ -54,7 +58,8 @@ func (l *ledger) source() *sourceModel {
 
 func (l *ledger) buildSource() *sourceModel {
 	m := &sourceModel{vanished: map[string]bool{}, touched: map[string]bool{}, modules: map[string]bool{},
-		gone: map[string]bool{}, importsDropped: map[string]bool{}, valuesOut: map[string]bool{}}
+		gone: map[string]bool{}, importsDropped: map[string]bool{}, valuesOut: map[string]bool{}, nullsOut: map[string]bool{}}
+	nulls := map[string]int{}
 	valuesIn := map[string]bool{}
 	declared := map[string]bool{}
 	alive := map[string]bool{}
@@ -81,6 +86,9 @@ func (l *ledger) buildSource() *sourceModel {
 				for _, v := range ln.Strings {
 					m.valuesOut[strings.TrimSpace(v)] = true
 				}
+				for _, k := range nullWordRe.FindAllString(ln.Code, -1) {
+					nulls[k]++
+				}
 			}
 			for _, ln := range f.Added {
 				for _, v := range ln.Strings {
@@ -90,6 +98,9 @@ func (l *ledger) buildSource() *sourceModel {
 					flagsIn++
 				}
 				importStems(ln, importedIn)
+				for _, k := range nullWordRe.FindAllString(ln.Code, -1) {
+					nulls[k]--
+				}
 			}
 		}
 		if f.Diff.Kind == diff.Deleted || !f.Lang.IsProgramming() {
@@ -115,6 +126,11 @@ func (l *ledger) buildSource() *sourceModel {
 		}
 	}
 	m.flagsRemoved = flagsOut > flagsIn
+	for k, n := range nulls {
+		if n > 0 {
+			m.nullsOut[k] = true
+		}
+	}
 	for v := range m.valuesOut {
 		if valuesIn[v] || v == "" {
 			delete(m.valuesOut, v)
@@ -178,7 +194,7 @@ func (l *ledger) touchedIn(f *core.FileInfo, m *sourceModel) {
 // mention adds the identifiers of a line of code, and the pieces of its
 // dotted or slashed string literals ('pkg.module.name', 'a/b/c'), to into.
 func mention(code string, strs []string, into map[string]bool) {
-	for _, id := range identRe.FindAllString(code, -1) {
+	for _, id := range idents(code) {
 		into[id] = true
 	}
 	for _, s := range strs {
@@ -232,7 +248,7 @@ func declarations(lg lang.Lang, code string, into map[string]bool) {
 	switch lg {
 	case lang.Python:
 		if m := pyParamsRe.FindStringSubmatch(code); m != nil {
-			for _, id := range identRe.FindAllString(m[1], -1) {
+			for _, id := range idents(m[1]) {
 				into[id] = true
 			}
 		}
@@ -264,12 +280,15 @@ func distinctName(s string) bool {
 	return hump || under
 }
 
+// nullWordRe finds null-like keywords.
+var nullWordRe = regexp.MustCompile(`\b(?:undefined|null|None|nil)\b`)
+
 // flagCheckRe matches a feature-flag check in code.
 var flagCheckRe = regexp.MustCompile(`(?i)feature[_-]?flag|\buse(?:Feature|Flag)\w*\s*\(|\bfeatures\s*\.\s*(?:includes|has|get)\s*\(|\bis_?feature_?(?:enabled|active|on)\b|\bhas_?feature\s*\(|\bflag_?enabled\b|\bgetFeatureValue\b|\bisFlagEnabled\b|\bfeatures\.has\b|_FLAG\b`)
 
 // flagTestRe matches a test that is about a feature flag being off or on:
 // its name says so, or its body toggles one.
-var flagTestRe = regexp.MustCompile(`(?i)feature[ _-]?flag|\bflags?\b|\bfeatureflag|\bfeatures\s*:\s*\[|flag_?enabled|feature_?enabled|_FLAG\b|\bset_?flag\b|\bmockFlag|\bflagged\b`)
+var flagTestRe = regexp.MustCompile(`(?i)feature[ _-]?flag|\bflags?\b|\bfeatureflag|\bfeatures\s*:\s*\[|flag_?(?:enabled|disabled|on|off)|feature_?(?:enabled|disabled|on|off)|_FLAG\b|\bset_?flag\b|\bmockFlag|\bflagged\b|\bwith(?:out)?(?: the)? [\w-]+ feature\b|\bfeature (?:is )?(?:on|off|enabled|disabled)\b`)
 
 // importLineStemRe captures the module named by an import line: the last
 // path or dotted segment of a JS/TS specifier, a Python module, a Go or
@@ -324,7 +343,7 @@ func (l *ledger) refsVanished(o *instance) string {
 	seen := map[string]bool{}
 	for rel := o.block.Header; rel <= o.block.End && rel-1 < len(o.seg.lines); rel++ {
 		ll := o.seg.lines[rel-1]
-		for _, id := range identRe.FindAllString(ll.Code, -1) {
+		for _, id := range idents(ll.Code) {
 			if id == o.block.Bare || seen[id] {
 				continue
 			}
@@ -383,7 +402,7 @@ func (l *ledger) localHelpers(f *core.FileInfo) map[string]map[string]bool {
 			}
 			ids := map[string]bool{}
 			for k := i; k <= end; k++ {
-				for _, id := range identRe.FindAllString(lines[k].Code, -1) {
+				for _, id := range idents(lines[k].Code) {
 					ids[id] = true
 				}
 			}
@@ -411,7 +430,7 @@ func (l *ledger) refsTouched(o *instance) bool {
 		return false
 	}
 	for rel := o.block.Header; rel <= o.block.End && rel-1 < len(o.seg.lines); rel++ {
-		for _, id := range identRe.FindAllString(o.seg.lines[rel-1].Code, -1) {
+		for _, id := range idents(o.seg.lines[rel-1].Code) {
 			if t[id] && id != o.block.Bare && len(id) >= 3 && !stopWords[id] {
 				return true
 			}
@@ -428,7 +447,7 @@ func (l *ledger) refsModule(o *instance) bool {
 		return false
 	}
 	for rel := o.block.Header; rel <= o.block.End && rel-1 < len(o.seg.lines); rel++ {
-		for _, id := range identRe.FindAllString(o.seg.lines[rel-1].Code, -1) {
+		for _, id := range idents(o.seg.lines[rel-1].Code) {
 			if m[id] && id != o.block.Bare && len(id) >= 3 && !stopWords[id] && !notDefs[id] {
 				return true
 			}
@@ -572,4 +591,36 @@ func (l *ledger) testedElsewhere(o *instance) bool {
 		}
 	}
 	return false
+}
+
+// keyRe matches a string literal that reads like a key rather than a
+// message: a feature flag, an option or setting name, a template path
+// ("organizations:snapshot-head-check", "preprod.snapshots.enabled",
+// "sentry/login.html").
+var keyRe = regexp.MustCompile(`^[A-Za-z@][\w@]*(?:[-:./][\w@]+)+$`)
+
+// retiredKey returns a key-like string literal that old test o uses and
+// that the change removed from production code without adding it back
+// (see sourceModel.valuesOut), or "": the flag, option or setting the test
+// exercised was retired.
+func (l *ledger) retiredKey(o *instance) string {
+	if len(l.sourceChanged) == 0 {
+		return ""
+	}
+	out := l.source().valuesOut
+	if len(out) == 0 {
+		return ""
+	}
+	from := o.block.Start
+	if from < 1 {
+		from = o.block.Header
+	}
+	for rel := from; rel <= o.block.End && rel-1 < len(o.seg.lines); rel++ {
+		for _, s := range o.seg.lines[rel-1].Strings {
+			if s = strings.TrimSpace(s); len(s) >= 6 && out[s] && keyRe.MatchString(s) {
+				return s
+			}
+		}
+	}
+	return ""
 }

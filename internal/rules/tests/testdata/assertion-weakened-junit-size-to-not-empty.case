@@ -1,0 +1,31 @@
+# An exact item count becomes "not empty": assertFalse(x.isEmpty()) passes
+# for any non-empty cart, however many items the code put in it.
+expect: assertion-weakened@warning
+-- old/src/test/java/com/shop/cart/CartServiceTest.java --
+package com.shop.cart;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+
+import org.junit.jupiter.api.Test;
+
+class CartServiceTest {
+    @Test
+    void mergesGuestCartIntoUserCart() {
+        Cart cart = service.merge(guestCart("A", "B"), userCart("C"));
+        assertEquals(3, cart.items().size());
+    }
+}
+-- new/src/test/java/com/shop/cart/CartServiceTest.java --
+package com.shop.cart;
+
+import static org.junit.jupiter.api.Assertions.assertFalse;
+
+import org.junit.jupiter.api.Test;
+
+class CartServiceTest {
+    @Test
+    void mergesGuestCartIntoUserCart() {
+        Cart cart = service.merge(guestCart("A", "B"), userCart("C"));
+        assertFalse(cart.items().isEmpty());
+    }
+}

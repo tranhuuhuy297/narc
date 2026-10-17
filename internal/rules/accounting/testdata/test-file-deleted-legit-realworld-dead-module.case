@@ -1,0 +1,86 @@
+# Real world (OpenHands): invitations switched from the Resend-based
+# EmailService to SMTPEmailService, which already has its own tests. With
+# no production code importing email_service any more, its test file was
+# deleted. The module itself was left behind as dead code: reported as info.
+expect: test-file-deleted@info
+-- old/enterprise/server/routes/org_invitations.py --
+from fastapi import APIRouter
+
+from server.routes.org_invitation_models import InvitationResponse, PendingInvitationsResponse
+from server.services.email_service import EmailService
+from server.services.org_invitation_service import OrgInvitationService
+
+router = APIRouter()
+
+
+@router.get("/organizations/{org_id}/invitations")
+async def list_pending_invitations(org_id: str):
+    invitations = await OrgInvitationService.list_pending(org_id)
+    items = [await InvitationResponse.from_invitation(inv) for inv in invitations]
+    return PendingInvitationsResponse(
+        items=items,
+        email_delivery_configured=EmailService.is_configured(),
+    )
+-- new/enterprise/server/routes/org_invitations.py --
+from fastapi import APIRouter
+
+from server.routes.org_invitation_models import InvitationResponse, PendingInvitationsResponse
+from server.services.org_invitation_service import OrgInvitationService
+from server.services.smtp_email_service import SMTPEmailService
+
+router = APIRouter()
+
+
+@router.get("/organizations/{org_id}/invitations")
+async def list_pending_invitations(org_id: str):
+    invitations = await OrgInvitationService.list_pending(org_id)
+    items = [await InvitationResponse.from_invitation(inv) for inv in invitations]
+    return PendingInvitationsResponse(
+        items=items,
+        email_delivery_configured=SMTPEmailService.is_configured(),
+    )
+-- both/enterprise/server/services/email_service.py --
+import os
+
+import resend
+
+
+class EmailService:
+    @staticmethod
+    def is_configured() -> bool:
+        return bool(os.getenv("RESEND_API_KEY"))
+
+    @staticmethod
+    def build_invitation_url(token: str) -> str:
+        host = os.getenv("WEB_HOST", "app.all-hands.dev")
+        return f"https://{host}/api/organizations/members/invite/accept?token={token}"
+
+    @staticmethod
+    def send_invitation(email: str, token: str) -> None:
+        resend.Emails.send({"to": email, "html": EmailService.build_invitation_url(token)})
+-- old/enterprise/tests/unit/test_email_service.py --
+from unittest.mock import patch
+
+from server.services.email_service import EmailService
+
+
+class TestEmailServiceInvitationUrl:
+    def test_invitation_url_uses_correct_endpoint(self):
+        url = EmailService.build_invitation_url("abc")
+        assert "/api/organizations/members/invite/accept" in url
+        assert url.endswith("token=abc")
+
+    def test_invitation_url_uses_web_host_env(self, monkeypatch):
+        monkeypatch.setenv("WEB_HOST", "staging.all-hands.dev")
+        assert EmailService.build_invitation_url("x").startswith("https://staging.all-hands.dev/")
+
+
+class TestEmailServiceConfigured:
+    def test_not_configured_without_api_key(self, monkeypatch):
+        monkeypatch.delenv("RESEND_API_KEY", raising=False)
+        assert EmailService.is_configured() is False
+
+    @patch("server.services.email_service.resend")
+    def test_send_invitation_calls_resend(self, mock_resend):
+        EmailService.send_invitation("a@b.co", "tok")
+        mock_resend.Emails.send.assert_called_once()

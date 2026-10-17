@@ -503,6 +503,11 @@ func (p *parser) refine(r matcherResult, lk link, rest []link) matcherResult {
 			r.str = checksValue
 		}
 		r.pass, r.expected = passUnknown, nil
+	case "toHaveClass":
+		// toHaveClass() without a class only checks that there is one.
+		if len(pos) == 0 {
+			r.str = checksExist
+		}
 	case "toBeInstanceOf", "isInstanceOf", "instanceOf", "isA", "BeOfType", "be_a", "be_kind_of", "a", "an":
 		if len(pos) > 0 && genericException(pos[0].raw) {
 			r.str = checksExist // toBeInstanceOf(Object) holds for anything non-null
@@ -579,6 +584,16 @@ func boolEquality(a *assertion) {
 		if l := lit(v, lang.Unknown); l.kind == litBool && l.value == "true" {
 			if other := a.values[1-i]; lit(other, lang.Unknown).kind == notLiteral {
 				a.str, a.subjects = boolCheck(other)
+			}
+			return
+		}
+		if l := lit(v, lang.Unknown); l.kind == litBool && l.value == "false" {
+			// expect(actions.every((b) => b.disabled)).toBe(false): a negated
+			// predicate, which checks what the predicate checks.
+			if other := a.values[1-i]; lit(other, lang.Unknown).kind == notLiteral {
+				if str, _ := boolCheck(other); str == checksOther {
+					a.str = checksOther
+				}
 			}
 			return
 		}
@@ -771,7 +786,16 @@ func (p *parser) assertJThrows(start, end int, fn string, as []expr) {
 			if len(lk.args) > 0 {
 				a.exc = exceptionName(lk.args[0].raw)
 			}
-		case "hasMessage", "hasMessageContaining", "withMessage", "withMessageContaining", "hasMessageMatching":
+		case "isInstanceOfSatisfying":
+			// isInstanceOfSatisfying(E.class, e -> assertThat(e)...): the type,
+			// and a consumer that inspects the exception itself.
+			if len(lk.args) > 0 {
+				a.exc = exceptionName(lk.args[0].raw)
+			}
+			a.match = true
+		case "hasMessage", "hasMessageContaining", "withMessage", "withMessageContaining", "hasMessageMatching",
+			"hasMessageStartingWith", "hasMessageEndingWith", "hasRootCauseMessage", "satisfies", "isSameAs",
+			"hasFieldOrPropertyWithValue", "hasCause", "hasRootCause", "hasCauseInstanceOf", "hasCauseExactlyInstanceOf":
 			a.match = true
 		}
 	}
@@ -1000,7 +1024,10 @@ func (p *parser) addCall(start, end int, name, generic string, spec callSpec, as
 	a.values = as[:spec.arity]
 	if spec.pass == passTruthy || spec.pass == passFalsy {
 		a.str, a.subjects = boolCheck(as[0])
-		if spec.pass == passFalsy && a.str == checksExist {
+		switch {
+		case spec.pass == passFalsy && emptyCall(as[0].raw):
+			a.str = checksExist // assertFalse(items.isEmpty()): only that something is there
+		case spec.pass == passFalsy && a.str == checksExist:
 			a.str = checksOther
 		}
 	}
@@ -1154,7 +1181,100 @@ func boolCheck(e expr) (strength, []expr) {
 	if strings.HasPrefix(e.raw, "!") || strings.HasPrefix(e.raw, "not ") {
 		return checksOther, []expr{e}
 	}
+	if callee, recv, arg, ok := outerCall(e.raw); ok {
+		switch {
+		case existencePredicates[callee] || affixMethodRe.MatchString("."+callee):
+			// (An affix check with a vague affix, startswith(""), accepts
+			// anything: specific ones were handled above.)
+			// Boolean(x), bool(x), isinstance(x, dict), hasattr(x, "a"): only
+			// that something is there, or of some type.
+		case emptyCall(e.raw):
+			// runs.isEmpty(): the expected value is "nothing", a specific one.
+			return checksValue, []expr{newExpr(recv)}
+		case containsMethods[callee] && recv != "" && arg != "":
+			// items.includes(x), names.contains("a"), seen.has(id)
+			return checksValue, []expr{newExpr(recv), newExpr(arg)}
+		default:
+			// A predicate: isNativelyEvaluable(src), commands.some(c =>
+			// c.id === id), result.shouldStopExecution(). It checks what
+			// the predicate checks, which the assertion cannot see.
+			return checksOther, []expr{e}
+		}
+	}
 	return checksExist, []expr{e}
+}
+
+var (
+	// existencePredicates are calls that only check that a value exists or
+	// has some type.
+	existencePredicates = map[string]bool{
+		"Boolean": true, "bool": true, "isinstance": true, "hasattr": true, "callable": true, "exists": true,
+		"Exists": true, "isNotNull": true, "nonNull": true, "notNull": true, "isNotEmpty": true, "is_not_empty": true,
+		"isPresent": true, "isDefined": true, "is_some": true, "is_ok": true, "is_err": true, "HasValue": true,
+		"isArray": true, "is_a?": true, "kind_of?": true, "instance_of?": true, "respond_to?": true, "isFinite": true,
+		"isNaN": true, "isInteger": true, "isString": true, "isObject": true, "isFunction": true, "is_file": true,
+		"is_dir": true, "isfile": true, "isdir": true, "existsSync": true, "IsType": true,
+	}
+	// containsMethods are membership checks with a specific member.
+	containsMethods = map[string]bool{
+		"includes": true, "contains": true, "Contains": true, "has": true, "Has": true, "include?": true,
+		"containsKey": true, "ContainsKey": true, "containsValue": true, "hasOwnProperty": true, "__contains__": true,
+	}
+)
+
+// outerCall splits an expression that is, as a whole, a call: the callee's
+// name, its receiver (for a method) and its argument list. `a.b(c)(d)`
+// and `f(x).y` are not calls of this shape.
+func outerCall(raw string) (callee, recv, args string, ok bool) {
+	raw = strings.TrimSpace(raw)
+	if !strings.HasSuffix(raw, ")") {
+		return "", "", "", false
+	}
+	open := -1
+	depth := 0
+	for i := 0; i < len(raw); i++ {
+		switch raw[i] {
+		case '(', '[', '{':
+			if depth == 0 && raw[i] == '(' {
+				open = i
+			}
+			depth++
+		case ')', ']', '}':
+			depth--
+		}
+	}
+	if open <= 0 || depth != 0 {
+		return "", "", "", false
+	}
+	if end, found := closing(raw, open); !found || end != len(raw)-1 {
+		return "", "", "", false
+	}
+	head := strings.TrimRight(raw[:open], " ")
+	j := len(head)
+	for j > 0 && (isIdentByte(head[j-1]) || head[j-1] == '?' && j == len(head)) {
+		j--
+	}
+	if j == len(head) {
+		return "", "", "", false // (f)(x), x[0](y)
+	}
+	callee = head[j:]
+	r := strings.TrimRight(head[:j], " ")
+	r = strings.TrimSuffix(strings.TrimSuffix(r, "?."), ".")
+	if r != "" && !strings.HasSuffix(head[:j], ".") && !strings.HasSuffix(head[:j], "?.") {
+		return "", "", "", false // an operator before the callee: a + f(x)
+	}
+	return callee, r, strings.TrimSpace(raw[open+1 : len(raw)-1]), true
+}
+
+// emptyCall reports whether an expression is an emptiness check:
+// items.isEmpty(), list.is_empty().
+func emptyCall(raw string) bool {
+	callee, _, args, ok := outerCall(raw)
+	return ok && args == "" && (callee == "isEmpty" || callee == "is_empty" || callee == "IsEmpty" || callee == "empty?")
+}
+
+func isIdentByte(c byte) bool {
+	return c == '_' || c == '$' || c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' || c >= '0' && c <= '9'
 }
 
 var (

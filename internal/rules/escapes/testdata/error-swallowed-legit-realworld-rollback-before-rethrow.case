@@ -1,0 +1,46 @@
+# A transaction retry helper rolls back best-effort before re-throwing the original error (mastra MySQL store): the rollback's own failure must not mask the real one.
+expect: clean
+-- old/stores/mysql/src/storage/domains/memory/index.ts --
+export class MemoryStorageMySQL {
+  async saveThread(thread: StorageThreadType): Promise<StorageThreadType> {
+    const connection = await this.pool.getConnection();
+    try {
+      await connection.beginTransaction();
+      await connection.execute(INSERT_THREAD, toRow(thread));
+      await connection.commit();
+      return thread;
+    } catch (error) {
+      await connection.rollback();
+      throw error;
+    } finally {
+      connection.release();
+    }
+  }
+}
+-- new/stores/mysql/src/storage/domains/memory/index.ts --
+export class MemoryStorageMySQL {
+  private async inTransaction<T>(fn: (connection: PoolConnection) => Promise<T>): Promise<T> {
+    for (let attempt = 1; ; attempt++) {
+      const connection = await this.pool.getConnection();
+      try {
+        await connection.beginTransaction();
+        const result = await fn(connection);
+        await connection.commit();
+        return result;
+      } catch (error) {
+        await connection.rollback().catch(() => {});
+        if (attempt < MAX_TRANSACTION_ATTEMPTS && isRetryableLockError(error)) continue;
+        throw error;
+      } finally {
+        connection.release();
+      }
+    }
+  }
+
+  async saveThread(thread: StorageThreadType): Promise<StorageThreadType> {
+    return this.inTransaction(async connection => {
+      await connection.execute(INSERT_THREAD, toRow(thread));
+      return thread;
+    });
+  }
+}

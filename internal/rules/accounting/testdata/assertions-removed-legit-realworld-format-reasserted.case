@@ -1,0 +1,68 @@
+# Real world (cal.com): CalDAV output now rewrites UTC DTSTART/DTEND into
+# DTSTART;TZID=... with a VTIMEZONE block, so the test that the UTC times
+# pass through unchanged dropped those two checks; the time zone test next
+# to it now asserts the TZID form instead: info.
+expect: assertions-removed@info
+-- old/packages/lib/CalendarService.ts --
+export function injectScheduleAgent(iCalString: string): string {
+  return iCalString.replace(/^ATTENDEE;/gm, "ATTENDEE;SCHEDULE-AGENT=CLIENT;");
+}
+-- new/packages/lib/CalendarService.ts --
+import { buildVTimezone } from "./vtimezone";
+
+export function injectScheduleAgent(iCalString: string, timeZone?: string): string {
+  let out = iCalString.replace(/^ATTENDEE;/gm, "ATTENDEE;SCHEDULE-AGENT=CLIENT;");
+  if (timeZone) {
+    out = out.replace(/^(DTSTART|DTEND):(\d{8}T\d{6})Z$/gm, (_m, key, utc) => `${key};TZID=${timeZone}:${toLocal(utc, timeZone)}`);
+    out = out.replace("BEGIN:VEVENT", `${buildVTimezone(timeZone)}\r\nBEGIN:VEVENT`);
+  }
+  return out;
+}
+-- old/packages/lib/CalendarService.test.ts --
+import { describe, expect, it } from "vitest";
+import { injectScheduleAgent } from "./CalendarService";
+
+describe("CalendarService - SCHEDULE-AGENT injection", () => {
+  it("should preserve other iCal properties unchanged", () => {
+    const iCalString = injectScheduleAgent(
+      "BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//Cal.com//NONSGML//EN\r\nBEGIN:VEVENT\r\nDTSTART:20230101T100000Z\r\nDTEND:20230101T110000Z\r\nEND:VEVENT\r\nEND:VCALENDAR",
+      "America/Chicago",
+    );
+    expect(iCalString).toContain("VERSION:2.0");
+    expect(iCalString).toContain("PRODID:-//Cal.com//NONSGML//EN");
+    expect(iCalString).toContain("DTSTART:20230101T100000Z");
+    expect(iCalString).toContain("DTEND:20230101T110000Z");
+  });
+
+  it("rewrites UTC times to the organizer's time zone", () => {
+    const iCalString = injectScheduleAgent(
+      "BEGIN:VCALENDAR\r\nBEGIN:VEVENT\r\nDTSTART:20230101T100000Z\r\nDTEND:20230101T110000Z\r\nEND:VEVENT\r\nEND:VCALENDAR",
+      "America/Chicago",
+    );
+    expect(iCalString).toContain("BEGIN:VEVENT");
+  });
+});
+-- new/packages/lib/CalendarService.test.ts --
+import { describe, expect, it } from "vitest";
+import { injectScheduleAgent } from "./CalendarService";
+
+describe("CalendarService - SCHEDULE-AGENT injection", () => {
+  it("should preserve other iCal properties unchanged", () => {
+    const iCalString = injectScheduleAgent(
+      "BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//Cal.com//NONSGML//EN\r\nBEGIN:VEVENT\r\nDTSTART:20230101T100000Z\r\nDTEND:20230101T110000Z\r\nEND:VEVENT\r\nEND:VCALENDAR",
+      "America/Chicago",
+    );
+    expect(iCalString).toContain("VERSION:2.0");
+    expect(iCalString).toContain("PRODID:-//Cal.com//NONSGML//EN");
+  });
+
+  it("rewrites UTC times to the organizer's time zone", () => {
+    const iCalString = injectScheduleAgent(
+      "BEGIN:VCALENDAR\r\nBEGIN:VEVENT\r\nDTSTART:20230101T100000Z\r\nDTEND:20230101T110000Z\r\nEND:VEVENT\r\nEND:VCALENDAR",
+      "America/Chicago",
+    );
+    expect(iCalString).toContain("DTSTART;TZID=America/Chicago:20230101T040000");
+    expect(iCalString).toContain("DTEND;TZID=America/Chicago:20230101T050000");
+    expect(iCalString).toContain("BEGIN:VTIMEZONE");
+  });
+});

@@ -1,0 +1,52 @@
+# An existing integration test is made opt-in: it now runs only when someone
+# sets an environment variable, so a CI job that never sets it silently stops
+# running it. An environment switch, not a capability probe: a warning.
+expect: skip-added@warning
+-- old/internal/store/postgres_test.go --
+package store
+
+import (
+	"context"
+	"testing"
+)
+
+func TestPostgresUpsertKeepsCreatedAt(t *testing.T) {
+	db := openTestDB(t)
+	created, err := db.Upsert(context.Background(), Order{ID: "o-1", Total: 100})
+	if err != nil {
+		t.Fatal(err)
+	}
+	updated, err := db.Upsert(context.Background(), Order{ID: "o-1", Total: 120})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !updated.CreatedAt.Equal(created.CreatedAt) {
+		t.Fatalf("CreatedAt changed on update: %v → %v", created.CreatedAt, updated.CreatedAt)
+	}
+}
+-- new/internal/store/postgres_test.go --
+package store
+
+import (
+	"context"
+	"os"
+	"testing"
+)
+
+func TestPostgresUpsertKeepsCreatedAt(t *testing.T) {
+	if os.Getenv("RUN_DB_TESTS") != "1" {
+		t.Skip("set RUN_DB_TESTS=1 to run database tests")
+	}
+	db := openTestDB(t)
+	created, err := db.Upsert(context.Background(), Order{ID: "o-1", Total: 100})
+	if err != nil {
+		t.Fatal(err)
+	}
+	updated, err := db.Upsert(context.Background(), Order{ID: "o-1", Total: 120})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !updated.CreatedAt.Equal(created.CreatedAt) {
+		t.Fatalf("CreatedAt changed on update: %v → %v", created.CreatedAt, updated.CreatedAt)
+	}
+}

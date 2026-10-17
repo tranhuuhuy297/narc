@@ -24,6 +24,8 @@ const (
 		"skip it with a reason that links an issue."
 	skipFlagHint = "The skip is driven by a flag in the test data. Make sure no case sets that flag to hide a " +
 		"failure, and give every case that sets it a reason that links an issue."
+	skipPrereqHint = "The skip depends on state prepared outside the test (another test, a fixture, package setup). " +
+		"Make sure that state is always there where the test is meant to run, or fail instead of skipping when it is missing."
 	freshSkipHint = "This test is new and has never run. Make it pass and remove the skip; if it cannot run here, " +
 		"say why in the skip's reason and link an issue, so the gap is tracked rather than hidden."
 )
@@ -44,16 +46,21 @@ var skipAdded = &core.Rule{
 		"`QUnit.skip`/`QUnit.module.skip` and kotest's `!` name prefix — also under an aliased import " +
 		"(`@pt.mark.skip`) or a differently named test handle (`st.Skip()`) — and a Go `TestMain` that no " +
 		"longer calls `m.Run()`.\n\n" +
-		"Skips that only apply in some environments (`if testing.Short()`, `skipif(sys.platform == ...)`, " +
-		"`@DisabledOnOs`) or that link an issue are reported as warnings, and a gate that only excludes Windows " +
-		"or macOS as a note; a constant condition (`skipif(True)`, `cfg_attr(all(), ignore)`) is an error. Skips " +
-		"that are merely moved, reformatted, or narrowed (a `describe.skip` replaced by an `it.skip` inside it) are " +
-		"not reported, but a gated skip that loses its condition is.\n\n" +
+		"Skips that switch an existing test off in some environments (`if testing.Short()`, an opt-in " +
+		"environment variable, CI, Bazel, a missing build fixture), that depend on state another test prepares, " +
+		"or that link an issue are reported as warnings. A gate that only excludes Windows or macOS, or that " +
+		"skips where the machine lacks what the test exercises (permission bits that bind, inode numbers, " +
+		"symlinks, a tool on PATH or a version of it that knows a flag, the race detector), is a note: the test " +
+		"still runs where CI runs it. So is a skip in a Go benchmark, which only runs with `-bench`. A constant " +
+		"condition (`skipif(True)`, `cfg_attr(all(), ignore)`) is an error. Skips that are merely moved, " +
+		"reformatted, or narrowed (a `describe.skip` replaced by an `it.skip` inside it), a gate rewritten into " +
+		"another gate, and an early `return` under a condition turned into a skip under one are not reported, " +
+		"but a gated skip that loses its condition is.\n\n" +
 		"A skip on a test that the change adds switches off nothing that ran before. A new test that is skipped " +
-		"from the start is a warning (a note when the skip is deliberate: an opt-in benchmark, a strict xfail that " +
-		"links an issue, the reason the file already gives for its other skips); a conditional skip of a new test " +
-		"(an environment check, a capability probe, `assumeTrue(...)`) is not reported when it gives a reason. A " +
-		"renamed test is not a new one.\n\n" +
+		"from the start is a note, or a warning when the skip says the test describes behaviour known to be " +
+		"broken and links no issue; a conditional skip of a new test (an environment check, a capability probe, " +
+		"`assumeTrue(...)`, a missing prerequisite) is not reported when it gives a reason. A renamed or moved " +
+		"test is not a new one.\n\n" +
 		"```ts\n// bad: the failing test is silenced\nit.skip('rejects expired tokens', () => { ... })\n\n" +
 		"// good: fix verifyToken() so the test passes, and keep it running\nit('rejects expired tokens', () => { ... })\n```",
 }
@@ -252,6 +259,12 @@ func skipGate(o occurrence[skipHit], v version) string {
 		return h.label
 	case h.cond != "":
 		if alwaysSkips(h.cond, h.inverse, o.File.Lang) {
+			if h.form == formCall {
+				vt, _ := scanText(o.File, o.Line, v)
+				if g, ok := guardIn(v.getter(o.File), o.File.Lang, o.Line, vt, h.pos, h.end); ok {
+					return g
+				}
+			}
 			return ""
 		}
 		return h.cond
@@ -320,6 +333,14 @@ func skipFinding(files []*core.FileInfo, o occurrence[skipHit]) (fd core.Finding
 		default:
 			fresh, _ = aliasFresh(files, o)
 		}
+		if !fresh && target.ok() && skippedBefore(o, target) {
+			return core.Finding{}, false // the same skip, in the same test, as before
+		}
+		if !fresh && target.ok() && skipGate(o, newVersion) != "" && returnedEarly(f, target) {
+			// The test used to return early under a condition; a gated
+			// skip only reports what already did not run.
+			return core.Finding{}, false
+		}
 		if fresh {
 			s, w, report := freshSkip(o, target, decl, hint)
 			if !report {
@@ -333,6 +354,14 @@ func skipFinding(files []*core.FileInfo, o occurrence[skipHit]) (fd core.Finding
 				why += w
 			}
 		}
+	}
+
+	if !fresh && sev > core.Info && goBenchmark(f, target, markerDecl(o)) {
+		sev, hint = core.Info, skipEnvHint
+		if why != "" {
+			why += "; "
+		}
+		why += "a benchmark, which go test only runs with -bench"
 	}
 
 	name := h.name
@@ -392,6 +421,27 @@ func skipFinding(files []*core.FileInfo, o occurrence[skipHit]) (fd core.Finding
 	return fd, true
 }
 
+// markerDecl returns the new line that declares the test the marker o applies
+// to, or 0.
+func markerDecl(o occurrence[skipHit]) int {
+	_, n := markerTarget(o)
+	return n
+}
+
+// goBenchmark reports whether the test declared on new line n of a Go file
+// is a benchmark or a helper that takes a *testing.B: benchmarks do not run
+// in a plain `go test`, so skipping one switches off no verification.
+func goBenchmark(f *core.FileInfo, t testName, n int) bool {
+	if f.Lang != lang.Go || !t.ok() {
+		return false
+	}
+	if strings.HasPrefix(t.name, "Benchmark") {
+		return true
+	}
+	l, ok := f.NewLine(n)
+	return ok && strings.Contains(l.Code, "*testing.B")
+}
+
 // assessSkip decides how serious a new skip is. Unconditional skips and
 // skips that trigger on what the code under test does are errors; skips
 // gated on the environment, or that link an issue, are warnings.
@@ -399,6 +449,13 @@ func assessSkip(f *core.FileInfo, l core.Line, vt string, h skipHit) (core.Sever
 	when := "only when "
 	if h.inverse {
 		when = "unless "
+	}
+	if h.form == formCall && h.cond != "" && alwaysSkips(h.cond, h.inverse, f.Lang) {
+		if _, ok := guard(f, l, vt, h.pos, h.end); ok {
+			// assumeTrue(false, why) inside `catch` or `if`: the statement
+			// around it decides when the test skips.
+			h.cond, h.inverse = "", false
+		}
 	}
 	switch {
 	case h.envGate:
@@ -410,10 +467,9 @@ func assessSkip(f *core.FileInfo, l core.Line, vt string, h skipHit) (core.Sever
 			return core.Error, display(h.cond) + " never holds, so the test is compiled out of every build", skipHint
 		}
 		return core.Error, "the condition " + display(h.cond) + " always skips", skipHint
+	case h.cond != "" && !brokenRe.MatchString(h.reason) && capabilityGate(h.cond, h.inverse, fileDefiner(f)):
+		return core.Info, when + display(h.cond) + gateNote(h.cond, h.inverse), skipEnvHint
 	case h.cond != "" && isEnvCondition(h.cond):
-		if offPlatformGate(h.cond, h.inverse) && !brokenRe.MatchString(h.reason) {
-			return core.Info, when + display(h.cond) + offPlatformNote, skipEnvHint
-		}
 		return core.Warning, when + display(h.cond) + " (environment-gated)", skipEnvHint
 	case h.cond != "" && h.form != formCall:
 		// A declarative gate (skipif, @DisabledIf, skip: cond) is evaluated
@@ -424,10 +480,13 @@ func assessSkip(f *core.FileInfo, l core.Line, vt string, h skipHit) (core.Sever
 	if cond == "" && h.form == formCall {
 		if g, ok := guard(f, l, vt, h.pos, h.end); ok {
 			cond = g
+			if !brokenRe.MatchString(h.reason) && capabilityGate(g, false, fileDefiner(f)) {
+				return core.Info, "only when " + display(g) + gateNote(g, false), skipEnvHint
+			}
+			if !brokenRe.MatchString(h.reason) && errProbed(f, l.No, g) {
+				return core.Info, "only when " + display(g) + " (the error of a capability probe above)", skipEnvHint
+			}
 			if isEnvCondition(g) {
-				if offPlatformGate(g, false) && !brokenRe.MatchString(h.reason) {
-					return core.Info, "only when " + display(g) + offPlatformNote, skipEnvHint
-				}
 				return core.Warning, "only when " + display(g) + " (environment-gated)", skipEnvHint
 			}
 			if isSkipFlag(g) {
@@ -450,10 +509,28 @@ func assessSkip(f *core.FileInfo, l core.Line, vt string, h skipHit) (core.Sever
 		}
 		return core.Warning, why + "references an issue", skipIssueHint
 	}
+	if cond != "" && h.form == formCall && cond != catchCond {
+		if _, decl := testAboveLine(f.NewLine, l.No, false); preparedOutside(f, decl, l.No, cond) {
+			// A prerequisite another test or a fixture provides, not the
+			// outcome of the code under test.
+			return core.Warning, why + " (state the test does not compute itself)", skipPrereqHint
+		}
+	}
 	return core.Error, why, skipHint
 }
 
-const offPlatformNote = " (a platform gate: the test still runs on Linux, where CI usually runs)"
+const (
+	offPlatformNote = " (a platform gate: the test still runs on Linux, where CI usually runs)"
+	capabilityNote  = " (a capability check: the test still runs wherever the machine supports what it exercises)"
+)
+
+// gateNote explains why a capability gate is only a note.
+func gateNote(cond string, inverse bool) string {
+	if offPlatformGate(cond, inverse) {
+		return offPlatformNote
+	}
+	return capabilityNote
+}
 
 var (
 	// platformCheckRe matches a check of the operating system against

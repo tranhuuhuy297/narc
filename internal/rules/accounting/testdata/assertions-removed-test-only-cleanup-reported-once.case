@@ -1,0 +1,52 @@
+# Real world (sentry): a test-only change dropped the checks on static copy
+# from several tests of one view. That trims real checks, so it stays
+# visible, but as one warning for the change rather than an error per
+# test: it reads as a cleanup of the suite, not as a failing check
+# silenced next to a code change.
+expect: assertions-removed@warning
+-- old/static/app/views/investigations/hypotheses/hypothesisCard.spec.tsx --
+import {render, screen} from 'sentry-test/reactTestingLibrary';
+
+import HypothesisCard from 'sentry/views/investigations/hypotheses/hypothesisCard';
+
+describe('HypothesisCard', () => {
+  it('renders the statement, rationale, and one-based ordinal', () => {
+    render(<HypothesisCard index={0} hypothesis={{statement: 'Cache stampede', rationale: 'p95 doubled'}} />);
+    expect(screen.getByText('Cache stampede')).toBeInTheDocument();
+    expect(screen.getByText('p95 doubled')).toBeInTheDocument();
+    expect(screen.getByText('Hypothesis 1')).toBeInTheDocument();
+  });
+
+  it('shows the verdict once the agent has one', () => {
+    render(<HypothesisCard index={1} hypothesis={{statement: 'Bad deploy', verdict: 'confirmed'}} />);
+    expect(screen.getByText('Confirmed')).toBeInTheDocument();
+    expect(screen.getByText('Verdict')).toBeInTheDocument();
+  });
+
+  it('marks a hypothesis in flight', () => {
+    render(<HypothesisCard index={2} hypothesis={{statement: 'Slow query', inFlight: true}} />);
+    expect(screen.getByRole('progressbar')).toBeInTheDocument();
+    expect(screen.getByText('Investigating')).toBeInTheDocument();
+  });
+});
+-- new/static/app/views/investigations/hypotheses/hypothesisCard.spec.tsx --
+import {render, screen} from 'sentry-test/reactTestingLibrary';
+
+import HypothesisCard from 'sentry/views/investigations/hypotheses/hypothesisCard';
+
+describe('HypothesisCard', () => {
+  it('renders the statement, rationale, and one-based ordinal', () => {
+    render(<HypothesisCard index={0} hypothesis={{statement: 'Cache stampede', rationale: 'p95 doubled'}} />);
+    expect(screen.getByText('Cache stampede')).toBeInTheDocument();
+  });
+
+  it('shows the verdict once the agent has one', () => {
+    render(<HypothesisCard index={1} hypothesis={{statement: 'Bad deploy', verdict: 'confirmed'}} />);
+    expect(screen.getByText('Confirmed')).toBeInTheDocument();
+  });
+
+  it('marks a hypothesis in flight', () => {
+    render(<HypothesisCard index={2} hypothesis={{statement: 'Slow query', inFlight: true}} />);
+    expect(screen.getByRole('progressbar')).toBeInTheDocument();
+  });
+});

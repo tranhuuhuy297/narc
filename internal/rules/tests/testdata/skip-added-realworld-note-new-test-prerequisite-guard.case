@@ -1,0 +1,43 @@
+# Real-world (OpenHands): a new serial e2e step resumes the conversation the
+# previous step created, and skips itself when that step did not get that
+# far. Prettier splits the test's header over three lines. The test is new
+# and its skip is a dependent-step guard: at most a note.
+expect: skip-added@info
+-- old/tests/e2e/mock-llm/mock-llm-conversation.spec.ts --
+import { test, expect } from "@playwright/test";
+
+test.describe.serial("mock LLM conversation", () => {
+  test("step 3: start a conversation and get a reply", async ({ page }) => {
+    await page.goto("/");
+    await page.getByTestId("chat-input").fill("hello");
+    await page.keyboard.press("Enter");
+    await expect(page.getByText("mock reply")).toBeVisible();
+  });
+});
+-- new/tests/e2e/mock-llm/mock-llm-conversation.spec.ts --
+import { test, expect } from "@playwright/test";
+
+test.describe.serial("mock LLM conversation", () => {
+  /** Conversation ID from step 3, used by step 4 for resume verification. */
+  let step3ConversationId: string | null = null;
+
+  test("step 3: start a conversation and get a reply", async ({ page }) => {
+    await page.goto("/");
+    await page.getByTestId("chat-input").fill("hello");
+    await page.keyboard.press("Enter");
+    await expect(page.getByText("mock reply")).toBeVisible();
+    step3ConversationId = new URL(page.url()).pathname.split("/").pop() ?? null;
+  });
+
+  test("step 4: resume conversation from sidebar after navigating away", async ({
+    page,
+  }) => {
+    // This step depends on the conversation created in step 3.
+    // If step 3 failed, skip this test instead of failing with a confusing error.
+    test.skip(!step3ConversationId, "step 3 must complete first");
+
+    await page.goto("/settings");
+    await page.locator(`a[href*="/conversations/${step3ConversationId}"]`).click();
+    expect(page.url()).toContain(step3ConversationId);
+  });
+});

@@ -1,0 +1,59 @@
+# Real-world (beads): a probe test that only does something under the
+# test.sh driver used to return early otherwise, and so reported "ok" in
+# every plain package run. It now calls t.Skip with the same condition, so
+# the run says it was skipped. Nothing that ran before stops running.
+expect: clean
+-- old/scripts/test_script_test.go --
+package scripts
+
+import (
+	"os"
+	"os/exec"
+	"testing"
+)
+
+const testScriptLaunchProbeEnv = "BEADS_TEST_SCRIPT_LAUNCH_PROBE"
+
+// TestTestScriptPrebuiltBinaryLaunchProbe is re-executed by test.sh to prove
+// the prebuilt bd binary launches; ordinary package runs have nothing to do.
+func TestTestScriptPrebuiltBinaryLaunchProbe(t *testing.T) {
+	if os.Getenv(testScriptLaunchProbeEnv) != "1" {
+		return
+	}
+
+	prebuilt := os.Getenv("BEADS_TEST_BD_BINARY")
+	if prebuilt == "" {
+		t.Fatal("BEADS_TEST_BD_BINARY is not set under the launch probe")
+	}
+	out, err := exec.Command(prebuilt, "version").CombinedOutput()
+	if err != nil {
+		t.Fatalf("prebuilt bd did not launch: %v\n%s", err, out)
+	}
+}
+-- new/scripts/test_script_test.go --
+package scripts
+
+import (
+	"os"
+	"os/exec"
+	"testing"
+)
+
+const testScriptLaunchProbeEnv = "BEADS_TEST_SCRIPT_LAUNCH_PROBE"
+
+// TestTestScriptPrebuiltBinaryLaunchProbe is re-executed by test.sh to prove
+// the prebuilt bd binary launches; ordinary package runs have nothing to do.
+func TestTestScriptPrebuiltBinaryLaunchProbe(t *testing.T) {
+	if os.Getenv(testScriptLaunchProbeEnv) != "1" {
+		t.Skip("re-exec probe runs only under the test.sh fake-go driver")
+	}
+
+	prebuilt := os.Getenv("BEADS_TEST_BD_BINARY")
+	if prebuilt == "" {
+		t.Fatal("BEADS_TEST_BD_BINARY is not set under the launch probe")
+	}
+	out, err := exec.Command(prebuilt, "version").CombinedOutput()
+	if err != nil {
+		t.Fatalf("prebuilt bd did not launch: %v\n%s", err, out)
+	}
+}

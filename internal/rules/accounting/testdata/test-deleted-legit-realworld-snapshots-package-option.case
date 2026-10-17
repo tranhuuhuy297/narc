@@ -1,0 +1,43 @@
+# Real world (sentry): the auto-approve option of the preprod snapshots
+# package was fully rolled out, so the task stopped reading it and the
+# test of the disabled path was deleted. The code lives in a package named
+# snapshots/, which is production code, not snapshot test data.
+expect: test-deleted@info
+-- old/src/sentry/preprod/snapshots/tasks.py --
+from sentry import options
+
+
+def plan_sibling_diffs(comparison) -> list[str]:
+    if not options.get("preprod.snapshots.auto-approve-sibling-diffs.enabled"):
+        return []
+    return [image.name for image in comparison.changed if image.has_sibling]
+-- new/src/sentry/preprod/snapshots/tasks.py --
+def plan_sibling_diffs(comparison) -> list[str]:
+    return [image.name for image in comparison.changed if image.has_sibling]
+-- old/tests/sentry/preprod/snapshots/test_tasks.py --
+from unittest.mock import Mock
+
+from sentry.preprod.snapshots.tasks import plan_sibling_diffs
+from sentry.testutils.helpers.options import override_options
+
+
+def test_plans_changed_images_with_siblings():
+    comparison = Mock(changed=[Mock(has_sibling=True), Mock(has_sibling=False)])
+    comparison.changed[0].name = "changed.png"
+    assert plan_sibling_diffs(comparison) == ["changed.png"]
+
+
+def test_skips_planning_when_disabled():
+    comparison = Mock(changed=[Mock(has_sibling=True)])
+    with override_options({"preprod.snapshots.auto-approve-sibling-diffs.enabled": False}):
+        assert plan_sibling_diffs(comparison) == []
+-- new/tests/sentry/preprod/snapshots/test_tasks.py --
+from unittest.mock import Mock
+
+from sentry.preprod.snapshots.tasks import plan_sibling_diffs
+
+
+def test_plans_changed_images_with_siblings():
+    comparison = Mock(changed=[Mock(has_sibling=True), Mock(has_sibling=False)])
+    comparison.changed[0].name = "changed.png"
+    assert plan_sibling_diffs(comparison) == ["changed.png"]

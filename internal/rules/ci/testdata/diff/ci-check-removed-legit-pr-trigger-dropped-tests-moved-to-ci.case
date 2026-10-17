@@ -1,0 +1,57 @@
+# The Java workflow becomes nightly-only because its test job moved into the main PR workflow in the same change.
+expect: clean
+-- old/.github/workflows/sdk-java.yml --
+name: SDK Java
+on:
+  pull_request:
+    paths: ['packages/sdk-java/**']
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run Java SDK tests
+        working-directory: packages/sdk-java
+        run: mvn --batch-mode clean test
+-- new/.github/workflows/sdk-java.yml --
+name: SDK Java
+on:
+  schedule:
+    - cron: '0 3 * * *'
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run Java SDK tests
+        working-directory: packages/sdk-java
+        run: mvn --batch-mode clean test
+-- old/.github/workflows/ci.yml --
+name: CI
+on:
+  pull_request:
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: npm ci
+      - run: npm run lint
+-- new/.github/workflows/ci.yml --
+name: CI
+on:
+  pull_request:
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: npm ci
+      - run: npm run lint
+  java:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run Java SDK tests
+        working-directory: packages/sdk-java
+        run: mvn --batch-mode clean test

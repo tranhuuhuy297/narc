@@ -1,0 +1,56 @@
+# Real-world (beads): a new regression test skips itself in one arm of a
+# tagless switch, when the setup it depends on did not produce the
+# divergence it exists to check; the other arms fail the test. The skip is
+# conditional, explains itself, and nothing ran before.
+expect: clean
+-- old/internal/storage/dolt/git_remote_test.go --
+package dolt
+
+import (
+	"context"
+	"testing"
+)
+
+func TestPullFastForward(t *testing.T) {
+	ctx := context.Background()
+	store := newRemoteStore(t)
+	if err := store.Pull(ctx); err != nil {
+		t.Fatalf("Pull: %v", err)
+	}
+}
+-- new/internal/storage/dolt/git_remote_test.go --
+package dolt
+
+import (
+	"context"
+	"testing"
+)
+
+func TestPullFastForward(t *testing.T) {
+	ctx := context.Background()
+	store := newRemoteStore(t)
+	if err := store.Pull(ctx); err != nil {
+		t.Fatalf("Pull: %v", err)
+	}
+}
+
+func TestPullReportsSuccessOnlyWhenTheMergeLanded(t *testing.T) {
+	ctx := context.Background()
+	store := newDivergedStore(t, "feature")
+	waitOutGitRemoteReadCache()
+
+	pullErr := store.Pull(ctx)
+	landed, getErr := store.GetIssue(ctx, "pl-clone-002")
+	delivered := getErr == nil && landed != nil
+
+	switch {
+	case pullErr == nil && delivered:
+		// The merge landed on the branch the store reads, so this run built no
+		// divergence and has nothing to say about detecting one. Not a pass.
+		t.Skip("the pull delivered pl-clone-002 onto the store's branch: no divergence was constructed")
+	case pullErr == nil && !delivered:
+		t.Fatalf("Pull reported success but pl-clone-002 never arrived on %q", "feature")
+	case pullErr != nil && delivered:
+		t.Fatalf("Pull failed (%v) although the merge landed", pullErr)
+	}
+}

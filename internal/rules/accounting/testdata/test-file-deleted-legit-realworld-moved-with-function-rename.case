@@ -1,0 +1,91 @@
+# Real world (cal.com): buildEventForTeamEventType was folded into
+# computeTeamData on the booking service, and its test file moved with it
+# under the new function's name, the test titles reworded slightly.
+expect: clean
+-- old/packages/features/bookings/lib/service/RegularBookingService.ts --
+import { SchedulingType } from "@calcom/prisma/enums";
+
+type Member = { id: number; email: string; destinationCalendar: { externalId: string } | null };
+
+export async function buildEventForTeamEventType(opts: {
+  schedulingType: SchedulingType | null;
+  users: Member[];
+  organizerUser: Member;
+}) {
+  const teamMembers = opts.users.filter((user) => user.email !== opts.organizerUser.email);
+  const destinationCalendars =
+    opts.schedulingType === SchedulingType.COLLECTIVE
+      ? teamMembers.flatMap((user) => (user.destinationCalendar ? [user.destinationCalendar] : []))
+      : [];
+  return { team: { members: teamMembers }, destinationCalendars };
+}
+-- new/packages/features/bookings/lib/service/RegularBookingService.ts --
+import { SchedulingType } from "@calcom/prisma/enums";
+
+type Member = { id: number; email: string; destinationCalendar: { externalId: string } | null };
+
+export async function computeTeamData(opts: {
+  schedulingType: SchedulingType | null;
+  users: Member[];
+  organizerUser: Member;
+}) {
+  const teamMembers = opts.users.filter((user) => user.email !== opts.organizerUser.email);
+  const destinationCalendars =
+    opts.schedulingType === SchedulingType.COLLECTIVE
+      ? teamMembers.flatMap((user) => (user.destinationCalendar ? [user.destinationCalendar] : []))
+      : [];
+  return { members: teamMembers, destinationCalendars, isRoundRobin: opts.schedulingType === SchedulingType.ROUND_ROBIN };
+}
+-- old/packages/features/bookings/lib/handleNewBooking/test/buildEventForTeamEventType.test.ts --
+import { SchedulingType } from "@calcom/prisma/enums";
+import { describe, expect, it } from "vitest";
+import { buildEventForTeamEventType } from "../../service/RegularBookingService";
+
+const alice = { id: 1, email: "alice@example.com", destinationCalendar: { externalId: "a" } };
+const bob = { id: 2, email: "bob@example.com", destinationCalendar: { externalId: "b" } };
+
+describe("buildEventForTeamEventType", () => {
+  it("includes destinationCalendars for COLLECTIVE scheduling type", async () => {
+    const result = await buildEventForTeamEventType({
+      schedulingType: SchedulingType.COLLECTIVE,
+      users: [alice, bob],
+      organizerUser: alice,
+    });
+    expect(result.destinationCalendars).toEqual([{ externalId: "b" }]);
+  });
+
+  it("filters out the organizer from team members", async () => {
+    const result = await buildEventForTeamEventType({
+      schedulingType: SchedulingType.COLLECTIVE,
+      users: [alice, bob],
+      organizerUser: alice,
+    });
+    expect(result.team.members).toHaveLength(1);
+    expect(result.team.members[0].email).toBe("bob@example.com");
+  });
+});
+-- new/packages/features/bookings/lib/service/computeTeamData.test.ts --
+import { SchedulingType } from "@calcom/prisma/enums";
+import { describe, expect, it } from "vitest";
+import { computeTeamData } from "./RegularBookingService";
+
+const alice = { id: 1, email: "alice@example.com", destinationCalendar: { externalId: "a" } };
+const bob = { id: 2, email: "bob@example.com", destinationCalendar: { externalId: "b" } };
+
+describe("computeTeamData", () => {
+  it("includes destinationCalendars for COLLECTIVE scheduling type", async () => {
+    const result = await computeTeamData({ schedulingType: SchedulingType.COLLECTIVE, users: [alice, bob], organizerUser: alice });
+    expect(result.destinationCalendars).toEqual([{ externalId: "b" }]);
+  });
+
+  it("filters out the organizer from the team members", async () => {
+    const result = await computeTeamData({ schedulingType: SchedulingType.COLLECTIVE, users: [alice, bob], organizerUser: alice });
+    expect(result.members).toHaveLength(1);
+    expect(result.members[0].email).toBe("bob@example.com");
+  });
+
+  it("flags ROUND_ROBIN teams", async () => {
+    const result = await computeTeamData({ schedulingType: SchedulingType.ROUND_ROBIN, users: [alice, bob], organizerUser: alice });
+    expect(result.isRoundRobin).toBe(true);
+  });
+});

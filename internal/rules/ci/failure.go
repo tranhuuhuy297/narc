@@ -44,7 +44,10 @@ var failureIgnored = &core.Rule{
 		"says they are advisory, optional, shadow or non-blocking. A comment saying so only lowers the finding " +
 		"to a warning. A key set in a YAML anchor or GitLab template is judged by the jobs that use it.\n\n" +
 		"Info: `continue-on-error` on a job or step that the change adds, running checks it does not remove " +
-		"elsewhere: a new non-blocking check never gated the pipeline. When a later step reads the step's " +
+		"elsewhere: a new non-blocking check never gated the pipeline. A new lint or review step that a " +
+		"comment written with it calls advisory (\"# Advisory: findings land as annotations, never as a " +
+		"failure\" above a group of new steps) is not reported at all; a new test suite keeps its note. " +
+		"When a later step reads the step's " +
 		"outcome (`steps.<id>.outcome`), the finding is a warning that names that line, so a reviewer can " +
 		"judge the replacement.",
 }
@@ -1424,6 +1427,13 @@ func yamlFailureKeys(a *core.Analysis) []core.Finding {
 				what = strings.Join(bi.actions, ", ")
 			}
 			if fresh {
+				if (byComment || addedSectionNonBlocking(s, start, addSet)) && !runsTests(bi.checks) {
+					// A new advisory lint or review step that the comments
+					// written with it call non-blocking ("Advisory: findings
+					// land as annotations, never as a failure"). New test
+					// suites that do not gate keep their note.
+					continue
+				}
 				runs := ""
 				if what != "" {
 					runs = " (runs " + what + ")"
@@ -1490,6 +1500,51 @@ func blockAdded(s side, start, end int, addSet map[int]bool) bool {
 		}
 	}
 	return true
+}
+
+// addedSectionNonBlocking reports whether a comment written together with
+// the YAML block that starts on line start calls it non-blocking: a
+// comment in the run of added lines directly above it, which may head a
+// group of new steps ("# Advisory: findings land as annotations, never as
+// a failure" above three new steps). The walk stops at the first line the
+// change did not add and at the end of the enclosing list or mapping.
+func addedSectionNonBlocking(s side, start int, addSet map[int]bool) bool {
+	l, ok := s.get(start)
+	if !ok {
+		return false
+	}
+	nd, ok := parseYAMLLine(l, start)
+	if !ok {
+		return false
+	}
+	at := nd.Indent
+	if nd.Dash >= 0 {
+		at = nd.Dash
+	}
+	for i := start - 1; i >= 1 && addSet[i]; i-- {
+		pl, ok := s.get(i)
+		if !ok {
+			return false
+		}
+		if strings.TrimSpace(pl.NoComment) != "" && indentOf(strings.TrimRight(pl.NoComment, " \t")) < at {
+			return false // left the steps list (or the jobs mapping)
+		}
+		if nonBlockingRe.MatchString(pl.Comment) {
+			return true
+		}
+	}
+	return false
+}
+
+// runsTests reports whether any of cs runs a test suite (or an umbrella
+// target that may).
+func runsTests(cs []check) bool {
+	for _, c := range cs {
+		if c.Category == catTest || c.Category == catCoverage || c.Category == catUmbrella {
+			return true
+		}
+	}
+	return false
 }
 
 // outcomeReader returns the first line outside start..end that reads the

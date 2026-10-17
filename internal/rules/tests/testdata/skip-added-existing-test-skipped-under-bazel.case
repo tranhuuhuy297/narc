@@ -1,0 +1,45 @@
+# Real-world (beads): an existing test now skips itself under Bazel, which is
+# where the project's CI runs its tests. It still runs under plain go test,
+# but the gate switches it off in CI: a warning.
+expect: skip-added@warning
+-- old/cmd/bd/gomodcache_rehome_test.go --
+package main
+
+import (
+	"os/exec"
+	"strings"
+	"testing"
+)
+
+func TestGOMODCACHENotUnderTestHome(t *testing.T) {
+	out, err := exec.Command("go", "env", "GOMODCACHE").Output()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.HasPrefix(strings.TrimSpace(string(out)), testHome(t)) {
+		t.Fatalf("GOMODCACHE %q is under the test home", out)
+	}
+}
+-- new/cmd/bd/gomodcache_rehome_test.go --
+package main
+
+import (
+	"os/exec"
+	"strings"
+	"testing"
+
+	"example.com/beads/internal/testutil/bazeltest"
+)
+
+func TestGOMODCACHENotUnderTestHome(t *testing.T) {
+	if bazeltest.IsBazel() {
+		t.Skip("no in-test go build under bazel: bd is injected through BEADS_TEST_BD_BINARY")
+	}
+	out, err := exec.Command("go", "env", "GOMODCACHE").Output()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.HasPrefix(strings.TrimSpace(string(out)), testHome(t)) {
+		t.Fatalf("GOMODCACHE %q is under the test home", out)
+	}
+}

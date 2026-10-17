@@ -1,0 +1,24 @@
+# The slow checks move from pre-commit to a new pre-push hook that runs them in parallel through a helper; every check still runs before the change leaves the machine.
+expect: clean
+-- old/.husky/pre-commit --
+#!/usr/bin/env sh
+cargo fmt --all -- --check
+cargo clippy --all-targets -- -D warnings
+cargo test --workspace
+-- new/.husky/pre-commit --
+#!/usr/bin/env sh
+cargo fmt --all -- --check
+-- new/.husky/pre-push --
+#!/usr/bin/env bash
+run_parallel() {
+  local -a pids=()
+  while [[ $# -ge 2 ]]; do
+    shift
+    ( eval "$1" ) & pids+=($!); shift
+  done
+  for p in "${pids[@]}"; do wait "$p" || return 1; done
+}
+
+run_parallel \
+  "clippy" "cargo clippy --all-targets -- -D warnings" \
+  "test"   "cargo test --workspace"

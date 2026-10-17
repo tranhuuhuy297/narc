@@ -1,0 +1,55 @@
+# Real-world (qwen-code): while restoring the Windows test baseline, existing
+# tests skip themselves where the machine lacks what they exercise: permission
+# bits that bind, inode numbers that identify a directory. They keep running
+# where those exist, which is where CI runs them: notes, not warnings.
+expect: skip-added@info
+-- old/packages/core/src/utils/git-worktrees.test.ts --
+import fs from 'node:fs';
+import { describe, expect, it } from 'vitest';
+import { listWorktrees, inspectWorktree } from './git-worktrees.js';
+
+describe('listWorktrees', () => {
+  it('never lets "cannot look" pass for "nothing is there"', async () => {
+    fs.chmodSync(worktreesDir, 0o000);
+    try {
+      const result = await listWorktrees(repo);
+      expect(result).toEqual({ kind: 'unknown', reason: 'unreadable' });
+    } finally {
+      fs.chmodSync(worktreesDir, 0o700);
+    }
+  });
+
+  it('rejects a worktree directory replaced during inspection', async (ctx) => {
+    const before = fs.statSync(worktreeDir);
+    await replaceDirectory(worktreeDir);
+    await expect(inspectWorktree(repo, worktreeDir, before.ino)).rejects.toThrow(/replaced/);
+  });
+});
+-- new/packages/core/src/utils/git-worktrees.test.ts --
+import fs from 'node:fs';
+import { describe, expect, it } from 'vitest';
+import { listWorktrees, inspectWorktree } from './git-worktrees.js';
+import { arePermissionBitsEnforced } from '../test-utils/permission-bits.js';
+
+describe('listWorktrees', () => {
+  it.skipIf(!arePermissionBitsEnforced())(
+    'never lets "cannot look" pass for "nothing is there"',
+    async () => {
+      fs.chmodSync(worktreesDir, 0o000);
+      try {
+        const result = await listWorktrees(repo);
+        expect(result).toEqual({ kind: 'unknown', reason: 'unreadable' });
+      } finally {
+        fs.chmodSync(worktreesDir, 0o700);
+      }
+    },
+  );
+
+  it('rejects a worktree directory replaced during inspection', async (ctx) => {
+    const before = fs.statSync(worktreeDir);
+    // Windows reports ino 0 for directories: identity cannot be compared.
+    if (!Number.isSafeInteger(before.ino) || before.ino <= 0) ctx.skip();
+    await replaceDirectory(worktreeDir);
+    await expect(inspectWorktree(repo, worktreeDir, before.ino)).rejects.toThrow(/replaced/);
+  });
+});

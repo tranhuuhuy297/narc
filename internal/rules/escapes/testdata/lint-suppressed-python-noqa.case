@@ -1,7 +1,8 @@
-# A bare noqa silences every flake8/Ruff check on the line (here an unused import and a bare except).
+# A bare noqa added to an existing import silences every flake8/Ruff check on that line (here the unused import the linter reports).
 expect: lint-suppressed@warning
 -- old/app/tasks/cleanup.py --
 import os
+import shutil
 
 
 def remove(path: str) -> None:

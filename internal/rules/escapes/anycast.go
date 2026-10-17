@@ -21,8 +21,12 @@ var anyCast = &core.Rule{
 	Docs: "`as any`, `<any>x`, `x as unknown as T` and Python's `cast(Any, x)` tell the type checker to trust the " +
 		"programmer. They are a common way to make a type error disappear without fixing it.\n\n" +
 		"```ts\n// bad\nconst user = (req as any).user\n\n// good\ninterface AuthedRequest extends Request { user: User }\nconst user = (req as AuthedRequest).user\n```\n\n" +
-		"A warning means the cast forces a value of one named type into another (`request as unknown as ApiBody`), " +
-		"reads what the type says is not there (`(req as any).user`), or is Python's `cast(Any, x)`. Notes: casts in " +
+		"A warning means existing code was forced past a type error: the cast was added to a line that was already " +
+		"there (`apiCreateSchedule({ body: request })` became `{ body: request as unknown as ApiBody }`, " +
+		"`return Invoice.from_row(row)` became `return cast(Any, row)`), or code reaches into a dependency the change " +
+		"upgrades through a cast (`cast(Any, client).get_snapshot()` next to the library bump), and the cast forces a " +
+		"value of one named type into another, reads what the type says is not there (`(req as any).user`), or is " +
+		"Python's `cast(Any, x)`. Casts written as part of new code are notes. Also notes: casts in " +
 		"test code and test infrastructure (mocks, fixtures, stories), `as any` on a value that is only passed along " +
 		"(`t(key as any)`), casts at a data boundary (a value narrowed by `isRecord()`/`typeof`, a parameter typed " +
 		"`unknown`, a caught error, a parser's or validator's result, an object literal), and casts the file already " +
@@ -103,6 +107,7 @@ type castHit struct {
 	// what the type says is not there.
 	deref bool
 	text  string // the cast as written, for looking up the same idiom elsewhere
+	arg   string // the value cast by Python's cast(T, value)
 }
 
 func findCasts(f *core.FileInfo, l core.Line, old bool) []castHit {
@@ -132,8 +137,11 @@ func findCasts(f *core.FileInfo, l core.Line, old bool) []castHit {
 			if f.Lang == lang.Python {
 				// cast(Any, value): the value is the second argument.
 				open := m[0] + strings.IndexByte(v.canon[m[0]:], '(')
-				if args, _, ok := rulekit.CallArgs(v.canon, open); ok && len(args) == 2 {
+				if args, end, ok := rulekit.CallArgs(v.canon, open); ok && len(args) == 2 {
 					op = "`" + shorten(args[1], 40) + "`"
+					hit.arg = args[1]
+					// cast(Any, client).fetch(): calls what the type does not declare.
+					hit.deref = strings.HasPrefix(strings.TrimSpace(v.canon[end+1:]), ".")
 				}
 			} else if om := operandRe.FindStringSubmatch(before); om != nil {
 				op = "`" + om[1] + "`"
@@ -151,7 +159,9 @@ func findCasts(f *core.FileInfo, l core.Line, old bool) []castHit {
 			} else if hit.operand != "" {
 				hit.text = hit.operand + " as any"
 			}
-			hit.deref = p.kind == castAny && derefRe.MatchString(v.canon[m[1]:]) && parenthesized(before, hit.operand)
+			if p.kind == castAny {
+				hit.deref = derefRe.MatchString(v.canon[m[1]:]) && parenthesized(before, hit.operand)
+			}
 			hit.key, hit.msg = rulekit.Normalize(subs[0]), p.describe(op, subs)
 			out = append(out, hit)
 		}
@@ -209,24 +219,48 @@ func checkAnyCast(a *core.Analysis) []core.Finding {
 	occs := netNew(files, findCasts, func(h castHit) []string { return []string{h.key} })
 	var out []core.Finding
 	sides := map[*core.FileInfo]*side{}
+	pairs := map[*core.FileInfo][]rulekit.Pair{}
 	for _, o := range occs {
 		f := o.file
 		if sides[f] == nil {
 			sides[f] = newSide(f)
+			pairs[f] = rulekit.Pairs(f)
 		}
 		s := sides[f]
 		sev, report := castSeverity(a, f, s, o.line.No, o.v)
 		if !report {
 			continue
 		}
+		msg := o.v.msg
+		// A cast written as part of new code is how that code chose to type
+		// a value; a cast added to an existing line forces code that used to
+		// type-check past an error. So is calling into a dependency the
+		// change upgrades through a cast that hides the new API from the
+		// checker (`cast(Any, client).get_snapshot()` with the library bump).
+		if sev == core.Warning && !castOnExisting(f, pairs[f], o.line, o.v) {
+			if pkg := derefBump(a, f, o.v); pkg != "" {
+				msg += fmt.Sprintf(" (the change upgrades %s, whose API this reaches through the cast)", pkg)
+			} else {
+				sev = core.Info
+			}
+		}
 		if explained(lineNote(f, s, o.line.No)) {
 			sev = downgrade(sev)
 		}
-		fd := newFinding(anyCast, f, o.line.No, o.v.msg)
+		fd := newFinding(anyCast, f, o.line.No, msg)
 		fd.Severity = sev
 		out = append(out, fd)
 	}
 	return out
+}
+
+// derefBump returns the upgraded dependency that a dereferenced cast in f
+// may be hiding the API of, or "".
+func derefBump(a *core.Analysis, f *core.FileInfo, h castHit) string {
+	if !h.deref || (h.kind != castAny && h.kind != castPyAny) {
+		return ""
+	}
+	return importedBump(a, f)
 }
 
 var (

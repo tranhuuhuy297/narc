@@ -1,0 +1,61 @@
+# Real-world (qwen-code): store errors are now wrapped, so the tests check
+# the wrapper type and its cause instead of identity, and a reformat puts
+# long assertThatThrownBy calls over many lines with the exception checks
+# chained below the lambda. The checks below are part of the statement: the
+# exception is still inspected.
+expect: clean
+-- old/src/test/java/com/example/store/ToolPublicationObjectStoreTest.java --
+package com.example.store;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
+import org.junit.jupiter.api.Test;
+
+class ToolPublicationObjectStoreTest {
+    @Test
+    void persistentTransientFailureStopsAfterThreeRetries() {
+        var failure = error("InternalError");
+        when(client.getObject("bucket", "key")).thenThrow(failure);
+        assertThatThrownBy(() -> store.open("key")).isSameAs(failure);
+    }
+
+    @Test
+    void replayRejectsADifferentCommandUnderTheSameKey() {
+        assertThatThrownBy(() -> transactions.execute(status -> store.replayCommand(tenant, "actor-a", "Create-Workspace", digest)))
+                .isInstanceOfSatisfying(ApiException.class, error -> assertThat(error.getCode()).isEqualTo("idempotency_conflict"));
+    }
+}
+-- new/src/test/java/com/example/store/ToolPublicationObjectStoreTest.java --
+package com.example.store;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
+import org.junit.jupiter.api.Test;
+
+class ToolPublicationObjectStoreTest {
+    @Test
+    void persistentTransientFailureStopsAfterThreeRetries() {
+        var failure = error("InternalError");
+        when(client.getObject("bucket", "key")).thenThrow(failure);
+        assertThatThrownBy(() -> store.open("key"))
+                .isInstanceOf(ToolPublicationStorageException.class).hasCause(failure);
+    }
+
+    @Test
+    void replayRejectsADifferentCommandUnderTheSameKey() {
+        assertThatThrownBy(
+                        () ->
+                                transactions.execute(
+                                        status ->
+                                                store.replayCommand(
+                                                        tenant,
+                                                        "actor-a",
+                                                        "Create-Workspace",
+                                                        digest)))
+                .isInstanceOfSatisfying(
+                        ApiException.class,
+                        error -> assertThat(error.getCode()).isEqualTo("idempotency_conflict"));
+    }
+}

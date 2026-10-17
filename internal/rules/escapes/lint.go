@@ -26,7 +26,9 @@ var lintSuppressed = &core.Rule{
 		"hides every future warning too.\n\n" +
 		"```go\n// bad\nresp, _ := http.Get(url) //nolint\n\n// good\nresp, err := http.Get(url)\nif err != nil {\n\treturn fmt.Errorf(\"fetch %s: %w\", url, err)\n}\n```\n\n" +
 		"Inline rule configuration that turns a rule off (`/* eslint no-console: \"off\" */`) counts as a " +
-		"suppression. Suppressions in test code, suppressions that name a specific rule and give a concrete reason, " +
+		"suppression. A warning means the suppression silences code that was already there: its line or the " +
+		"declaration it annotates predates the change, or a file-wide disable was added to an existing file. " +
+		"Suppressions written with new code are notes. Suppressions in test code, suppressions that name a specific rule and give a concrete reason, " +
 		"and suppressions of rules that cannot hide a bug (line length, import order, an unused import kept for its " +
 		"side effects), style, naming, complexity and performance rules (`clippy::too_many_arguments`, " +
 		"`react/forbid-dom-props`, `@next/next/no-img-element`, `revive`), `defer f.Close() //nolint:errcheck`, " +
@@ -205,7 +207,7 @@ func checkLintSuppressed(a *core.Analysis) []core.Finding {
 	var out []core.Finding
 	for i, df := range found {
 		f := df.file
-		if reExport(f, df) || featureGatedAllow(df) || requireInScript(f, df) {
+		if reExport(f, sideOf(f), df) || featureGatedAllow(df) || requireInScript(f, df) {
 			continue
 		}
 		// A line copied verbatim from code the change removed (a helper
@@ -237,7 +239,7 @@ func checkLintSuppressed(a *core.Analysis) []core.Finding {
 		// Line length and import order cannot hide a bug, and neither can an
 		// import kept for its side effects (`import app.signals  # noqa: F401`),
 		// nor style, complexity and naming rules.
-		if cosmeticOnly(df.rules) || unusedImport(f, df) || lowRiskOnly(df.rules) || deferCloseErrcheck(f, df) {
+		if cosmeticOnly(df.rules) || unusedImport(f, s, df) || lowRiskOnly(df.rules) || deferCloseErrcheck(f, df) {
 			sev = core.Info
 		}
 		// The file already suppresses the same rule elsewhere: the change
@@ -248,12 +250,29 @@ func checkLintSuppressed(a *core.Analysis) []core.Finding {
 		if isDevTooling(f) {
 			sev = downgrade(sev)
 		}
+		// A blanket disable at the top of a build tool's configuration file
+		// (`/* eslint-disable */` in next.config.js) covers settings, not
+		// product code.
+		if df.d.scope == scopeFile && toolConfigRe.MatchString(f.Path) {
+			sev = core.Info
+		}
+		// A suppression written with new code is part of how that code was
+		// written; one that silences code which already passed the linter
+		// (or a file-wide disable added to an existing file) switches off a
+		// check that used to run.
+		if sev > core.Info && !onExisting[i] && !directiveOnExisting(f, s, chs[f], df) {
+			sev = core.Info
+		}
 		fd := newFinding(lintSuppressed, f, df.line.No, lintMessage(f.Lang, df))
 		fd.Severity = sev
 		out = append(out, fd)
 	}
 	return out
 }
+
+// toolConfigRe matches build and tool configuration files written in
+// JavaScript (next.config.js, .eslintrc.cjs).
+var toolConfigRe = regexp.MustCompile(`(^|/)[\w.-]+\.config\.[cm]?[jt]s$|(^|/)\.[\w-]+rc\.[cm]?[jt]s$`)
 
 // normRule canonicalizes a rule name for comparing a suppression with the
 // configuration that enables the rule: case is ignored, and oxlint's
@@ -353,9 +372,56 @@ func enabledRules(a *core.Analysis) map[string]map[string]bool {
 					}
 				}
 			}
+			// Options added under a rule's existing entry tighten it: the
+			// rule is named by a key that encloses the added lines.
+			if lintConfigRe.MatchString(path.Base(f.Path)) {
+				for _, k := range enclosingKeys(f) {
+					for _, t := range tokens(k) {
+						add(t, f.Path)
+					}
+				}
+			}
 		}
 		return out
 	}).(map[string]map[string]bool)
+}
+
+// lintConfigRe matches linter configuration files.
+var lintConfigRe = regexp.MustCompile(`^(?:\.?oxlintrc[\w.]*|\.eslintrc[\w.]*|eslint\.config\.[cm]?[jt]s|biome\.jsonc?|` +
+	`\.golangci\.ya?ml|\.golangci\.toml|\.?ruff\.toml|clippy\.toml|\.?pylintrc|\.rubocop\.yml|\.swiftlint\.yml)$`)
+
+// enclosingKeys returns the lines of a configuration file that enclose
+// the lines the change added (the keys above them at lower indentation),
+// at most a few per hunk: `"no-restricted-types": ["error", {` above
+// newly banned types.
+func enclosingKeys(f *core.FileInfo) []string {
+	news := newSide(f) // the hunks' lines when there is no full content
+	var out []string
+	seen := map[int]bool{}
+	for i, l := range f.Added {
+		if i > 200 || strings.TrimSpace(l.Raw) == "" {
+			continue
+		}
+		cur := indent(l.Raw)
+		for m := l.No - 1; m >= 1 && m > l.No-80 && cur > 0; m-- {
+			ll, ok := news.at(m)
+			if !ok {
+				break
+			}
+			raw := ll.Raw
+			if strings.TrimSpace(raw) == "" {
+				continue
+			}
+			if ind := indent(raw); ind < cur {
+				cur = ind
+				if !seen[m] {
+					seen[m] = true
+					out = append(out, raw)
+				}
+			}
+		}
+	}
+	return out
 }
 
 // baseline reports whether every rule df suppresses is one the change
@@ -496,7 +562,7 @@ var lowRiskRules = toSet(
 		"doc_markdown missing_errors_doc missing_panics_doc must_use_candidate items_after_statements struct_field_names " +
 		"enum_variant_names len_without_is_empty new_ret_no_self should_implement_trait redundant_closure " +
 		"manual_range_contains large_futures result_large_err dead_code unused_variables unused_mut unused_imports " +
-		"unused_macros unused_assignments non_snake_case non_camel_case_types non_upper_case_globals " +
+		"unused_macros unused_assignments non_snake_case non_camel_case_types non_upper_case_globals deprecated " +
 		// JavaScript / TypeScript
 		"react/forbid-dom-props @next/next/no-img-element next/no-img-element nextjs/no-img-element " +
 		"react-refresh/only-export-components i18next/no-literal-string react/no-unknown-property react/display-name " +
@@ -527,12 +593,15 @@ var lowRiskPrefixRe = regexp.MustCompile(`(?i)^(?:metrics|style|layout|naming)/|
 	// naming and presentation conventions, whatever the plugin:
 	// n8n-nodes-base/node-param-display-name-miscased, import-x/no-default-export
 	`(?:^|[/-])(?:miscased|display-name|filename-against-convention|naming-convention|consistent-type-(?:imports|definitions|exports)|no-default-export|prefer-default-export|jsdoc|sort-keys|import-order)(?:-[\w-]+)?$|` +
+	// "use the preferred form" rules (prefer-const, a design system's
+	// prefer-primitives) and import-layout rules (no-relative-parent-imports)
+	`(?:^|/)prefer-[\w-]+$|(?:^|/)no-relative-(?:parent-imports|packages)$|` +
 	`(?:^|/)node-param-[\w-]*(?:description|display-name|placeholder|default)[\w-]*$`)
 
 // lowRiskOnly reports whether every newly silenced rule is low-risk.
 func lowRiskOnly(rules []string) bool {
 	for _, r := range rules {
-		k := normRule(r)
+		k := strings.ReplaceAll(normRule(r), "(", "/") // biome-ignore lint(a11y/x), a common misspelling
 		if i := strings.LastIndex(k, "::"); i >= 0 {
 			k = k[i+2:]
 		}
@@ -545,8 +614,8 @@ func lowRiskOnly(rules []string) bool {
 
 // unusedImport reports whether df only silences "imported but unused" on a
 // Python import statement.
-func unusedImport(f *core.FileInfo, df dirFinding) bool {
-	if f.Lang != lang.Python || len(df.rules) == 0 || !pyImportRe.MatchString(df.line.Code) {
+func unusedImport(f *core.FileInfo, s *side, df dirFinding) bool {
+	if f.Lang != lang.Python || len(df.rules) == 0 || !pyImportLine(s, df.line) {
 		return false
 	}
 	for _, r := range df.rules {
@@ -557,15 +626,42 @@ func unusedImport(f *core.FileInfo, df dirFinding) bool {
 	return true
 }
 
+// pyImportLine reports whether line l is part of a Python import
+// statement: `import x`, `from x import y`, or a name inside a
+// parenthesized `from x import (` list.
+func pyImportLine(s *side, l core.Line) bool {
+	if pyImportRe.MatchString(l.Code) {
+		return true
+	}
+	for m := l.No - 1; m >= 1 && m > l.No-200; m-- {
+		c, ok := s.code(m)
+		if !ok || strings.Contains(c, ")") {
+			return false
+		}
+		if pyImportOpenRe.MatchString(c) {
+			return true
+		}
+		if t := strings.TrimSpace(c); t != "" && !pyImportNamesRe.MatchString(t) {
+			return false
+		}
+	}
+	return false
+}
+
+var (
+	pyImportOpenRe  = regexp.MustCompile(`^\s*from\s+\S+\s+import\s*\(\s*$`)
+	pyImportNamesRe = regexp.MustCompile(`^[\w\s,]+(?:\bas\s+\w+)?[\w\s,]*$`)
+)
+
 // pyImportRe matches a Python import statement.
 var pyImportRe = regexp.MustCompile(`^\s*(?:from\s+\S+\s+)?import\b`)
 
 // reExport reports whether df is `# noqa: F401` on an import in a package's
 // __init__.py: the idiomatic way to re-export a name, which the "unused
 // import" check cannot tell apart from a forgotten one.
-func reExport(f *core.FileInfo, df dirFinding) bool {
+func reExport(f *core.FileInfo, s *side, df dirFinding) bool {
 	if f.Lang != lang.Python || path.Base(f.Path) != "__init__.py" || df.d.spec.tool != "flake8/Ruff" ||
-		len(df.rules) == 0 || !pyImportRe.MatchString(df.line.Code) {
+		len(df.rules) == 0 || !pyImportLine(s, df.line) {
 		return false
 	}
 	for _, r := range df.rules {

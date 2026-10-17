@@ -1,0 +1,87 @@
+# Real world (ruff): a refactor made the range builder refuse contradictory
+# bounds, so the test could no longer build an invalid binding and dropped
+# the sub-case "a later contradiction rejects the entire path", with its
+# one assertion. solve() still implements that rule and nothing else
+# tests it now. One check of several, beside a source change: a warning.
+expect: assertions-removed@warning
+-- old/crates/ty_python_semantic/src/types/constraints.rs --
+pub struct RangeBuilder {
+    lower: Option<i64>,
+    upper: Option<i64>,
+}
+
+impl RangeBuilder {
+    pub fn new() -> Self {
+        Self { lower: None, upper: None }
+    }
+
+    pub fn finish(self) -> Binding {
+        match (self.lower, self.upper) {
+            (Some(lo), Some(hi)) if lo > hi => Binding::Invalid,
+            (lo, hi) => Binding::Range(lo, hi),
+        }
+    }
+}
+
+pub fn solve(paths: &[Vec<Binding>]) -> Vec<&Vec<Binding>> {
+    paths.iter().filter(|path| !path.iter().any(|b| matches!(b, Binding::Invalid))).collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn solution_budget_exhaustion_preserves_available_bindings() {
+        let exhausted = Binding::Range(None, Some(10));
+        let exact = Binding::Range(Some(3), Some(3));
+        let paths = vec![vec![exhausted.clone(), exact.clone()], vec![exact.clone()]];
+        assert_eq!(solve(&paths).len(), 2);
+        assert_eq!(solve(&paths)[0][0], exhausted);
+        assert_eq!(solve(&paths)[1], &vec![exact.clone()]);
+
+        // A later contradiction rejects the entire path, including its exhausted binding.
+        let mut invalid = RangeBuilder::new();
+        invalid.lower = Some(5);
+        invalid.upper = Some(1);
+        let rejected = vec![vec![exhausted.clone(), invalid.finish()], vec![exact.clone()]];
+        assert_eq!(solve(&rejected), vec![&vec![exact.clone()]]);
+    }
+}
+-- new/crates/ty_python_semantic/src/types/constraints.rs --
+pub struct RangeBuilder {
+    lower: Option<i64>,
+    upper: Option<i64>,
+}
+
+impl RangeBuilder {
+    pub fn new() -> Self {
+        Self { lower: None, upper: None }
+    }
+
+    pub fn finish(self) -> Option<Binding> {
+        match (self.lower, self.upper) {
+            (Some(lo), Some(hi)) if lo > hi => None,
+            (lo, hi) => Some(Binding::Range(lo, hi)),
+        }
+    }
+}
+
+pub fn solve(paths: &[Vec<Binding>]) -> Vec<&Vec<Binding>> {
+    paths.iter().filter(|path| !path.iter().any(|b| matches!(b, Binding::Invalid))).collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn solution_budget_exhaustion_preserves_available_bindings() {
+        let exhausted = Binding::Range(None, Some(10));
+        let exact = Binding::Range(Some(3), Some(3));
+        let paths = vec![vec![exhausted.clone(), exact.clone()], vec![exact.clone()]];
+        assert_eq!(solve(&paths).len(), 2);
+        assert_eq!(solve(&paths)[0][0], exhausted);
+        assert_eq!(solve(&paths)[1], &vec![exact.clone()]);
+    }
+}

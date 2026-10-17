@@ -1,0 +1,84 @@
+# Real world (beads): raw dolt.New(&dolt.Config{Path}) calls in tests, each
+# followed by its own t.Fatalf, were replaced by the package's newTestStore
+# helper. newTestStore only delegates to newTestStoreWithPrefix, which does
+# the checking; the helper chain is credited, so nothing was lost.
+expect: clean
+-- both/cmd/bd/test_helpers_test.go --
+package main
+
+import (
+	"context"
+	"testing"
+
+	"github.com/steveyegge/beads/internal/storage/dolt"
+)
+
+// newTestStore creates a dolt store with issue_prefix configured.
+func newTestStore(t *testing.T, dbPath string) *dolt.DoltStore {
+	t.Helper()
+	return newTestStoreWithPrefix(t, dbPath, "test")
+}
+
+func newTestStoreWithPrefix(t *testing.T, dbPath string, prefix string) *dolt.DoltStore {
+	t.Helper()
+	store, err := dolt.New(context.Background(), &dolt.Config{Path: dbPath, CreateIfMissing: true})
+	if err != nil {
+		t.Fatalf("failed to open store: %v", err)
+	}
+	if err := store.SetConfig(context.Background(), "issue_prefix", prefix); err != nil {
+		t.Fatalf("failed to set config: %v", err)
+	}
+	t.Cleanup(func() { store.Close() })
+	return store
+}
+-- old/cmd/bd/mol_test.go --
+package main
+
+import (
+	"context"
+	"path/filepath"
+	"testing"
+
+	"github.com/steveyegge/beads/internal/storage/dolt"
+)
+
+func TestBondProtoProto(t *testing.T) {
+	ctx := context.Background()
+	store, err := dolt.New(ctx, &dolt.Config{Path: filepath.Join(t.TempDir(), "beads.db")})
+	if err != nil {
+		t.Skipf("Dolt server not available: %v", err)
+	}
+	defer store.Close()
+	if err := store.SetConfig(ctx, "issue_prefix", "test"); err != nil {
+		t.Fatalf("Failed to set config: %v", err)
+	}
+
+	bonded, err := bondProtos(ctx, store, "proto-a", "proto-b")
+	if err != nil {
+		t.Fatalf("bondProtos: %v", err)
+	}
+	if len(bonded.Steps) != 4 {
+		t.Errorf("bonded steps = %d, want 4", len(bonded.Steps))
+	}
+}
+-- new/cmd/bd/mol_test.go --
+package main
+
+import (
+	"context"
+	"path/filepath"
+	"testing"
+)
+
+func TestBondProtoProto(t *testing.T) {
+	ctx := context.Background()
+	store := newTestStore(t, filepath.Join(t.TempDir(), "beads.db"))
+
+	bonded, err := bondProtos(ctx, store, "proto-a", "proto-b")
+	if err != nil {
+		t.Fatalf("bondProtos: %v", err)
+	}
+	if len(bonded.Steps) != 4 {
+		t.Errorf("bonded steps = %d, want 4", len(bonded.Steps))
+	}
+}

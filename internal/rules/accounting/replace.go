@@ -148,6 +148,9 @@ func (l *ledger) newTestsIn() map[*core.FileInfo]int {
 // tests, tests rewritten in place of old ones, and renamed tests that
 // gained assertions (a parametrized test absorbing several old ones).
 func (l *ledger) reworkIn(f *core.FileInfo) int {
+	if n, ok := l.rework[f]; ok {
+		return n
+	}
 	n := l.newTestsIn()[f]
 	for _, t := range l.news {
 		if t.file != f || t.match == nil {
@@ -157,5 +160,6 @@ func (l *ledger) reworkIn(f *core.FileInfo) int {
 			n++
 		}
 	}
+	l.rework[f] = n
 	return n
 }

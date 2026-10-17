@@ -29,7 +29,7 @@ var coverageIgnored = &core.Rule{
 		"code is untested: \"out of scope\", \"TODO\"). Also not reported: exclusions inside an " +
 		"`if __name__ == \"__main__\":` block, a function's trailing `return None` after a loop that always returns, " +
 		"and vendored code; the clauses of one try/except are one exclusion. A file that gains five or more " +
-		"exclusions is reported once, as a warning, whatever their reasons.\n\n" +
+		"exclusions is reported once, whatever their reasons. Exclusions of new code are notes; a warning means the change takes code the coverage gate already measured out of it (a marker on an existing line, branch or declaration).\n\n" +
 		"JaCoCo leaves out every class and method annotated with an annotation named `Generated`, so `@Generated` " +
 		"on hand-written code counts as an exclusion.",
 }
@@ -103,6 +103,8 @@ func checkCoverageIgnored(a *core.Analysis) []core.Finding {
 	var out []core.Finding
 	sides := map[*core.FileInfo]*side{}
 	perFile := map[*core.FileInfo][]int{} // indexes into out
+	chs := map[*core.FileInfo]map[int]bool{}
+	onOld := map[int]bool{} // findings whose exclusion covers existing code
 	reported := map[*core.FileInfo]map[int]bool{}
 	for _, df := range found {
 		f := df.file
@@ -131,8 +133,18 @@ func checkCoverageIgnored(a *core.Analysis) []core.Finding {
 		if note := directiveNote(f, s, df); df.d.scope != scopeFile && explained(note) && !untestedRe.MatchString(note) {
 			sev = downgrade(sev)
 		}
+		// Excluding code the coverage gate used to measure hides existing
+		// code from it; excluding new code is how that code was written up.
+		if chs[f] == nil {
+			chs[f] = changedLines(f)
+		}
+		existing := coverageOnExisting(f, s, chs[f], df)
+		if !existing {
+			sev = core.Info
+		}
 		fd := newFinding(coverageIgnored, f, df.line.No, coverageMessage(f.Lang, df))
 		fd.Severity = sev
+		onOld[len(out)] = existing
 		if reported[f] == nil {
 			reported[f] = map[int]bool{}
 		}
@@ -140,7 +152,7 @@ func checkCoverageIgnored(a *core.Analysis) []core.Finding {
 		perFile[f] = append(perFile[f], len(out))
 		out = append(out, fd)
 	}
-	return densest(out, perFile)
+	return densest(out, perFile, onOld)
 }
 
 // manyExclusions is how many new exclusions in one file make the file's
@@ -148,9 +160,10 @@ func checkCoverageIgnored(a *core.Analysis) []core.Finding {
 const manyExclusions = 5
 
 // densest folds the findings of a file that gained many exclusions into
-// one warning: each pragma may look defensive on its own, but together
-// they take most of the new code out of the coverage gate.
-func densest(out []core.Finding, perFile map[*core.FileInfo][]int) []core.Finding {
+// one: each pragma may look defensive on its own, but together they take
+// most of the new code out of the coverage gate. It is a warning when one
+// of them covers code the gate used to measure, else a note.
+func densest(out []core.Finding, perFile map[*core.FileInfo][]int, onOld map[int]bool) []core.Finding {
 	drop := map[int]bool{}
 	for _, idx := range perFile {
 		if len(idx) < manyExclusions {
@@ -168,7 +181,12 @@ func densest(out []core.Finding, perFile map[*core.FileInfo][]int) []core.Findin
 		}
 		first.Message = fmt.Sprintf("%d coverage exclusions added in this file (lines %s): most of its new branches are "+
 			"invisible to the coverage gate", len(idx), strings.Join(shown, ", "))
-		first.Severity = core.Warning
+		first.Severity = core.Info
+		for _, i := range idx {
+			if onOld[i] {
+				first.Severity = core.Warning
+			}
+		}
 		drop[idx[0]] = false
 		out[idx[0]] = first
 	}
@@ -300,6 +318,33 @@ func coveredCode(s *side, df dirFinding) string {
 		}
 	}
 	return strings.Join(parts, "\n")
+}
+
+// regionEndRe matches the comment that closes an exclusion region.
+var regionEndRe = regexp.MustCompile(`(?i)\b(?:ignore\s+stop|ignore\s+end|LCOV_EXCL_(?:BR_)?STOP|GCOVR?_EXCL_(?:BR_)?STOP|codeCoverageIgnoreEnd|` +
+	`coveralls-ignore-stop|coverage:ignore-end|node:coverage\s+enable)\b|:nocov:|\$COVERAGE-ON\$`)
+
+// coverageOnExisting reports whether an exclusion covers code the coverage
+// gate already measured: its line, next statement or declaration predates
+// the change, a region marker encloses an existing line, or a file-wide
+// marker was added to an existing file.
+func coverageOnExisting(f *core.FileInfo, s *side, ch map[int]bool, df dirFinding) bool {
+	if df.d.scope != scopeFile || strings.HasSuffix(strings.ToLower(df.d.name), "file") || df.d.spec.item {
+		return directiveOnExisting(f, s, ch, df)
+	}
+	for n := df.line.No + 1; n <= s.len() && n < df.line.No+2000; n++ {
+		l, ok := s.at(n)
+		if !ok {
+			return false
+		}
+		if l.Comment != "" && regionEndRe.MatchString(l.Comment) {
+			return false
+		}
+		if strings.TrimSpace(l.Code) != "" && existingCode(f, s, ch, n) {
+			return true
+		}
+	}
+	return false
 }
 
 // opensRegion reports whether a toggle marker opens a region (an odd

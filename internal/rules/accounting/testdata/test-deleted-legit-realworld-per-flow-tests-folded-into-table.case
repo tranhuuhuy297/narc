@@ -1,0 +1,118 @@
+# Real world (coder): the title, compaction and subagent model overrides
+# were merged into one resolver in model_override.go, and the per-flow
+# tests became one table-driven test in a new file with a case per flow.
+# The old tests called resolveTitleModel, which went away with
+# title_override.go, and their cases live on in the table.
+expect: clean
+-- old/coderd/x/chatd/title_override.go --
+package chatd
+
+import "context"
+
+func resolveTitleModel(ctx context.Context, db Store, chatID string) (string, error) {
+	override, err := db.GetChatTitleModelOverride(ctx, chatID)
+	if err != nil {
+		return "", err
+	}
+	if override == "" {
+		return defaultTitleModel, nil
+	}
+	return override, nil
+}
+-- new/coderd/x/chatd/model_override.go --
+package chatd
+
+import "context"
+
+type flow string
+
+const (
+	flowTitle      flow = "title"
+	flowCompaction flow = "compaction"
+)
+
+func resolveModelOverride(ctx context.Context, db Store, chatID string, f flow) (string, error) {
+	override, err := db.GetChatModelOverride(ctx, chatID, string(f))
+	if err != nil {
+		return "", err
+	}
+	if override == "" {
+		return defaultModels[f], nil
+	}
+	return override, nil
+}
+-- old/coderd/x/chatd/title_override_internal_test.go --
+package chatd
+
+import (
+	"context"
+	"errors"
+	"testing"
+
+	"github.com/stretchr/testify/require"
+)
+
+func TestResolveTitleModel_UsesOverride(t *testing.T) {
+	db := &fakeStore{titleOverride: "gpt-mini"}
+	model, err := resolveTitleModel(context.Background(), db, "chat-1")
+	require.NoError(t, err)
+	require.Equal(t, "gpt-mini", model)
+}
+
+func TestResolveTitleModel_ReadDBError(t *testing.T) {
+	db := &fakeStore{err: errors.New("boom")}
+	_, err := resolveTitleModel(context.Background(), db, "chat-1")
+	require.ErrorContains(t, err, "boom")
+}
+
+func TestFakeStoreDefaults(t *testing.T) {
+	db := &fakeStore{}
+	require.Empty(t, db.titleOverride)
+}
+-- new/coderd/x/chatd/title_override_internal_test.go --
+package chatd
+
+import (
+	"testing"
+
+	"github.com/stretchr/testify/require"
+)
+
+func TestFakeStoreDefaults(t *testing.T) {
+	db := &fakeStore{}
+	require.Empty(t, db.titleOverride)
+}
+-- new/coderd/x/chatd/model_override_internal_test.go --
+package chatd
+
+import (
+	"context"
+	"errors"
+	"testing"
+
+	"github.com/stretchr/testify/require"
+)
+
+func TestResolveModelOverride(t *testing.T) {
+	for _, tc := range []struct {
+		name     string
+		flow     flow
+		store    *fakeStore
+		want     string
+		wantErr  string
+	}{
+		{name: "TitleOverride", flow: flowTitle, store: &fakeStore{titleOverride: "gpt-mini"}, want: "gpt-mini"},
+		{name: "TitleQueryError", flow: flowTitle, store: &fakeStore{err: errors.New("boom")}, wantErr: "boom"},
+		{name: "CompactionQueryError", flow: flowCompaction, store: &fakeStore{err: errors.New("boom")}, wantErr: "boom"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := resolveModelOverride(context.Background(), tc.store, "chat-1", tc.flow)
+			if tc.wantErr != "" {
+				require.ErrorContains(t, err, tc.wantErr)
+				return
+			}
+			require.NoError(t, err)
+			require.Equal(t, tc.want, got)
+		})
+	}
+}

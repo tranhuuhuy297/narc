@@ -1,0 +1,39 @@
+# Real-world (lobe-chat): the store moves onto a replica layer whose
+# revalidation takes a key filter function instead of a cache key, so the
+# test can only match the argument by type. The key is no longer checked,
+# but because the argument became a callback, not to loosen the test: a note.
+expect: assertion-weakened@info
+-- old/src/store/image/slices/generationTopic/action.test.ts --
+import { act, renderHook } from '@testing-library/react';
+import { mutate } from 'swr';
+import { describe, expect, it, vi } from 'vitest';
+import { useImageStore } from '../../store';
+
+vi.mock('swr', async (importOriginal) => ({ ...(await importOriginal()), mutate: vi.fn() }));
+
+describe('refreshGenerationTopics', () => {
+  it('should call mutate to refresh topics', async () => {
+    const { result } = renderHook(() => useImageStore());
+    await act(async () => {
+      await result.current.refreshGenerationTopics();
+    });
+    expect(mutate).toHaveBeenCalledWith(['image:generationTopics']);
+  });
+});
+-- new/src/store/image/slices/generationTopic/action.test.ts --
+import { act, renderHook } from '@testing-library/react';
+import { mutate } from 'swr';
+import { describe, expect, it, vi } from 'vitest';
+import { useImageStore } from '../../store';
+
+vi.mock('swr', async (importOriginal) => ({ ...(await importOriginal()), mutate: vi.fn() }));
+
+describe('refreshGenerationTopics', () => {
+  it('should revalidate the topic list replica', async () => {
+    const { result } = renderHook(() => useImageStore());
+    await act(async () => {
+      await result.current.refreshGenerationTopics();
+    });
+    expect(mutate).toHaveBeenCalledWith(expect.any(Function));
+  });
+});

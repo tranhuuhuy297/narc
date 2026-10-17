@@ -1,0 +1,65 @@
+# Real-world (beads): Dolt benchmarks stop resolving their server from the
+# ambient environment (agent shells point it at a shared production server)
+# and skip unless a dedicated benchmark port is given. Benchmarks only run
+# with -bench, never in a plain go test, so no verification is switched off.
+expect: skip-added@info
+-- old/internal/storage/dolt/dolt_benchmark_test.go --
+package dolt
+
+import (
+	"context"
+	"testing"
+)
+
+// setupBenchStore creates a store for benchmarks.
+func setupBenchStore(b *testing.B) (*DoltStore, func()) {
+	b.Helper()
+	cfg := &Config{Database: benchDatabaseName(), ServerPort: resolveServerPort()}
+	store, err := New(context.Background(), cfg)
+	if err != nil {
+		b.Fatalf("New: %v", err)
+	}
+	return store, func() { store.Close() }
+}
+
+func BenchmarkCreateIssue(b *testing.B) {
+	store, cleanup := setupBenchStore(b)
+	defer cleanup()
+	for i := 0; i < b.N; i++ {
+		if err := store.CreateIssue(context.Background(), newBenchIssue(i)); err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+-- new/internal/storage/dolt/dolt_benchmark_test.go --
+package dolt
+
+import (
+	"context"
+	"testing"
+)
+
+// setupBenchStore creates a store for benchmarks.
+func setupBenchStore(b *testing.B) (*DoltStore, func()) {
+	b.Helper()
+	port, skip, reason := benchDoltServerPort()
+	if skip {
+		b.Skip(reason)
+	}
+	cfg := &Config{Database: benchDatabaseName(), ServerPort: port}
+	store, err := New(context.Background(), cfg)
+	if err != nil {
+		b.Fatalf("New: %v", err)
+	}
+	return store, func() { store.Close(); dropBenchDatabase(cfg, cfg.Database) }
+}
+
+func BenchmarkCreateIssue(b *testing.B) {
+	store, cleanup := setupBenchStore(b)
+	defer cleanup()
+	for i := 0; i < b.N; i++ {
+		if err := store.CreateIssue(context.Background(), newBenchIssue(i)); err != nil {
+			b.Fatal(err)
+		}
+	}
+}

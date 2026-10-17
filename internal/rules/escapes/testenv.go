@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/tranhuuhuy297/narc/internal/core"
+	"github.com/tranhuuhuy297/narc/internal/diff"
 	"github.com/tranhuuhuy297/narc/internal/lang"
 	"github.com/tranhuuhuy297/narc/internal/rules/rulekit"
 )
@@ -26,7 +27,9 @@ var testEnvBranch = &core.Rule{
 		"```ts\n// bad: the test passes, production is still broken\nexport function price(cart: Cart) {\n" +
 		"  if (process.env.NODE_ENV === 'test') return 42\n  return computePrice(cart)\n}\n```\n\n" +
 		"Reported as an error when the tests get an answer of their own (a test check whose branch returns a value, " +
-		"or picks a literal) or skip real work (`if (env !== \"test\") charge()`); as a warning when it switches off " +
+		"or picks a literal) or skip real work (`if (env !== \"test\") charge()`) in code that already existed, and as " +
+		"a warning when that happens in code the change adds (a new file, or a function the old file did not have); " +
+		"as a warning when it switches off " +
 		"an enforcement or verification path (`enforce = process.env.VITEST !== \"true\"`), and in configuration, " +
 		"settings and entry-point files, where environment wiring is expected; as a note otherwise, and for checks in " +
 		"a helper whose job is detecting the test binary, package-level seams that tests flip, checks that keep the " +
@@ -506,10 +509,34 @@ func checkTestEnvBranch(a *core.Analysis) []core.Finding {
 		if isBootstrap(f.Path) && sev > core.Warning {
 			sev = core.Warning
 		}
+		// A test check in code the change adds (a new file, or a function
+		// the old version did not have) makes that code's tests verify
+		// something other than what ships, but no existing test stops
+		// checking the real path: a warning, not an error.
+		if sev > core.Warning && newCodeAt(f, sides[f], o.line.No) {
+			sev = core.Warning
+		}
 		fd.Severity = sev
 		out = append(out, fd)
 	}
 	return out
+}
+
+// newCodeAt reports whether new-side line n of f is in code the change
+// adds: a new file, or a function whose name the old version never used.
+func newCodeAt(f *core.FileInfo, s *side, n int) bool {
+	if f.Diff.Kind == diff.Added {
+		return true
+	}
+	fn := enclosingFunc(s, n)
+	if fn == "" {
+		return false
+	}
+	old, ok := f.OldContent()
+	if !ok {
+		return false
+	}
+	return !regexp.MustCompile(`(?:^|[^\w$])` + regexp.QuoteMeta(fn) + `(?:[^\w$]|$)`).Match(old)
 }
 
 var testRunnerConfigRe = regexp.MustCompile(`^(jest\.config|vitest\.config|vitest\.workspace|playwright\.config|` +

@@ -58,10 +58,20 @@ var funcDecls = map[lang.Lang]funcDecl{
 // class methods.
 var jsDecl = funcDecl{re: regexp.MustCompile(`^\s*(?:export\s+)?(?:(?:async\s+)?function\*?\s+([\w$]+)|(?:const|let|var)\s+([\w$]+)\s*=\s*(?:async\s*)?(?:function\b|\([^()]*\)\s*(?::[^=]+)?=>|[\w$]+\s*=>)|(?:(?:async|static|private|public|protected)\s+)*([\w$]+)\s*\([^()]*\)\s*(?::[^{]+)?\{\s*$)`)}
 
+// declWords lists, per language, words one of which every declaration
+// line matched by funcDecls contains: a cheap filter before the regular
+// expression.
+var declWords = map[lang.Lang][]string{
+	lang.Python: {"def"}, lang.Ruby: {"def"}, lang.Elixir: {"def"}, lang.Scala: {"def"},
+	lang.Go: {"func"}, lang.Swift: {"func"}, lang.Rust: {"fn"}, lang.Kotlin: {"fun"}, lang.PHP: {"function"},
+	lang.JavaScript: {"function", "=>", "{"}, lang.TypeScript: {"function", "=>", "{"},
+	lang.Java: {"("}, lang.CSharp: {"("}, lang.Dart: {"("}, lang.C: {"("}, lang.Cpp: {"("},
+}
+
 // declName returns the name of a function declared on line ll, if any.
 func declName(l lang.Lang, ll lang.LexedLine) string {
 	d, ok := funcDecls[l]
-	if !ok {
+	if !ok || !containsAnyOf(ll.Code, declWords[l]) {
 		return ""
 	}
 	text := ll.Code
@@ -100,7 +110,7 @@ func (l *ledger) findFormerTests() {
 	for _, o := range l.olds {
 		f := o.file
 		_, renamed := l.renamedTo[f]
-		if o.match == nil && !o.partial && !o.skipped() && o.size >= 3 && f.Diff.Kind != diff.Deleted && !renamed &&
+		if o.match == nil && !o.partial && !o.skipped() && o.size() >= 3 && f.Diff.Kind != diff.Deleted && !renamed &&
 			fullContent(f) {
 			byFile[f] = append(byFile[f], o)
 		}
@@ -135,7 +145,7 @@ func (l *ledger) findFormerTests() {
 					// (@RetryingTest, [RetryFact]), not removed.
 					continue
 				}
-				if s := diceBags(o.bag, o.size, bag, size); o.former == nil && s > bestSim {
+				if s := diceBags(o.bag(), o.size(), bag, size); o.former == nil && s > bestSim {
 					best, bestSim = o, s
 				}
 			}
@@ -211,7 +221,7 @@ func (l *ledger) newRefs() map[string]int {
 		}
 		for _, seg := range l.segments(f, after) {
 			for _, ll := range seg.lines {
-				for _, id := range identRe.FindAllString(ll.Code, -1) {
+				for _, id := range idents(ll.Code) {
 					refs[id]++
 				}
 				for _, s := range ll.Strings {
@@ -231,7 +241,7 @@ func rangeBag(seg *segment, from, to int, name string) (bag map[string]int, size
 	bag = map[string]int{}
 	for i := from; i <= to && i < len(seg.lines); i++ {
 		ll := seg.lines[i]
-		for _, id := range identRe.FindAllString(ll.Code, -1) {
+		for _, id := range idents(ll.Code) {
 			if id == bare {
 				own++
 			}

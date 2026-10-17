@@ -1,0 +1,22 @@
+# The change swaps the hand-written API client for a generated one whose response type no longer matches, then forces the existing replaceAnnotation call through with a double cast (PostHog annotations).
+expect: any-cast@warning
+-- old/frontend/src/scenes/annotations/annotationModalLogic.ts --
+import api from 'lib/api'
+
+export async function submitAnnotation(actions: Actions, existing: RawAnnotationType, content: string): Promise<void> {
+    const updatedAnnotation = await api.annotations.update(existing.id, {
+        content,
+        dashboard_id: existing.dashboard_id,
+    })
+    actions.replaceAnnotation(updatedAnnotation)
+}
+-- new/frontend/src/scenes/annotations/annotationModalLogic.ts --
+import { annotationsPartialUpdate } from 'products/annotations/frontend/generated/api'
+
+export async function submitAnnotation(actions: Actions, existing: RawAnnotationType, content: string): Promise<void> {
+    const updatedAnnotation = await annotationsPartialUpdate(String(currentProjectId()), existing.id, {
+        content,
+        dashboard_id: existing.dashboard_id,
+    })
+    actions.replaceAnnotation(updatedAnnotation as unknown as RawAnnotationType)
+}

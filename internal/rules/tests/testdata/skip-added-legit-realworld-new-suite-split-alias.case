@@ -1,0 +1,51 @@
+# Real-world (mastra): a new live suite for server-side embeddings runs only
+# when credentials for it are configured. Prettier splits the alias that
+# picks describe or describe.skip after the "=". Every test declared with it
+# is new, so nothing that ran before is switched off.
+expect: clean
+-- old/stores/mongodb/src/vector/index.test.ts --
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { MongoDBVector } from './index';
+
+describe('MongoDBVector', () => {
+  it('creates an index and queries it', async () => {
+    const store = new MongoDBVector({ uri, dbName: 'test' });
+    await store.createIndex({ indexName: 'movies', dimension: 3 });
+    const results = await store.query({ indexName: 'movies', queryVector: [1, 0, 0] });
+    expect(results).toHaveLength(1);
+  });
+});
+-- new/stores/mongodb/src/vector/index.test.ts --
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { MongoDBVector } from './index';
+
+describe('MongoDBVector', () => {
+  it('creates an index and queries it', async () => {
+    const store = new MongoDBVector({ uri, dbName: 'test' });
+    await store.createIndex({ indexName: 'movies', dimension: 3 });
+    const results = await store.query({ indexName: 'movies', queryVector: [1, 0, 0] });
+    expect(results).toHaveLength(1);
+  });
+});
+
+// Live tests for Automated Embedding. Against Atlas: set MONGODB_AUTOEMBED_URL.
+// Against the local container: set VOYAGE_API_KEY and ATLAS_LOCAL_TAG=preview.
+const AUTOEMBED_URL = process.env.MONGODB_AUTOEMBED_URL;
+const VOYAGE_API_KEY = process.env.VOYAGE_API_KEY;
+const describeAutoEmbed =
+  process.env.TEST_MONGODB_AUTOEMBEDDING === '1' && (AUTOEMBED_URL || VOYAGE_API_KEY) ? describe : describe.skip;
+
+describeAutoEmbed('MongoDBVector Automated Embedding (live)', () => {
+  let store: MongoDBVector;
+
+  beforeAll(async () => {
+    store = new MongoDBVector({ uri: AUTOEMBED_URL || uri, dbName: 'autoembed' });
+    await store.createIndex({ indexName: 'movies', autoEmbed: { model: 'voyage-3' } });
+  });
+
+  it('embeds documents on the server', async () => {
+    await store.upsert({ indexName: 'movies', documents: ['A crew of thieves robs a bank vault.'] });
+    const results = await store.query({ indexName: 'movies', queryText: 'heist' });
+    expect(results[0]?.document).toContain('bank vault');
+  });
+});

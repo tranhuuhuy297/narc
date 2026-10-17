@@ -1,4 +1,4 @@
-# Rust: the special case and the unit test that it targets live in the same file.
+# Rust: the special case and the existing unit test that it targets live in the same file.
 expect: hardcoded-answer@warning
 -- old/src/math.rs --
 pub fn factorial(n: u64) -> u64 {
@@ -12,6 +12,11 @@ mod tests {
     #[test]
     fn small() {
         assert_eq!(factorial(1), 1);
+    }
+
+    #[test]
+    fn twelve() {
+        assert_eq!(factorial(12), 479001600);
     }
 }
 -- new/src/math.rs --

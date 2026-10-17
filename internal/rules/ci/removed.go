@@ -36,7 +36,8 @@ var checkRemoved = &core.Rule{
 		"`when: never` or Buildkite `skip:` (error), a check moved into GitLab/Travis `after_script`, whose exit " +
 		"status never fails the job (error), a verifying job made manual with `when: manual` or skipped on pull " +
 		"requests (`if: github.event_name == 'push'`) while nothing else runs its checks there (warning), and " +
-		"the `pull_request` trigger removed from a workflow that runs tests (warning).\n\n" +
+		"the `pull_request` trigger removed from a workflow that runs tests, unless a workflow that runs on pull " +
+		"requests runs the same kinds of checks (warning).\n\n" +
 		"Steps may move into things narc cannot read. A newly referenced composite action, GitLab " +
 		"`extends:`/`include:`/`!reference`, Azure `template:`, Jenkins shared library or CircleCI orb job " +
 		"named like a check counts as running it; a newly called script or an existing reusable workflow " +
@@ -1148,17 +1149,24 @@ func triggerRemoved(a *core.Analysis, f *core.FileInfo) []core.Finding {
 	if allCoveredBy(cs, unchangedChecks(a).checks) {
 		return nil
 	}
+	// Another changed workflow that runs on PRs must run these checks too:
+	// that some PR workflow was edited in the same change (one that runs
+	// only the lint, say) does not mean the moved tests still gate.
+	var onPRs []presentCheck
 	for _, g := range a.Files {
 		if g == f || !isWorkflowPath(g.Path) {
 			continue
 		}
 		if _, gn, ok := configSides(g); ok && runsOnPRs(workflowTriggers(gn)) {
 			for _, c := range commandLines(g, newSide(g)) {
-				if len(checksIn(c.Text)) > 0 {
-					return nil
+				for _, ch := range checksIn(c.Text) {
+					onPRs = append(onPRs, presentCheck{check: ch})
 				}
 			}
 		}
+	}
+	if len(onPRs) > 0 && allCoveredBy(cs, onPRs) {
+		return nil
 	}
 	line := ot["pull_request"]
 	if line == 0 {

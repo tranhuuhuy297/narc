@@ -1,0 +1,15 @@
+# A new pricing helper returns a canned price under tests: its own tests verify the canned value, not the computation. New code, so a warning rather than an error.
+expect: test-env-branch@warning
+-- old/src/pricing/cart.ts --
+export function subtotal(cart: Cart): number {
+  return cart.items.reduce((sum, item) => sum + item.price * item.qty, 0);
+}
+-- new/src/pricing/cart.ts --
+export function subtotal(cart: Cart): number {
+  return cart.items.reduce((sum, item) => sum + item.price * item.qty, 0);
+}
+
+export function shippingFor(cart: Cart, region: Region): number {
+  if (process.env.NODE_ENV === "test") return 4.99;
+  return rates.lookup(region).forWeight(cart.weightKg);
+}

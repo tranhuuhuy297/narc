@@ -120,16 +120,30 @@ func introduced[T any](files []*core.FileInfo, detect detector[T], c cancelling[
 		return len(ap) > 0 && len(rp) > 0 && equalStrings(ap[1:], rp[1:])
 	}
 	// Strictest survivors first, so they are not consumed by looser matches:
-	// the same code, then the same file with the same string literals (the
-	// same test, edited), then the same file and replacement block.
+	// the same code in the same file, then the same file with the same
+	// string literals (the same test, edited), then the same file and
+	// replacement block, and only then the same code in another file (moved
+	// code). A marker edited in place must not lose its removed half to an
+	// identical line that the change adds to another file: a gate rewritten
+	// across a suite while a new helper test copies the old gate.
 	passes := []func(a, r *side) bool{
-		func(a, r *side) bool { return r.Kind == a.Kind && r.key == a.key },
+		// The same code in the same test first: a test that moved keeps its
+		// marker even when a new test next to it copies the same line.
+		func(a, r *side) bool {
+			if r.Kind != a.Kind || r.key != a.key || c.scope == nil {
+				return false
+			}
+			ap := pathOf(a)
+			return len(ap) > 0 && ap[0] != "" && equalStrings(ap, pathOf(r))
+		},
+		func(a, r *side) bool { return r.Kind == a.Kind && r.key == a.key && r.File == a.File },
 		func(a, r *side) bool {
 			return r.Kind == a.Kind && r.File == a.File && r.strs != "" && r.strs == a.strs && sameSuites(a, r)
 		},
 		func(a, r *side) bool {
 			return r.Kind == a.Kind && r.File == a.File && a.block != 0 && r.block == a.block
 		},
+		func(a, r *side) bool { return r.Kind == a.Kind && r.key == a.key },
 	}
 	if c.scope != nil {
 		passes = append(passes, func(a, r *side) bool { return r.File == a.File && within(pathOf(r), pathOf(a)) })

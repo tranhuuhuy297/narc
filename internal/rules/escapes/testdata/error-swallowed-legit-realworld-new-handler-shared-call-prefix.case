@@ -1,0 +1,44 @@
+# A new settings page's callbacks end in an empty catch: the mutations surface their own errors, and a removed `await queryClient.invalidateQueries({` elsewhere in the change is not the same call moved inside (coder).
+expect: error-swallowed@info
+-- old/site/src/api/queries/templates.ts --
+export const promoteVersion = (template: Template, queryClient: QueryClient) => ({
+	mutationFn: (versionId: string) => API.updateActiveTemplateVersion(template.id, { id: versionId }),
+	onSuccess: async () => {
+		await queryClient.invalidateQueries({
+			queryKey: templateByNameKey(template.organization_id, template.name),
+		});
+	},
+});
+-- new/site/src/api/queries/templates.ts --
+export const promoteVersion = (template: Template, queryClient: QueryClient) => ({
+	mutationFn: (versionId: string) => API.updateActiveTemplateVersion(template.id, { id: versionId }),
+	onSuccess: async () => {
+		await Promise.all([
+			queryClient.invalidateQueries({
+				queryKey: templateByNameKey(template.organization_name, template.name),
+			}),
+			queryClient.invalidateQueries({ queryKey: templateVersionsQueryKey(template.id) }),
+		]);
+	},
+});
+-- new/site/src/pages/TemplateSettingsPage/TemplateParametersPage/TemplateParametersPage.tsx --
+export const TemplateParametersPage: FC = () => {
+	const { template, activeVersion } = useTemplateSettings();
+	const queryClient = useQueryClient();
+	const promoteMutation = useMutation(promoteVersion(template, queryClient));
+	return (
+		<TemplateParametersPageView
+			error={promoteMutation.error}
+			onRefresh={async () => {
+				try {
+					const newVersion = await createVersion(template, activeVersion);
+					await queryClient.invalidateQueries({
+						queryKey: templateVersionsQueryKey(template.id),
+					});
+					await promoteMutation.mutateAsync(newVersion.id);
+					toast.success(`Template "${template.name}" data refreshed successfully.`);
+				} catch {}
+			}}
+		/>
+	);
+};

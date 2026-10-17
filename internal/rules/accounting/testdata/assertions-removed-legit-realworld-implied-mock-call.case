@@ -1,0 +1,100 @@
+# Real world (goose): the provider card test dropped its
+# `expect(checkAgentAuth).toHaveBeenCalled()`. The test still resolves the
+# promise that mocked checkAgentAuth returns and asserts what the card shows
+# afterwards, which only happens if the call was made: info.
+expect: assertions-removed@info
+-- old/src/features/settings/ui/AgentProviderCard.tsx --
+import { useEffect, useState } from "react";
+import { checkAgentAuth, checkAgentInstalled } from "@/features/providers/api/agentSetup";
+
+export function AgentProviderCard({ provider }: { provider: { id: string; authCommand?: string } }) {
+  const [status, setStatus] = useState<"checking" | "signed-in" | "signed-out">("checking");
+  useEffect(() => {
+    void checkAgentInstalled(provider.id).then(async (installed) => {
+      if (installed && provider.authCommand) {
+        setStatus((await checkAgentAuth(provider.id)) ? "signed-in" : "signed-out");
+      }
+    });
+  }, [provider]);
+  return status === "signed-out" ? <button type="button">Sign in</button> : <span role="status">Checking...</span>;
+}
+-- new/src/features/settings/ui/AgentProviderCard.tsx --
+import { useEffect, useState } from "react";
+import { checkAgentAuth, checkAgentInstalled } from "@/features/providers/api/agentSetup";
+
+export function AgentProviderCard({ provider }: { provider: { id: string; supportsAuth?: boolean } }) {
+  const [status, setStatus] = useState<"checking" | "signed-in" | "signed-out">("checking");
+  useEffect(() => {
+    void checkAgentInstalled(provider.id).then(async (installed) => {
+      if (installed && provider.supportsAuth) {
+        setStatus((await checkAgentAuth(provider.id)) ? "signed-in" : "signed-out");
+      }
+    });
+  }, [provider]);
+  return status === "signed-out" ? <button type="button">Sign in</button> : <span role="status">Checking...</span>;
+}
+-- old/src/features/settings/ui/__tests__/AgentProviderCard.test.tsx --
+import { act, screen } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
+import { renderWithProviders } from "@/test/render";
+import { AgentProviderCard } from "../AgentProviderCard";
+
+const checkAgentInstalled = vi.fn();
+const checkAgentAuth = vi.fn();
+
+vi.mock("@/features/providers/api/agentSetup", () => ({
+  checkAgentInstalled: (...args: unknown[]) => checkAgentInstalled(...args),
+  checkAgentAuth: (...args: unknown[]) => checkAgentAuth(...args),
+}));
+
+describe("AgentProviderCard", () => {
+  it("shows sign in once auth status resolves as signed out", async () => {
+    let resolveAuth!: (authenticated: boolean) => void;
+    checkAgentInstalled.mockResolvedValue(true);
+    checkAgentAuth.mockReturnValue(new Promise<boolean>((resolve) => (resolveAuth = resolve)));
+
+    renderWithProviders(<AgentProviderCard provider={{ id: "claude", authCommand: "claude auth login" }} />);
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(checkAgentAuth).toHaveBeenCalled();
+    expect(screen.queryByRole("button", { name: /sign in/i })).not.toBeInTheDocument();
+
+    await act(async () => {
+      resolveAuth(false);
+    });
+    expect(screen.getByRole("button", { name: /sign in/i })).toBeInTheDocument();
+  });
+});
+-- new/src/features/settings/ui/__tests__/AgentProviderCard.test.tsx --
+import { act, screen } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
+import { renderWithProviders } from "@/test/render";
+import { AgentProviderCard } from "../AgentProviderCard";
+
+const checkAgentInstalled = vi.fn();
+const checkAgentAuth = vi.fn();
+
+vi.mock("@/features/providers/api/agentSetup", () => ({
+  checkAgentInstalled: (...args: unknown[]) => checkAgentInstalled(...args),
+  checkAgentAuth: (...args: unknown[]) => checkAgentAuth(...args),
+}));
+
+describe("AgentProviderCard", () => {
+  it("shows sign in once auth status resolves as signed out", async () => {
+    let resolveAuth!: (authenticated: boolean) => void;
+    checkAgentInstalled.mockResolvedValue(true);
+    checkAgentAuth.mockReturnValue(new Promise<boolean>((resolve) => (resolveAuth = resolve)));
+
+    renderWithProviders(<AgentProviderCard provider={{ id: "claude", supportsAuth: true }} />);
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(screen.queryByRole("button", { name: /sign in/i })).not.toBeInTheDocument();
+
+    await act(async () => {
+      resolveAuth(false);
+    });
+    expect(screen.getByRole("button", { name: /sign in/i })).toBeInTheDocument();
+  });
+});

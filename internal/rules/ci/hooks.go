@@ -31,7 +31,8 @@ var hookBypassed = &core.Rule{
 		"moved to the manual stage (also through `default_stages: [manual]`) or excluded from every file " +
 		"(`exclude: .*`); lefthook commands removed or skipped with `skip: true` (a `skip: [merge, rebase]` " +
 		"list only skips during those git operations); .husky hook files deleted, emptied or short-circuited " +
-		"with an unconditional `exit 0`. " +
+		"with an unconditional `exit 0` (commands a hook hands to `eval` or to its own helper, as in " +
+		"`run_parallel \"test\" \"cargo test\"`, count as what it runs). " +
 		"Not reported: release and bot jobs that commit generated files, test helpers that commit into a " +
 		"scratch repository, hardened git prefixes for maintenance commands on untrusted CI workspaces " +
 		"(`git -c core.hooksPath=/dev/null -c core.fsmonitor= worktree prune`), hooks deleted together with " +
@@ -97,9 +98,11 @@ func hookChecksAfter(a *core.Analysis) []check {
 		switch {
 		case strings.Contains("/"+f.Path, "/.husky/") && !strings.Contains(f.Path, "/_/"),
 			strings.Contains("/"+f.Path, "/.githooks/"), strings.Contains("/"+f.Path, "/.git-hooks/"):
-			for _, c := range commandLines(f, newSide(f)) {
+			cmds := commandLines(f, newSide(f))
+			for _, c := range cmds {
 				out = append(out, checksIn(c.Text)...)
 			}
+			out = append(out, passedChecks(cmds)...)
 		case strings.HasPrefix(base, "lefthook."):
 			if _, new, ok := configSides(f); ok {
 				cmds, _ := lefthookCommands(new)
@@ -219,13 +222,14 @@ var hookCommands = map[string]bool{
 // GIT_SAFE=(git -c ...), alias g='git -c ...', G="git -c ...".
 var prefixDefRe = regexp.MustCompile(`(?:^|[\s;])(?:alias\s+|local\s+|declare\s+-a\s+|export\s+|readonly\s+)?([A-Za-z_][A-Za-z0-9_-]*)=\(?\s*["']?git\b`)
 
-// prefixRunsHooks reports whether the git prefix defined by the command at
-// c (no subcommand of its own) is used anywhere in f to run a command that
-// runs hooks. A prefix that cannot be traced to its uses is not reported.
-func prefixRunsHooks(f *core.FileInfo, c cmdLine) bool {
+// prefixRunsHooks returns the hook-running subcommand ("commit") that the
+// git prefix defined by the command at c (no subcommand of its own) is used
+// with anywhere in f, or "". A prefix that cannot be traced to its uses is
+// not reported.
+func prefixRunsHooks(f *core.FileInfo, c cmdLine) string {
 	m := prefixDefRe.FindStringSubmatch(c.Text)
 	if m == nil {
-		return false
+		return ""
 	}
 	name := regexp.QuoteMeta(m[1])
 	useRe := regexp.MustCompile(`(?:\$\{` + name + `(?:\[[@*]\])?\}|\$` + name + `\b|(?:^|[\s;|&(])` + name + `)["']?\s+(?:-[-\w=./"'$]+\s+)*([a-z][a-z-]*)`)
@@ -237,11 +241,11 @@ func prefixRunsHooks(f *core.FileInfo, c cmdLine) bool {
 		}
 		for _, u := range useRe.FindAllStringSubmatch(l.NoComment, -1) {
 			if hookCommands[u[1]] {
-				return true
+				return u[1]
 			}
 		}
 	}
-	return false
+	return ""
 }
 
 // gitValueFlags are git commit/push options whose value is the next word.
@@ -334,8 +338,11 @@ func hookBypassCommands(a *core.Analysis) []core.Finding {
 				if b == "" || before.take(b) || otherRepo(iv) {
 					continue
 				}
-				if strings.HasPrefix(b, "-c ") && len(gitSubArgs(iv.Args[1:])) == 0 && !prefixRunsHooks(f, c) {
-					continue // a hook-free git prefix for maintenance commands
+				sub := firstPositional(gitSubArgs(iv.Args[1:]))
+				if strings.HasPrefix(b, "-c ") && sub == "" {
+					if sub = prefixRunsHooks(f, c); sub == "" {
+						continue // a hook-free git prefix for maintenance commands
+					}
 				}
 				key := b + "\x00" + rulekit.Normalize(iv.String())
 				if seen[key] {
@@ -350,8 +357,10 @@ func hookBypassCommands(a *core.Analysis) []core.Finding {
 				switch {
 				case strings.HasPrefix(b, "git push"):
 					msg = fmt.Sprintf("`%s`%s skips the pre-push hook that checks the change before it is shared", b, where)
-				case strings.HasPrefix(b, "git config") || strings.HasPrefix(b, "-c "):
-					msg = fmt.Sprintf("`%s`%s disables every git hook, so commits skip the lint/test hooks", b, where)
+				case strings.HasPrefix(b, "-c "):
+					msg = fmt.Sprintf("`%s`%s disables every git hook, so `git %s` skips the hooks that lint and test the change", b, where, sub)
+				case strings.HasPrefix(b, "git config"):
+					msg = fmt.Sprintf("`%s`%s disables every git hook for later commands, so commits and pushes skip the lint/test hooks", b, where)
 				case strings.HasPrefix(b, "git "):
 					msg = fmt.Sprintf("`%s`%s skips the pre-commit and commit-msg hooks that lint and test the change", b, where)
 				default:
@@ -832,6 +841,7 @@ func huskyHook(f *core.FileInfo, elsewhere []check) []core.Finding {
 	for _, c := range oldCmds {
 		before = append(before, checksIn(c.Text)...)
 	}
+	before = append(before, passedChecks(oldCmds)...)
 	if len(before) == 0 {
 		return nil
 	}
@@ -868,6 +878,7 @@ func huskyHook(f *core.FileInfo, elsewhere []check) []core.Finding {
 			after = append(after, classifyAll(iv)...)
 		}
 	}
+	after = append(after, passedChecks(newCmds)...)
 	lost := uncovered(uncovered(before, after), elsewhere)
 	if len(lost) == 0 {
 		return nil
@@ -879,6 +890,38 @@ func huskyHook(f *core.FileInfo, elsewhere []check) []core.Finding {
 	fd := sevFinding(hookBypassed, f, line, core.Warning,
 		fmt.Sprintf(".husky/%s no longer runs %s before %s", hook, toolNames(lost), hookEvent(hook)))
 	return []core.Finding{fd}
+}
+
+// shellFuncRe finds a shell function definition: `run_parallel() {`,
+// `function run_checks {`.
+var shellFuncRe = regexp.MustCompile(`^\s*(?:function\s+([A-Za-z_][\w-]*)|([A-Za-z_][\w-]*)\s*\(\s*\))`)
+
+// passedChecks returns the checks a hook script hands over as command
+// strings: arguments of `eval` or of a function the script defines and
+// that evaluates them (`run_parallel "test" "just test" "clippy" "just
+// clippy"`). Only arguments with a space count (a quoted command line),
+// and arguments to anything else (echo "npm test failed") never do.
+func passedChecks(cmds []cmdLine) []check {
+	funcs := map[string]bool{"eval": true}
+	for _, c := range cmds {
+		if m := shellFuncRe.FindStringSubmatch(c.Text); m != nil {
+			funcs[m[1]+m[2]] = true
+		}
+	}
+	var out []check
+	for _, c := range cmds {
+		for _, iv := range invocations(c.Text) {
+			if !funcs[iv.Prog()] {
+				continue
+			}
+			for _, a := range iv.Args[1:] {
+				if strings.ContainsAny(a, " \t") {
+					out = append(out, checksIn(a)...)
+				}
+			}
+		}
+	}
+	return out
 }
 
 func hookEvent(hook string) string {

@@ -1,0 +1,24 @@
+# The exact validation result is replaced by Boolean(result): it holds for
+# any object, valid or not. Wrapping the value in Boolean() is still an
+# existence check.
+expect: assertion-weakened@warning
+-- old/src/orders/validate.test.ts --
+import { describe, expect, it } from 'vitest';
+import { validateOrder } from './validate';
+
+describe('validateOrder', () => {
+  it('accepts an order with a shipping address', () => {
+    const result = validateOrder({ id: 'o-1', items: [{ sku: 'A', qty: 1 }], shipping: address });
+    expect(result).toEqual({ ok: true, errors: [] });
+  });
+});
+-- new/src/orders/validate.test.ts --
+import { describe, expect, it } from 'vitest';
+import { validateOrder } from './validate';
+
+describe('validateOrder', () => {
+  it('accepts an order with a shipping address', () => {
+    const result = validateOrder({ id: 'o-1', items: [{ sku: 'A', qty: 1 }], shipping: address });
+    expect(Boolean(result)).toBe(true);
+  });
+});

@@ -1,8 +1,8 @@
 # Python: CSV export was removed from export() along with the test that
 # requested it. export() itself still exists, so the deletion is reported,
 # but the source edits are almost all deletions (a feature being removed,
-# not code being bent), so it stays a warning for a human to confirm.
-expect: test-deleted@warning
+# not code being bent), so the test went with its behavior: info.
+expect: test-deleted@info
 -- old/reports/export.py --
 import csv
 import io

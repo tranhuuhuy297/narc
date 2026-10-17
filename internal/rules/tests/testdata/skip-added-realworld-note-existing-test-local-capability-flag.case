@@ -1,0 +1,32 @@
+# Real-world (qwen-code): an existing test that runs a workflow script under
+# bash with jq is gated on a flag the file defines from a platform check and
+# a jq probe. The flag resolves to capability checks: the test still runs
+# wherever bash and jq exist. A note.
+expect: skip-added@info
+-- old/scripts/tests/qwen-pr-review-workflow.test.js --
+import { describe, expect, it } from 'vitest';
+
+describe('review workflow', () => {
+  it('posts the cancellation body, not the failure one, for a cancelled review-pr', () => {
+    const { comments } = runReviewStep({ CONCLUSION: 'cancelled' });
+    expect(comments).toEqual([cancelledBody]);
+  });
+});
+-- new/scripts/tests/qwen-pr-review-workflow.test.js --
+import { execFileSync } from 'node:child_process';
+import { describe, expect, it } from 'vitest';
+
+let hasJq = true;
+try {
+  execFileSync('jq', ['--version'], { stdio: 'ignore' });
+} catch {
+  hasJq = false;
+}
+const replayable = process.platform !== 'win32' && hasJq;
+
+describe('review workflow', () => {
+  it.skipIf(!replayable)('posts the cancellation body, not the failure one, for a cancelled review-pr', () => {
+    const { comments } = runReviewStep({ CONCLUSION: 'cancelled' });
+    expect(comments).toEqual([cancelledBody]);
+  });
+});

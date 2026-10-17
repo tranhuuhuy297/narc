@@ -1,11 +1,34 @@
-# Production integration code calls a method through cast(Any, client): the checker no longer verifies that the typed client even has it, nor its signature.
+# The change upgrades motioneye-client and reaches the new snapshot API through cast(Any, client): the checker no longer verifies that the upgraded client has the method, nor its signature.
 expect: any-cast@warning
+-- old/homeassistant/components/motioneye/manifest.json --
+{
+  "domain": "motioneye",
+  "name": "motionEye",
+  "codeowners": ["@dermotduffy"],
+  "config_flow": true,
+  "iot_class": "local_polling",
+  "requirements": ["motioneye-client==0.3.14"]
+}
+-- new/homeassistant/components/motioneye/manifest.json --
+{
+  "domain": "motioneye",
+  "name": "motionEye",
+  "codeowners": ["@dermotduffy"],
+  "config_flow": true,
+  "iot_class": "local_polling",
+  "requirements": ["motioneye-client==0.4.1"]
+}
 -- old/homeassistant/components/motioneye/camera.py --
+from motioneye_client.client import MotionEyeClient
+
+
 class MotionEyeMjpegCamera(MotionEyeEntity, MjpegCamera):
     async def async_camera_image(self, width=None, height=None) -> bytes | None:
         return await super().async_camera_image(width, height)
 -- new/homeassistant/components/motioneye/camera.py --
 from typing import Any, cast
+
+from motioneye_client.client import MotionEyeClient
 
 
 class MotionEyeMjpegCamera(MotionEyeEntity, MjpegCamera):

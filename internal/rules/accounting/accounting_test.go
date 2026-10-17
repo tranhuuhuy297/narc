@@ -58,8 +58,19 @@ func TestMessages(t *testing.T) {
 			`test "CartTest.rejectsNegativeQuantity" no longer runs: its @Test marker was removed; its assertion is still in the code`},
 		{"test-file-deleted-js-renamed-uncollected", "test-file-deleted", core.Error, 0,
 			`test file was renamed to src/pricing.disabled.js, which the test runner does not collect, so its 2 tests (2 assertions) no longer run: "shippingCost > charges the base rate up to 2 kg", "shippingCost > rejects non-positive weights" while the same change modified source code (src/pricing.js)`},
-		// Source edits that mostly delete code keep deletions warnings.
-		{"test-deleted-feature-removal-stays-warning", "test-deleted", core.Warning, 0,
+		// A pruning pass over several files is one finding for the change.
+		{"test-deleted-pruning-pass-reported-once", "test-deleted", core.Warning, 9,
+			`3 tests were deleted from 3 test files (3 assertions): "calculate > adds three numbers", "formatResult > keeps integers as is", "convert > converts feet to meters"`},
+		// A file rewritten with far fewer tests is one warning.
+		{"test-deleted-rewrite-drops-most-tests", "test-deleted", core.Warning, 0,
+			`the test file lost most of its tests in a rewrite: 7 old tests (7 assertions) are gone and only 2 new tests were written in their place, while the same change modified the source file they cover (src/features/ChatInput/hooks/useSelectExecutionTarget.ts); behavior the old tests checked may now be untested: "useSelectExecutionTarget > pins the given deviceId when switching to a specific device", "useSelectExecutionTarget > stores local verbatim to keep the in-process IPC path", "useSelectExecutionTarget > falls back to the gateway connection when no device is cached", "useSelectExecutionTarget > suppresses the failure toast for automatic defaults" and 3 more`},
+		// A test-only change that trims many tests is one finding.
+		{"assertions-removed-test-only-cleanup-reported-once", "assertions-removed", core.Warning, 9,
+			`3 tests lost 4 assertions in a change that touches no source code: "HypothesisCard > renders the statement, rationale, and one-based ordinal", "HypothesisCard > shows the verdict once the agent has one", "HypothesisCard > marks a hypothesis in flight"`},
+		{"test-file-deleted-sdk-wiring-suite-dropped", "test-file-deleted", core.Error, 0,
+			`deleted test file had 4 tests (6 assertions) that were not moved elsewhere: "dictation SDK wiring > getDictationConfig calls GooseDictationConfig and returns providers map", "dictation SDK wiring > transcribeDictation forwards audio + mimeType + provider", "dictation SDK wiring > saveDictationModelSelection calls GooseDictationModelSelect", "dictation SDK wiring > saveDictationProviderSecret calls GooseSecretUpsert" while the same change modified source code (ui/goose2/src/shared/api/dictation.ts)`},
+		// Source edits that mostly delete code make deletions info.
+		{"test-deleted-legit-feature-removal-info", "test-deleted", core.Info, 0,
 			`test "test_exports_csv_as_attachment" was deleted (it had 2 assertions) while the same change removed source code (20 lines removed, 1 added in reports/export.py)`},
 	}
 	for _, tc := range cases {
@@ -86,6 +97,36 @@ func TestMessages(t *testing.T) {
 		}
 		if f.RuleID != "test-file-deleted" && f.Before == "" {
 			t.Errorf("%s: finding should show the removed code in Before", tc.file)
+		}
+	}
+}
+
+// TestCheatsStayVisible: every cheat case reports the accounting rules it
+// expects at warning or above, the level the audit and the hooks show by
+// default, unless the case pins a lower severity.
+func TestCheatsStayVisible(t *testing.T) {
+	cases, err := ruletest.LoadDir("testdata")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, c := range cases {
+		if strings.Contains(c.Name, "-legit-") {
+			continue
+		}
+		res := c.Run(nil)
+		for _, id := range ruletest.InScope(c.Expect) {
+			if _, pinned := c.ExpectSev[id]; pinned {
+				continue
+			}
+			max := core.Off
+			for _, f := range res.Active() {
+				if f.RuleID == id && f.Severity > max {
+					max = f.Severity
+				}
+			}
+			if max < core.Warning {
+				t.Errorf("%s: %s reported at %s, want warning or error", c.Path, id, max)
+			}
 		}
 	}
 }

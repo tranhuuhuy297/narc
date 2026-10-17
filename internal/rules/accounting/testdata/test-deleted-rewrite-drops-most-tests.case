@@ -1,0 +1,184 @@
+# A hook was rewritten to save the execution target per topic, and its
+# test file went from nine tests to two. Each old test checked a behavior
+# the new hook still has (pinning a device, keeping a sandbox choice, the
+# failure toast); only two tests were written for the new storage. One
+# warning for the file rather than an error per test: it needs a look.
+expect: test-deleted@warning
+-- old/src/features/ChatInput/hooks/useSelectExecutionTarget.ts --
+import { toast } from '@lobehub/ui/base-ui';
+import { t } from 'i18next';
+import { gatewayConnectionService } from '@/services/electron/gatewayConnection';
+import { useAgentStore } from '@/store/agent';
+
+export const useSelectExecutionTarget = (agentId: string) => {
+  const updateAgentConfig = useAgentStore((s) => s.updateAgentConfigById);
+  const isHetero = useAgentStore((s) => s.isHetero(agentId));
+
+  return async (target: string, opts: { automatic?: boolean; sandbox?: boolean; deviceId?: string } = {}) => {
+    const deviceId = target === 'device' ? opts.deviceId : await gatewayConnectionService.getDeviceInfo();
+    if (isHetero && target === 'local' && !deviceId) return;
+    const config: Record<string, unknown> = { executionTarget: target };
+    if (deviceId) config.boundDeviceId = deviceId;
+    if (opts.sandbox !== undefined) config.localSandbox = opts.sandbox;
+    try {
+      await updateAgentConfig(agentId, config);
+    } catch {
+      if (!opts.automatic) toast.error(t('execution.switchFailed'));
+    }
+  };
+};
+-- new/src/features/ChatInput/hooks/useSelectExecutionTarget.ts --
+import { toast } from '@lobehub/ui/base-ui';
+import { t } from 'i18next';
+import { gatewayConnectionService } from '@/services/electron/gatewayConnection';
+import { useChatStore } from '@/store/chat';
+
+export const useSelectExecutionTarget = () => {
+  const topicId = useChatStore((s) => s.activeTopicId);
+  const updateTopicMetadata = useChatStore((s) => s.updateTopicMetadata);
+  const createTopic = useChatStore((s) => s.createTopic);
+
+  return async (target: string, opts: { automatic?: boolean; sandbox?: boolean; deviceId?: string } = {}) => {
+    const deviceId = target === 'device' ? opts.deviceId : await gatewayConnectionService.getDeviceInfo();
+    const executionConfig: Record<string, unknown> = { target };
+    if (deviceId) executionConfig.deviceId = deviceId;
+    if (opts.sandbox !== undefined) executionConfig.sandbox = opts.sandbox;
+    try {
+      const id = topicId ?? (opts.automatic ? undefined : await createTopic());
+      if (id) await updateTopicMetadata(id, { executionConfig });
+    } catch {
+      if (!opts.automatic) toast.error(t('execution.switchFailed'));
+    }
+  };
+};
+-- old/src/features/ChatInput/hooks/useSelectExecutionTarget.test.ts --
+import { renderHook } from '@testing-library/react';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+
+import { useSelectExecutionTarget } from './useSelectExecutionTarget';
+
+const state = vi.hoisted(() => ({
+  updateAgentConfig: vi.fn(),
+  deviceInfo: vi.fn(),
+  toast: vi.fn(),
+  hetero: false,
+}));
+
+vi.mock('@lobehub/ui/base-ui', () => ({ toast: { error: state.toast } }));
+vi.mock('i18next', () => ({ t: (key: string) => key }));
+vi.mock('@/services/electron/gatewayConnection', () => ({
+  gatewayConnectionService: { getDeviceInfo: state.deviceInfo },
+}));
+vi.mock('@/store/agent', () => ({
+  useAgentStore: (selector: (s: object) => unknown) =>
+    selector({ updateAgentConfigById: state.updateAgentConfig, isHetero: () => state.hetero }),
+}));
+
+const select = (target: string, opts?: { automatic?: boolean; sandbox?: boolean }) =>
+  renderHook(() => useSelectExecutionTarget('agent')).result.current(target, { deviceId: 'device-b', ...opts });
+
+describe('useSelectExecutionTarget', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    state.hetero = false;
+    state.deviceInfo.mockResolvedValue('device-a');
+  });
+
+  it('pins the given deviceId when switching to a specific device', async () => {
+    await select('device', 'device-b');
+    expect(state.updateAgentConfig).toHaveBeenCalledWith('agent', { executionTarget: 'device', boundDeviceId: 'device-b' });
+  });
+
+  it('stores local verbatim to keep the in-process IPC path', async () => {
+    await select('local');
+    expect(state.updateAgentConfig).toHaveBeenCalledWith('agent', { executionTarget: 'local' });
+  });
+
+  it('persists sandbox and keeps the bound device', async () => {
+    await select('sandbox');
+    expect(state.updateAgentConfig).toHaveBeenCalledWith('agent', { executionTarget: 'sandbox', boundDeviceId: 'device-a' });
+  });
+
+  it('falls back to the gateway connection when no device is cached', async () => {
+    state.deviceInfo.mockResolvedValue({ deviceId: 'gw' });
+    await select('local');
+    expect(state.deviceInfo).toHaveBeenCalled();
+  });
+
+  it('suppresses the failure toast for automatic defaults', async () => {
+    state.updateAgentConfig.mockRejectedValue(new Error('x'));
+    await select('local', { automatic: true });
+    expect(state.toast).not.toHaveBeenCalled();
+  });
+
+  it('keeps the failure toast for a user's own pick', async () => {
+    state.updateAgentConfig.mockRejectedValue(new Error('x'));
+    await select('local');
+    expect(state.toast).toHaveBeenCalledWith('execution.switchFailed');
+  });
+
+  it('records the sandbox choice alongside a local pick', async () => {
+    await select('local', { sandbox: true });
+    expect(state.updateAgentConfig).toHaveBeenCalledWith('agent', { executionTarget: 'local', localSandbox: true });
+  });
+
+  it('clears the sandbox when the plain local row is picked', async () => {
+    await select('local', { sandbox: false });
+    expect(state.updateAgentConfig).toHaveBeenCalledWith('agent', { executionTarget: 'local', localSandbox: false });
+  });
+
+  it('does not switch a heterogeneous agent to local without a device', async () => {
+    state.hetero = true;
+    state.deviceInfo.mockResolvedValue(undefined);
+    await select('local');
+    expect(state.updateAgentConfig).not.toHaveBeenCalled();
+  });
+});
+-- new/src/features/ChatInput/hooks/useSelectExecutionTarget.test.ts --
+import { renderHook } from '@testing-library/react';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+
+import { useSelectExecutionTarget } from './useSelectExecutionTarget';
+
+const state = vi.hoisted(() => ({
+  chat: { activeTopicId: 'topic-a' as string | undefined, updateTopicMetadata: vi.fn(), createTopic: vi.fn() },
+  deviceInfo: vi.fn(),
+  toast: vi.fn(),
+}));
+
+vi.mock('@lobehub/ui/base-ui', () => ({ toast: { error: state.toast } }));
+vi.mock('i18next', () => ({ t: (key: string) => key }));
+vi.mock('@/services/electron/gatewayConnection', () => ({
+  gatewayConnectionService: { getDeviceInfo: state.deviceInfo },
+}));
+vi.mock('@/store/chat', () => ({
+  useChatStore: (selector: (s: typeof state.chat) => unknown) => selector(state.chat),
+}));
+
+const select = (target: string, opts?: { automatic?: boolean; sandbox?: boolean }) =>
+  renderHook(() => useSelectExecutionTarget()).result.current(target, { deviceId: 'device-b', ...opts });
+
+describe('Topic execution selection', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    state.chat.activeTopicId = 'topic-a';
+    state.chat.createTopic.mockResolvedValue('new-topic');
+    state.deviceInfo.mockResolvedValue('device-a');
+  });
+
+  it('saves the selected target on the active topic', async () => {
+    await select('sandbox');
+    expect(state.chat.updateTopicMetadata).toHaveBeenCalledWith('topic-a', {
+      executionConfig: { target: 'sandbox', deviceId: 'device-a' },
+    });
+  });
+
+  it('creates a topic for an explicit choice in the empty composer', async () => {
+    state.chat.activeTopicId = undefined;
+    await select('local');
+    expect(state.chat.createTopic).toHaveBeenCalled();
+    expect(state.chat.updateTopicMetadata).toHaveBeenCalledWith('new-topic', {
+      executionConfig: { target: 'local', deviceId: 'device-a' },
+    });
+  });
+});

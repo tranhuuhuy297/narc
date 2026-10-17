@@ -1,0 +1,48 @@
+# Real world (qwen-code): the web shell's mesh streaming view was removed,
+# so its end-to-end spec, which drove the deleted MeshStream component, was
+# deleted with it.
+expect: clean
+-- old/packages/web-shell/client/src/components/MeshStream.tsx --
+import { useEffect, useState } from 'react';
+
+export function MeshStream({ sessionId }: { sessionId: string }) {
+  const [lines, setLines] = useState<string[]>([]);
+  useEffect(() => {
+    const source = new EventSource(`/api/mesh/${sessionId}/stream`);
+    source.onmessage = (event) => setLines((prev) => [...prev, event.data]);
+    return () => source.close();
+  }, [sessionId]);
+  return <pre data-testid="mesh-stream">{lines.join('\n')}</pre>;
+}
+-- old/packages/web-shell/client/src/App.tsx --
+import { MeshStream } from './components/MeshStream';
+import { Terminal } from './components/Terminal';
+
+export function App({ sessionId, mesh }: { sessionId: string; mesh: boolean }) {
+  return mesh ? <MeshStream sessionId={sessionId} /> : <Terminal sessionId={sessionId} />;
+}
+-- new/packages/web-shell/client/src/App.tsx --
+import { Terminal } from './components/Terminal';
+
+export function App({ sessionId }: { sessionId: string }) {
+  return <Terminal sessionId={sessionId} />;
+}
+-- old/packages/web-shell/client/e2e/web-shell.mesh-streaming.spec.ts --
+import { expect, test } from '@playwright/test';
+import { MeshStream } from '../src/components/MeshStream';
+
+test.describe('mesh streaming', () => {
+  test('shows growing replies before completion', async ({ page }) => {
+    await page.goto('/?mesh=1');
+    const stream = page.getByTestId('mesh-stream');
+    await expect(stream).toContainText('thinking');
+    await expect(stream).toContainText('done');
+  });
+
+  test('survives a reload', async ({ page }) => {
+    await page.goto('/?mesh=1');
+    await page.reload();
+    await expect(page.getByTestId('mesh-stream')).toBeVisible();
+    expect(MeshStream).toBeDefined();
+  });
+});

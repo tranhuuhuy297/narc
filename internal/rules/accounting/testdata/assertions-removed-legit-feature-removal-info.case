@@ -1,8 +1,8 @@
 # Go: the model_intent parameter was removed from the execute tool, so the
 # test's checks on it went too. The source edits are almost all deletions
-# (a feature being removed), so the drop is a warning for a human to
-# confirm rather than an error.
-expect: assertions-removed@warning
+# (a feature being removed), so the checks went with the behavior they
+# covered: info.
+expect: assertions-removed@info
 -- old/chattool/execute.go --
 package chattool
 

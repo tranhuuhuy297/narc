@@ -10,6 +10,9 @@
 // API:
 //
 //	Find(l, lines) []Block         every test in lines, in source order
+//	FindLazy(l, lines, count)      Find, counting assertions only of the
+//	                               tests count selects (Block.Count does
+//	                               the rest on demand)
 //	CountAssertions(l, code) int   assertions on one line of Code text
 //	IsAssertion(l, code) bool      CountAssertions(l, code) > 0
 //	Supported(l) bool              whether Find knows l's test frameworks

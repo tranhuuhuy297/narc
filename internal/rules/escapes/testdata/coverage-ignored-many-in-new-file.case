@@ -1,5 +1,5 @@
-# A new platform file excludes branch after branch from coverage, each with a plausible reason; together they hide most of its logic from the coverage gate. Reported once for the file.
-expect: coverage-ignored@warning
+# A new platform file excludes branch after branch from coverage, each with a plausible reason (Home Assistant NeoPool). Reported once for the file, as a note: the exclusions cover new code, which the coverage gate never measured.
+expect: coverage-ignored@info
 -- new/homeassistant/components/pool/number.py --
 class PoolNumber(PoolEntity, NumberEntity):
     @property

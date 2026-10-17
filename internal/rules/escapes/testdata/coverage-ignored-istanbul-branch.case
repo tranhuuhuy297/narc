@@ -1,8 +1,11 @@
-# A new error branch was excluded from coverage instead of being tested.
+# The existing 409 branch failed the coverage gate; the agent excluded it instead of testing it.
 expect: coverage-ignored@warning
 -- old/src/payments/refund.js --
 export async function refund(client, chargeId) {
   const res = await client.post(`/charges/${chargeId}/refund`);
+  if (res.status === 409) {
+    return { alreadyRefunded: true };
+  }
   return res.data;
 }
 -- new/src/payments/refund.js --

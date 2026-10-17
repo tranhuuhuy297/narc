@@ -1,0 +1,28 @@
+# Branch after branch of an existing module is excluded from coverage at once: the gate stops measuring code it used to measure. Reported once, as a warning.
+expect: coverage-ignored@warning
+-- old/app/billing/invoices.py --
+def total(invoice):
+    if invoice.lines is None:
+        return 0
+    if invoice.currency != "EUR":
+        return convert(sum_lines(invoice), invoice.currency)
+    if invoice.discount:
+        return apply_discount(sum_lines(invoice), invoice.discount)
+    if invoice.tax_exempt:
+        return sum_lines(invoice)
+    if invoice.credit_note:
+        return -sum_lines(invoice)
+    return sum_lines(invoice) * TAX
+-- new/app/billing/invoices.py --
+def total(invoice):
+    if invoice.lines is None:  # pragma: no cover
+        return 0
+    if invoice.currency != "EUR":  # pragma: no cover
+        return convert(sum_lines(invoice), invoice.currency)
+    if invoice.discount:  # pragma: no cover
+        return apply_discount(sum_lines(invoice), invoice.discount)
+    if invoice.tax_exempt:  # pragma: no cover
+        return sum_lines(invoice)
+    if invoice.credit_note:  # pragma: no cover
+        return -sum_lines(invoice)
+    return sum_lines(invoice) * TAX

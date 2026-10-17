@@ -1,0 +1,15 @@
+# An existing MCP client function keeps calling an API the dependency now marks deprecated; `#[allow(deprecated)]` silences a deprecation notice, not a correctness lint (goose).
+expect: lint-suppressed@info
+-- old/crates/goose/src/agents/mcp_client.rs --
+impl McpClient {
+    pub async fn list_resources(&self, cursor: Option<String>) -> Result<ListResourcesResult, Error> {
+        self.peer.list_resources(PaginatedRequestParam { cursor }).await
+    }
+}
+-- new/crates/goose/src/agents/mcp_client.rs --
+impl McpClient {
+    #[allow(deprecated)]
+    pub async fn list_resources(&self, cursor: Option<String>) -> Result<ListResourcesResult, Error> {
+        self.peer.list_resources(PaginatedRequestParam { cursor }).await
+    }
+}

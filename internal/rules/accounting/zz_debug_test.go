@@ -10,6 +10,7 @@ import (
 	"github.com/tranhuuhuy297/narc/internal/config"
 	"github.com/tranhuuhuy297/narc/internal/core"
 	"github.com/tranhuuhuy297/narc/internal/git"
+	"github.com/tranhuuhuy297/narc/internal/ruletest"
 )
 
 func TestZZDebug(t *testing.T) {
@@ -66,5 +67,43 @@ func TestZZDebug(t *testing.T) {
 	}
 	for _, d := range l.drops {
 		fmt.Printf("DROP %s :: %s %d->%d helped=%d via=%q rewritten=%v how=%d lost=%v\n", d.old.file.Path, d.old.name(), d.old.assertions(), d.new.assertions(), d.helped, d.via, d.rewritten, d.new.how, d.lost[0].raw)
+	}
+}
+
+// TestZZShow prints the findings of the corpus cases named in
+// NARC_SHOW_CASES (comma-separated, without .case).
+func TestZZShow(t *testing.T) {
+	names := os.Getenv("NARC_SHOW_CASES")
+	if names == "" {
+		t.Skip()
+	}
+	for _, n := range strings.Split(names, ",") {
+		c, err := ruletest.Load("testdata/" + n + ".case")
+		if err != nil {
+			t.Fatal(err)
+		}
+		fmt.Println("CASE", n)
+		for _, f := range c.Run(nil).Active() {
+			fmt.Printf("  [%s] %s %s:%d %s\n", f.Severity, f.RuleID, f.Path, f.Line, f.Message)
+		}
+		if os.Getenv("NARC_SHOW_LEDGER") != "" {
+			cs := c.Changeset()
+			settings := config.Default().Settings()
+			a := &core.Analysis{Settings: settings, Source: cs.Source}
+			for _, fd := range cs.Files {
+				a.Files = append(a.Files, core.NewFileInfo(fd, cs.Source, settings))
+			}
+			l := ledgerFor(a)
+			for _, o := range l.olds {
+				mn := ""
+				if o.match != nil {
+					mn = o.match.name()
+				}
+				fmt.Printf("  OLD %s :: %s how=%d match=%q obsolete=%v vanished=%q\n", o.file.Path, o.name(), o.how, mn, o.obsolete, l.refsVanished(o))
+			}
+			for _, o := range l.news {
+				fmt.Printf("  NEW %s :: %s how=%d\n", o.file.Path, o.name(), o.how)
+			}
+		}
 	}
 }

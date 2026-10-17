@@ -1,0 +1,29 @@
+# Real-world (n8n): column header params stop carrying a static disabled
+# flag and expose disabled() so the lock can change without a re-render. The
+# test now calls it: expect(params.disabled()).toBe(true) is the same check
+# through the new API, not an existence check.
+expect: clean
+-- old/packages/frontend/editor-ui/src/features/dataTable/useDataTableColumns.test.ts --
+import { ref } from 'vue';
+import { describe, expect, it } from 'vitest';
+import { useDataTableColumns } from './useDataTableColumns';
+
+describe('useDataTableColumns', () => {
+	it('should disable AddColumn button when readOnly is true', () => {
+		const { columnDefs } = useDataTableColumns({ readOnly: ref(true) });
+		const addColumnCol = columnDefs.value.find((c) => c.colId === 'add-column');
+		expect(addColumnCol?.headerComponentParams).toMatchObject({ disabled: true });
+	});
+});
+-- new/packages/frontend/editor-ui/src/features/dataTable/useDataTableColumns.test.ts --
+import { ref } from 'vue';
+import { describe, expect, it } from 'vitest';
+import { useDataTableColumns } from './useDataTableColumns';
+
+describe('useDataTableColumns', () => {
+	it('should disable AddColumn button when readOnly is true', () => {
+		const { columnDefs } = useDataTableColumns({ readOnly: ref(true) });
+		const addColumnCol = columnDefs.value.find((c) => c.colId === 'add-column');
+		expect(addColumnCol?.headerComponentParams.disabled()).toBe(true);
+	});
+});

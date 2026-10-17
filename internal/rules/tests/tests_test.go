@@ -108,7 +108,6 @@ func TestMessages(t *testing.T) {
 		{"skip-added-playwright-multiline-unconditional", "skip-added", "the condition true always skips"},
 		{"tautology-realworld-note-todo-placeholders", "tautology", "(3 placeholder tests in this file)"},
 		{"tautology-realworld-new-test-only-tautology", "tautology", `(in "stops the state table growing past the cap")`},
-		{"assertion-weakened-realworld-note-enum-became-bool", "assertion-weakened", "is_ignored() changed its signature in this change"},
 		{"assertion-weakened-jest-tobe-true-comparison", "assertion-weakened", "expect(hits).toHaveLength(3) → expect(hits.length > 0).toBe(true)"},
 		{"assertion-commented-replaced-expectation", "assertion-commented", "(replaced by assert q.amount == 27.40)"},
 		{"retry-added-jest-setup-file", "retry-added", "every test that loads jest.setup.ts now retries failures up to 3 times"},

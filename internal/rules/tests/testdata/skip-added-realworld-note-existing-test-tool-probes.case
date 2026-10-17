@@ -1,0 +1,76 @@
+# Real-world (gastown): existing tests that drive external tools skip where
+# the tool is missing or too old: sh not on PATH (the error of an
+# exec.LookPath probe), and a bd CLI that answers "unknown flag" for a flag
+# the test needs. They still run wherever the tools are installed: notes.
+expect: skip-added@info
+-- old/internal/tmux/tmux_test.go --
+package tmux
+
+import (
+	"os/exec"
+	"testing"
+)
+
+func TestValidateCommandBinary(t *testing.T) {
+	shPath, _ := exec.LookPath("sh")
+	if err := ValidateCommandBinary(shPath); err != nil {
+		t.Fatalf("ValidateCommandBinary(%q) = %v, want nil", shPath, err)
+	}
+}
+-- new/internal/tmux/tmux_test.go --
+package tmux
+
+import (
+	"os/exec"
+	"testing"
+)
+
+func TestValidateCommandBinary(t *testing.T) {
+	shPath, err := exec.LookPath("sh")
+	if err != nil {
+		t.Skip("sh not installed")
+	}
+	if err := ValidateCommandBinary(shPath); err != nil {
+		t.Fatalf("ValidateCommandBinary(%q) = %v, want nil", shPath, err)
+	}
+}
+-- old/internal/cmd/scheduler_integration_test.go --
+package cmd
+
+import (
+	"os/exec"
+	"testing"
+)
+
+func TestScheduleBead_RefusesTombstone(t *testing.T) {
+	dir := setupTown(t)
+	out, err := exec.Command("bd", "close", "--tombstone", "gt-1").CombinedOutput()
+	if err != nil {
+		t.Fatalf("bd close --tombstone: %v\n%s", err, out)
+	}
+	if err := scheduleBead(dir, "gt-1"); err == nil {
+		t.Fatal("scheduleBead accepted a tombstoned bead")
+	}
+}
+-- new/internal/cmd/scheduler_integration_test.go --
+package cmd
+
+import (
+	"os/exec"
+	"strings"
+	"testing"
+)
+
+func TestScheduleBead_RefusesTombstone(t *testing.T) {
+	dir := setupTown(t)
+	out, err := exec.Command("bd", "close", "--tombstone", "gt-1").CombinedOutput()
+	if err != nil {
+		if strings.Contains(string(out), "unknown flag: --tombstone") {
+			t.Skip("bd CLI does not support close --tombstone")
+		}
+		t.Fatalf("bd close --tombstone: %v\n%s", err, out)
+	}
+	if err := scheduleBead(dir, "gt-1"); err == nil {
+		t.Fatal("scheduleBead accepted a tombstoned bead")
+	}
+}

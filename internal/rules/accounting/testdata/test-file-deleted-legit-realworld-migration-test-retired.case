@@ -1,0 +1,35 @@
+# Real world (sentry): the test of data migration 1207, which checked that
+# the new_id column became the primary key, was deleted when migration 1214
+# dropped that column. Per-migration tests are retired once a later
+# migration supersedes them.
+expect: clean
+-- new/src/sentry/migrations/1214_drop_release_new_id.py --
+from django.db import migrations
+
+from sentry.new_migrations.migrations import CheckedMigration
+
+
+class Migration(CheckedMigration):
+    is_post_deployment = True
+    dependencies = [("sentry", "1213_release_stop_dual_write")]
+    operations = [migrations.RemoveField(model_name="release", name="new_id")]
+-- old/tests/sentry/migrations/test_1207_release_swap_new_id_primary_key.py --
+from django.db import connection
+
+from sentry.testutils.cases import TestMigrations
+
+
+class SwapReleaseNewIdPrimaryKeyTest(TestMigrations):
+    migrate_from = "1206_release_backfill_new_id"
+    migrate_to = "1207_release_swap_new_id_primary_key"
+
+    def setup_before_migration(self, apps):
+        Release = apps.get_model("sentry", "Release")
+        self.release = Release.objects.create(organization_id=1, version="1.0")
+
+    def test_new_id_became_the_primary_key(self):
+        with connection.cursor() as cursor:
+            cursor.execute("SELECT column_name FROM information_schema.key_column_usage WHERE table_name = 'sentry_release'")
+            columns = [row[0] for row in cursor.fetchall()]
+        assert "new_id" in columns
+        assert "id" not in columns

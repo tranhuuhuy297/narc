@@ -1,8 +1,12 @@
-# A new effect reads a value it does not list as a dependency; silencing react-hooks/exhaustive-deps hides a stale-closure bug, a correctness rule.
+# An existing effect now reads pollMs without listing it; the agent silenced react-hooks/exhaustive-deps on the effect's existing dependency list instead of adding the dependency.
 expect: lint-suppressed@warning
 -- old/src/orders/OrderStatus.tsx --
 export function OrderStatus({ orderId }: { orderId: string }) {
   const [status, setStatus] = useState<Status>("pending");
+  useEffect(() => {
+    const timer = setInterval(async () => setStatus(await fetchStatus(orderId)), 5000);
+    return () => clearInterval(timer);
+  }, [orderId]);
   return <Badge>{status}</Badge>;
 }
 -- new/src/orders/OrderStatus.tsx --
@@ -12,6 +16,6 @@ export function OrderStatus({ orderId, pollMs }: { orderId: string; pollMs: numb
     const timer = setInterval(async () => setStatus(await fetchStatus(orderId)), pollMs);
     return () => clearInterval(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [orderId]);
   return <Badge>{status}</Badge>;
 }

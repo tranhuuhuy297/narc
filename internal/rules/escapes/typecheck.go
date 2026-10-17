@@ -27,6 +27,8 @@ var typeCheckSuppressed = &core.Rule{
 		"```ts\n// bad: the error is hidden, the bug ships\n// @ts-ignore\nconst total = order.items.reduce(sum)\n\n" +
 		"// good: fix the type, or narrow it\nconst total = (order.items ?? []).reduce(sum, 0)\n```\n\n" +
 		"`@ts-expect-error` is reported as a note: it at least fails once the error disappears. " +
+		"A warning needs an ignore on code that was already there (the line, or the declaration it annotates, " +
+		"predates the change) or a file-wide one added to an existing file; ignores written with new code are notes. " +
 		"In test files, `@ts-expect-error` is the normal way to feed deliberately wrong input and is not reported. " +
 		"A narrow, coded ignore (`# type: ignore[arg-type]`) is a note; a bare `@ts-ignore` or `# type: ignore` in " +
 		"source code is a warning, lowered to a note with a concrete reason. Not reported: `@ts-expect-error` in " +
@@ -142,6 +144,12 @@ func checkTypeSuppressed(a *core.Analysis) []core.Finding {
 		}
 		if missingStubs(f, df) {
 			sev = core.Info // the library ships no types: no error in this code is hidden
+		}
+		// New code that silences the checker is a note; what weakens an
+		// existing check is an ignore on code that used to type-check, or a
+		// file-wide one added to an existing file.
+		if sev > core.Info && !directiveOnExisting(f, s, changedLines(f), df) {
+			sev = core.Info
 		}
 		fd := newFinding(typeCheckSuppressed, f, df.line.No, typeMessage(f.Lang, df))
 		fd.Severity = sev

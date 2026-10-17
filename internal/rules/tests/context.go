@@ -105,14 +105,14 @@ func suitesAround(get lineGetter, n int) []string {
 		if !ok {
 			break
 		}
-		if punctuationOnly(l.Code) {
+		if punctuationOnly(l.Code) || startsInString(l.Code) {
 			continue
 		}
 		if li := indent(l.Raw); li < ind {
 			if t := declName(l); t.ok() {
 				out = append(out, t.name)
 			}
-			ind = li
+			ind = headerIndent(l, li)
 		}
 	}
 	return out
@@ -153,7 +153,7 @@ type lineGetter func(n int) (lang.LexedLine, bool)
 // testAboveIn is testAbove on the version of a file that get reads.
 func testAboveIn(get lineGetter, n int, sameLevel bool) testName {
 	cur, ok := get(n)
-	if !ok {
+	if !ok || sameLevel && !closesBlock(cur.Code) {
 		return testName{}
 	}
 	ind := indent(cur.Raw)
@@ -162,8 +162,8 @@ func testAboveIn(get lineGetter, n int, sameLevel bool) testName {
 		if !ok {
 			break
 		}
-		if punctuationOnly(l.Code) {
-			continue // blank, or a lone "{" in brace-on-its-own-line styles
+		if punctuationOnly(l.Code) || startsInString(l.Code) {
+			continue // blank, a lone "{" in brace-on-its-own-line styles, or string content
 		}
 		li := indent(l.Raw)
 		if li > ind || li == ind && !sameLevel {
@@ -175,9 +175,42 @@ func testAboveIn(get lineGetter, n int, sameLevel bool) testName {
 		if sameLevel {
 			return testName{}
 		}
-		ind = li
+		ind = headerIndent(l, li)
 	}
 	return testName{}
+}
+
+// headerIndent is the indentation below which the scans above look for an
+// enclosing declaration after reaching line l at indentation li. A line
+// that closes a bracket and opens a block, `}) => {` or `) {`, ends a
+// declaration header that a formatter split over several lines
+// (`test("name", async ({` / `page,` / `}) => {`): the declaration starts
+// above at the same indentation, so that indentation still qualifies.
+func headerIndent(l lang.LexedLine, li int) int {
+	c := strings.TrimSpace(l.Code)
+	if closesBlock(c) && (strings.HasSuffix(c, "{") || strings.HasSuffix(c, ":")) && !strings.Contains(c, "else") {
+		return li + 1
+	}
+	return li
+}
+
+// closesBlock reports whether a line starts by closing a bracket, as the
+// last line of a declaration does (`}, skip: true);`, `})->only();`). Only
+// such a line can belong to the declaration above it at the same
+// indentation: any other line there is a sibling statement, e.g. the next
+// `it.skipIf(cond)(` after the previous test's `});`.
+func closesBlock(code string) bool {
+	c := strings.TrimSpace(code)
+	return c != "" && strings.ContainsRune("})]", rune(c[0]))
+}
+
+// startsInString reports whether a line starts with a string delimiter:
+// the end of a multi-line string (a Go raw string or template literal
+// whose content sits at column 0) or a string argument on a line of its
+// own. Its indentation says nothing about the block structure.
+func startsInString(code string) bool {
+	c := strings.TrimSpace(code)
+	return c != "" && strings.ContainsRune("\"'`", rune(c[0]))
 }
 
 func punctuationOnly(s string) bool {
@@ -265,6 +298,7 @@ var (
 	switchRe     = regexp.MustCompile(`^\s*(?:switch|select)\b\s*(.*)$`)
 	inlineIfRe   = regexp.MustCompile(`\b(?:if|unless|guard|elif)\b\s*(.*)$`)
 	postfixIfRe  = regexp.MustCompile(`\b(?:if|unless)\b\s*(.+)$`)
+	caseRe       = regexp.MustCompile(`^\s*case\b\s*(.+?)\s*:?\s*$`)
 	branchRe     = regexp.MustCompile(`^\s*(?:\}\s*)?(?:else\s*(?:\{|:)?\s*$|case\b|default\s*:)`)
 	condTailTrim = regexp.MustCompile(`(?:\{|:|\bthen|\bdo)\s*$`)
 	// catchRe matches the head of an exception handler: a skip inside one
@@ -292,7 +326,9 @@ func guardIn(get lineGetter, lg lang.Lang, l core.Line, vt string, pos, end int)
 	}
 	ind := indent(l.Raw)
 	seen := 0
-	for k := l.No - 1; k >= 1 && seen < 6; k-- {
+	caseExpr := ""  // the case the statement sits under, in a tagless switch
+	branch := false // a branch was crossed: the lines above belong to other branches
+	for k := l.No - 1; k >= 1 && k >= l.No-80 && seen < 6; k-- {
 		prev, ok := get(k)
 		if !ok {
 			break
@@ -300,14 +336,22 @@ func guardIn(get lineGetter, lg lang.Lang, l core.Line, vt string, pos, end int)
 		if strings.TrimSpace(prev.Code) == "" {
 			continue
 		}
-		seen++
 		pi := indent(prev.Raw)
+		if pi >= ind && branch {
+			continue // the body of an earlier case or branch
+		}
+		seen++
 		if pi >= ind {
 			continue // an earlier statement in the same block
 		}
 		pvt, _ := valueText(core.Line{LexedLine: prev}, lg)
 		if branchRe.MatchString(pvt) {
-			ind = pi // an else/case branch: look for the if/switch it belongs to
+			if m := caseRe.FindStringSubmatch(pvt); m != nil && caseExpr == "" {
+				caseExpr = cleanCond(m[1])
+			}
+			// An else/case branch: look for the if/switch it belongs to,
+			// which gofmt and most styles put at the branch's indentation.
+			ind, branch = pi+1, true
 			continue
 		}
 		if m := guardRe.FindStringSubmatch(pvt); m != nil {
@@ -317,7 +361,10 @@ func guardIn(get lineGetter, lg lang.Lang, l core.Line, vt string, pos, end int)
 			return catchCond, true // try { probe() } catch { t.skip() }
 		}
 		if m := switchRe.FindStringSubmatch(pvt); m != nil {
-			return cleanCond(m[1]), true
+			if tag := cleanCond(m[1]); tag != "" || caseExpr == "" {
+				return tag, true
+			}
+			return caseExpr, true // switch { case pullErr == nil && delivered: ... }
 		}
 		return "", false // some other block (a function, a loop, the test itself)
 	}
@@ -358,9 +405,12 @@ var envWords = map[string]bool{
 	"short": true, "slow": true, "platform": true, "env": true, "environ": true, "environment": true,
 	"os": true, "goos": true, "goarch": true, "browser": true, "webkit": true, "firefox": true, "chromium": true,
 	"safari": true, "headless": true, "mobile": true, "sudo": true, "cgo": true, "race": true, "installed": true,
-	"sys": true,
+	"sys": true, "bazel": true,
 	// capabilities of the machine or file system
-	"available": true, "unavailable": true, "supported": true, "unsupported": true, "inode": true, "ino": true,
+	// ("available", "supported" and "installed" are not here: on a value the
+	// test computed, `!quote.available`, they are the code's answer. Named
+	// flags such as dockerAvailable() are matched by capabilityFlagRe.)
+	"inode": true, "ino": true,
 	"symlink": true, "symlinks": true, "hardlink": true, "posix": true, "unix": true, "root": true, "uid": true,
 	"euid": true, "getuid": true, "geteuid": true, "privileged": true, "elevated": true, "tty": true, "isatty": true,
 	"permission": true, "permissions": true,

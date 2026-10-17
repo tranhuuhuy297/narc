@@ -1,0 +1,57 @@
+# Real-world (gastown): a new test installs a stub binary written as a Go raw
+# string whose lines sit at column 0, and skips when the stub left no log.
+# The raw string must not hide which test the skip belongs to: it is a new
+# test, and its conditional skip explains itself.
+expect: clean
+-- old/internal/convoy/operations_test.go --
+package convoy
+
+import "testing"
+
+func TestFireCrossRigDepNotifications_NilStores(t *testing.T) {
+	FireCrossRigDepNotifications(nil, "bd-closed", t.TempDir(), nil, t.Logf)
+}
+-- new/internal/convoy/operations_test.go --
+package convoy
+
+import (
+	"context"
+	"fmt"
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
+)
+
+func TestFireCrossRigDepNotifications_NilStores(t *testing.T) {
+	FireCrossRigDepNotifications(nil, "bd-closed", t.TempDir(), nil, t.Logf)
+}
+
+func TestFireCrossRigDepNotifications_NotifiesWitnessOnCrossRigBlocker(t *testing.T) {
+	ctx := context.Background()
+	store := newTestStore(t)
+	townRoot := t.TempDir()
+	binDir := filepath.Join(townRoot, "bin")
+	if err := os.MkdirAll(binDir, 0o755); err != nil {
+		t.Fatalf("MkdirAll binDir: %v", err)
+	}
+	gtLogPath := filepath.Join(townRoot, "gt.log")
+	gtScript := fmt.Sprintf(`#!/bin/sh
+echo "CMD:$*" >> %q
+exit 0
+`, gtLogPath)
+	if err := os.WriteFile(filepath.Join(binDir, "gt"), []byte(gtScript), 0o755); err != nil {
+		t.Fatalf("write gt stub: %v", err)
+	}
+	t.Setenv("PATH", binDir+string(os.PathListSeparator)+os.Getenv("PATH"))
+
+	FireCrossRigDepNotifications(ctx, "bd-closed", townRoot, map[string]Storage{"gastown": store}, t.Logf)
+
+	logData, err := os.ReadFile(gtLogPath)
+	if err != nil {
+		t.Skipf("gt stub not called (no log): %v", err)
+	}
+	if !strings.Contains(string(logData), "nudge") {
+		t.Errorf("expected gt nudge in log, got: %q", logData)
+	}
+}

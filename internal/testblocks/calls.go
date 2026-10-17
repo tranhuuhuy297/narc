@@ -19,8 +19,10 @@ const (
 )
 
 type callSpec struct {
-	// head finds candidate calls; group 1 is the callee.
+	// head finds candidate calls; group 1 is the callee. need lists words
+	// one of which every match contains on its first line.
 	head *regexp.Regexp
+	need []string
 	// classify maps the callee and its member chain (test.describe.serial
 	// is "test" + [describe serial]) to a kind and an unconditional skip.
 	classify func(callee string, chain []string) (callKind, bool)
@@ -50,6 +52,7 @@ func set(words ...string) map[string]bool {
 
 var jsCalls = &callSpec{
 	head:      regexp.MustCompile(`(?m)(?:^|[^\w$.>:#@])([xf]?(?:it|test|specify|describe|context|suite)|Deno\s*\.\s*test)\b`),
+	need:      []string{"it", "test", "specify", "describe", "context", "suite", "Deno"},
 	classify:  classifyJS,
 	paramMods: set("each", "for", "runIf", "skipIf", "prop"),
 	sep:       " > ",
@@ -57,6 +60,7 @@ var jsCalls = &callSpec{
 
 var trailingCalls = &callSpec{
 	head:       regexp.MustCompile(`(?m)(?:^|[^\w$.])([xf]?(?:test|it|should|describe|context)|ignore)\b`),
+	need:       []string{"test", "it", "should", "describe", "context", "ignore"},
 	classify:   classifyTrailing,
 	trailing:   true,
 	requireLit: true,
@@ -68,6 +72,7 @@ var callSpecs = map[lang.Lang]*callSpec{
 	lang.TypeScript: jsCalls,
 	lang.Dart: {
 		head: regexp.MustCompile(`(?m)(?:^|[^\w$.])(test|testWidgets|testGoldens|blocTest|patrolTest|group)\b`),
+		need: []string{"test", "blocTest", "patrolTest", "group"},
 		classify: func(callee string, _ []string) (callKind, bool) {
 			if callee == "group" {
 				return callSuite, false
@@ -79,6 +84,7 @@ var callSpecs = map[lang.Lang]*callSpec{
 	},
 	lang.PHP: { // Pest
 		head: regexp.MustCompile(`(?m)(?:^|[^\w$>:\\])(it|test|describe)\b`),
+		need: []string{"it", "test", "describe"},
 		classify: func(callee string, _ []string) (callKind, bool) {
 			if callee == "describe" {
 				return callSuite, false
@@ -97,6 +103,7 @@ var callSpecs = map[lang.Lang]*callSpec{
 
 var cppCalls = &callSpec{
 	head: regexp.MustCompile(`(?m)(?:^|[^\w])(TEST|TEST_F|TEST_P|TYPED_TEST|TYPED_TEST_P|TEST_CASE|TEST_CASE_METHOD|TEMPLATE_TEST_CASE|SCENARIO)\b`),
+	need: []string{"TEST", "SCENARIO"},
 	classify: func(string, []string) (callKind, bool) {
 		return callTest, false
 	},
@@ -188,7 +195,7 @@ func findCalls(t *text, spec *callSpec, classes []scope) []raw {
 	}
 	suites := append([]scope(nil), classes...)
 	var tests []test
-	for _, m := range spec.head.FindAllStringSubmatchIndex(t.code, -1) {
+	for _, m := range t.findAll(spec.head, spec.need) {
 		cs, ce := m[2], m[3]
 		from := cs - 40
 		if from < 0 {

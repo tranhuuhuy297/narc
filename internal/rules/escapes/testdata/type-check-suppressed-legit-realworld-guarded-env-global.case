@@ -1,0 +1,10 @@
+# A new cross-browser helper returns the Firefox/Safari `browser` global behind a typeof guard; @ts-ignore hides only "cannot find name 'browser'" in code the change writes, a note.
+expect: type-check-suppressed@info
+-- new/src/lib/extension-api.ts --
+export function getExtensionApi(): typeof chrome {
+  if (typeof browser !== 'undefined' && browser.runtime) {
+    // @ts-ignore
+    return browser;
+  }
+  return chrome;
+}

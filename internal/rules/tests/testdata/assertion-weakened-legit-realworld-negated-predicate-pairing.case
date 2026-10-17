@@ -1,0 +1,31 @@
+# Real-world (qwen-code): a panel test that checked no batch action was
+# disabled now looks up one action button and clicks it. The removed check
+# was a negated predicate over a callback whose parameter happens to be
+# named like the new variable; the two assertions are about different
+# things.
+expect: clean
+-- old/packages/web-shell/client/components/SessionOverviewPanel.test.tsx --
+import { render, screen } from '@testing-library/react';
+import { describe, expect, it } from 'vitest';
+import { SessionOverviewPanel } from './SessionOverviewPanel';
+
+describe('SessionOverviewPanel', () => {
+  it('shows batch actions only while selected and keeps pagination', () => {
+    render(<SessionOverviewPanel sessions={sessions} selected={['s1']} />);
+    const actions = screen.getAllByRole('button', { name: /archive|delete/i });
+    expect(actions.every((button) => button.disabled)).toBe(false);
+  });
+});
+-- new/packages/web-shell/client/components/SessionOverviewPanel.test.tsx --
+import { render, screen } from '@testing-library/react';
+import { describe, expect, it } from 'vitest';
+import { SessionOverviewPanel } from './SessionOverviewPanel';
+
+describe('SessionOverviewPanel', () => {
+  it('shows batch actions only while selected and keeps pagination', () => {
+    render(<SessionOverviewPanel sessions={sessions} selected={['s1']} />);
+    const button = document.querySelector('[data-batch-action="archive"]');
+    expect(button).not.toBeNull();
+    expect(screen.getByText('1 selected')).toBeInTheDocument();
+  });
+});

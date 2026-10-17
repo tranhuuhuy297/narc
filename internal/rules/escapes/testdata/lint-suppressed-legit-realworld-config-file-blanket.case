@@ -1,0 +1,22 @@
+# A Next.js upgrade adds `/* eslint-disable */` to an existing next.config.js, following the app's other config files (cal.com): tool settings, not product code.
+expect: lint-suppressed@info
+-- old/apps/api/v1/next.config.js --
+const { withAxiom } = require("next-axiom");
+
+module.exports = withAxiom({
+  transpilePackages: ["@calcom/app-store", "@calcom/lib"],
+  async headers() {
+    return [{ source: "/:path*", headers: [{ key: "X-Robots-Tag", value: "noindex" }] }];
+  },
+});
+-- new/apps/api/v1/next.config.js --
+/* eslint-disable */
+const { withAxiom } = require("next-axiom");
+
+module.exports = withAxiom({
+  transpilePackages: ["@calcom/app-store", "@calcom/lib"],
+  turbopack: {},
+  async headers() {
+    return [{ source: "/:path*", headers: [{ key: "X-Robots-Tag", value: "noindex" }] }];
+  },
+});

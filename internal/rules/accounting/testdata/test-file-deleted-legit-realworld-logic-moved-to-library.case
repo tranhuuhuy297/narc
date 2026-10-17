@@ -1,0 +1,116 @@
+# Real world (home-assistant): the poll retry and link tuning moved into
+# the sofar-modbus library, so the coordinator lost that logic, the link
+# tuner class went away, and the test of what the coordinator told the
+# tuner was deleted with it.
+expect: clean
+-- old/homeassistant/components/sofar/coordinator.py --
+"""Coordinator for the Sofar integration."""
+
+from modbus_connection import ModbusError, ModbusTimeoutError
+from sofar_modbus import SofarClient, UpdateReport
+
+from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
+
+
+class LinkTuner:
+    """Stretches the Modbus timeout after timeouts, shrinks it after successes."""
+
+    def __init__(self, base: float = 1.0, ceiling: float = 8.0) -> None:
+        self.base = base
+        self.ceiling = ceiling
+        self.timeout = base
+        self.streak = 0
+
+    def record_timeout(self) -> None:
+        self.streak = 0
+        self.timeout = min(self.timeout * 2, self.ceiling)
+
+    def record_success(self) -> None:
+        self.streak += 1
+        if self.streak >= 3:
+            self.timeout = max(self.timeout / 2, self.base)
+            self.streak = 0
+
+    def settings(self) -> dict[str, float]:
+        return {"timeout": self.timeout}
+
+
+class SofarCoordinator(DataUpdateCoordinator[UpdateReport]):
+    """Polls the inverter and tunes the link after timeouts."""
+
+    def __init__(self, hass, client: SofarClient, tuner) -> None:
+        super().__init__(hass, logger=None, name="sofar")
+        self.client = client
+        self.tuner = tuner
+
+    async def _async_update_data(self) -> UpdateReport:
+        report = await self.client.poll()
+        failed = [group for group, err in report.errors.items() if isinstance(err, ModbusError)]
+        if failed:
+            retry = await self.client.poll(groups=failed)
+            timed_out = any(
+                isinstance(err, ModbusTimeoutError)
+                for err in (*report.errors.values(), *retry.errors.values())
+            )
+            if timed_out:
+                self.tuner.record_timeout()
+            else:
+                self.tuner.record_success()
+            report = report.merge(retry)
+        else:
+            self.tuner.record_success()
+        if report.errors and not report.values:
+            raise UpdateFailed("inverter did not answer")
+        self.client.apply_tuning(self.tuner.settings())
+        return report
+-- new/homeassistant/components/sofar/coordinator.py --
+"""Coordinator for the Sofar integration."""
+
+from sofar_modbus import SofarClient, UpdateReport
+
+from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
+
+
+class SofarCoordinator(DataUpdateCoordinator[UpdateReport]):
+    """Polls the inverter; sofar-modbus retries and tunes the link."""
+
+    def __init__(self, hass, client: SofarClient) -> None:
+        super().__init__(hass, logger=None, name="sofar")
+        self.client = client
+
+    async def _async_update_data(self) -> UpdateReport:
+        report = await self.client.poll()
+        if report.errors and not report.values:
+            raise UpdateFailed("inverter did not answer")
+        return report
+-- old/tests/components/sofar/test_tuning.py --
+"""Tests for what the Sofar coordinator tells the link tuner."""
+
+from unittest.mock import AsyncMock, MagicMock
+
+from modbus_connection import ModbusTimeoutError, ServerDeviceBusyError
+import pytest
+
+from homeassistant.components.sofar.coordinator import SofarCoordinator
+
+SLOW = ModbusTimeoutError("slow")
+BUSY = ServerDeviceBusyError("busy")
+
+
+@pytest.mark.parametrize(
+    ("first", "retry"),
+    [
+        pytest.param(BUSY, SLOW, id="only_the_retry_timed_out"),
+        pytest.param(SLOW, None, id="the_retry_recovered"),
+    ],
+)
+async def test_tuner_hears_a_timeout_either_attempt_hit(hass, first, retry) -> None:
+    client = MagicMock()
+    client.poll = AsyncMock(side_effect=[_report(first), _report(retry)])
+    tuner = MagicMock()
+    coordinator = SofarCoordinator(hass, client, tuner)
+
+    await coordinator._async_update_data()
+
+    tuner.record_timeout.assert_called_once()
+    tuner.record_success.assert_not_called()

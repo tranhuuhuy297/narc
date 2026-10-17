@@ -1,5 +1,5 @@
-# An existing suppression was widened to a second rule; only the new rule is reported.
-expect: lint-suppressed@warning
+# An existing suppression was widened to a second rule for a new alert() call; only the new rule is reported, as a note on new code.
+expect: lint-suppressed@info
 -- old/src/cli/progress.ts --
 export function report(done: number, total: number) {
   // eslint-disable-next-line no-console

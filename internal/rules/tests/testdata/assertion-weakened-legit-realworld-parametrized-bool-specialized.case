@@ -1,0 +1,42 @@
+# Real-world (PostHog): the API stops accepting a dag_id, so a parametrized
+# test whose expectation was a boolean expression of the parameter
+# (`exists() == (expected_status == 201)`) becomes a plain test of the case
+# that is left, asserting exists() directly. The same check, specialized.
+expect: clean
+-- old/products/data_warehouse/backend/tests/api/test_saved_query_write_fields.py --
+from unittest.mock import patch
+
+from parameterized import parameterized
+from posthog.test.base import APIBaseTest
+
+from products.data_modeling.backend.facade.models import DAG, DataWarehouseSavedQuery
+
+
+class TestSavedQueryWriteFields(APIBaseTest):
+    @parameterized.expand([("supplied", True, 400), ("omitted", False, 201)])
+    def test_create_reports_a_discarded_dag_placement_only_when_asked_for(
+        self, _name: str, supply_dag_id: bool, expected_status: int
+    ) -> None:
+        dag = DAG.objects.create(team=self.team, name="Other")
+        fields = {"dag_id": str(dag.id)} if supply_dag_id else {}
+        with patch("products.data_modeling.backend.facade.api.sync_saved_query_to_dag", side_effect=RuntimeError):
+            response = self._create_view(**fields)
+        self.assertEqual(response.status_code, expected_status, response.content)
+        self.assertEqual(
+            DataWarehouseSavedQuery.objects.filter(team=self.team, name="event_view").exists(),
+            expected_status == 201,
+        )
+-- new/products/data_warehouse/backend/tests/api/test_saved_query_write_fields.py --
+from unittest.mock import patch
+
+from posthog.test.base import APIBaseTest
+
+from products.data_modeling.backend.facade.models import DAG, DataWarehouseSavedQuery
+
+
+class TestSavedQueryWriteFields(APIBaseTest):
+    def test_create_keeps_the_view_when_the_dag_sync_fails(self) -> None:
+        with patch("products.data_modeling.backend.facade.api.sync_saved_query_to_dag", side_effect=RuntimeError):
+            response = self._create_view()
+        self.assertEqual(response.status_code, 201, response.content)
+        self.assertTrue(DataWarehouseSavedQuery.objects.filter(team=self.team, name="event_view").exists())

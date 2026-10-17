@@ -25,5 +25,19 @@
 // not collect (x.test.js → x.disabled.js). It excuses deletions whose code
 // under test was deleted, duplicates of tests that remain (in the change or
 // in an unchanged file nearby), and assertions replaced by a run-time skip
-// (reported by skip-added). See docs/ARCHITECTURE.md.
+// (reported by skip-added).
+//
+// Severity follows what the change did to verification that already
+// existed: an error when a check stopped running next to an edit of the
+// code it exercised ("break the code, delete the test"), or when
+// assertions were simply deleted; a warning when the loss needs a human
+// look; info when it reads as a rework or a removal (the code, flag or
+// module under test went away, the test was rewritten, renamed narrower or
+// replaced by a lookalike). Deletions are reported per file, and pruning
+// passes and test-only assertion cleanups once per change.
+//
+// Most tests of a changed file are untouched by the diff. Their
+// assertions are counted only on demand (testblocks.FindLazy), and the
+// assertion statements far from every hunk are not counted at all, since
+// they read the same on both sides. See docs/ARCHITECTURE.md.
 package accounting

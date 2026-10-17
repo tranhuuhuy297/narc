@@ -1,0 +1,11 @@
+# A post-merge reminder hook is deleted; it only printed advice that mentions the test command and never ran a check.
+expect: clean
+-- old/.husky/post-merge --
+#!/usr/bin/env sh
+changed() {
+  git diff --name-only HEAD@{1} HEAD | grep -q "$1"
+}
+if changed "pnpm-lock.yaml"; then
+  echo "Dependencies changed: run pnpm install && pnpm test before pushing"
+  printf '%s\n' "Tip: pnpm vitest run --changed checks only what you touched"
+fi

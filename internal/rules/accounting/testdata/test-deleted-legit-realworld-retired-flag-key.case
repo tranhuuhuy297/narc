@@ -1,0 +1,54 @@
+# Real world (sentry): the snapshot PR comment head check went GA, so its
+# feature flag was unregistered and the `features.has(...)` gate removed;
+# the test of the flag-off path, which turned that flag off by name, was
+# deleted with it: info.
+expect: test-deleted@info
+-- old/src/sentry/preprod/vcs/pr_comments/snapshot_tasks.py --
+from sentry import features
+
+
+def post_snapshot_pr_comment(organization, client, pr) -> None:
+    if features.has("organizations:preprod-snapshot-pr-comment-head-check", organization):
+        head = client.get_pull_request(pr.number)["head"]["sha"]
+        if head != pr.head_sha:
+            return
+    client.create_comment(pr.number, render_snapshot_comment(pr))
+-- new/src/sentry/preprod/vcs/pr_comments/snapshot_tasks.py --
+def post_snapshot_pr_comment(organization, client, pr) -> None:
+    head = client.get_pull_request(pr.number)["head"]["sha"]
+    if head != pr.head_sha:
+        return
+    client.create_comment(pr.number, render_snapshot_comment(pr))
+-- old/tests/sentry/preprod/vcs/pr_comments/test_snapshot_tasks.py --
+from unittest import mock
+
+from sentry.preprod.vcs.pr_comments.snapshot_tasks import post_snapshot_pr_comment
+from sentry.testutils.cases import TestCase
+
+
+class PostSnapshotPrCommentTaskTest(TestCase):
+    def test_skips_comment_when_head_moved(self):
+        client = mock.Mock()
+        client.get_pull_request.return_value = {"head": {"sha": "new"}}
+        post_snapshot_pr_comment(self.organization, client, mock.Mock(number=7, head_sha="old"))
+        client.create_comment.assert_not_called()
+
+    def test_creates_comment_without_head_check_when_feature_disabled(self):
+        client = mock.Mock()
+        with self.feature({"organizations:preprod-snapshot-pr-comment-head-check": False}):
+            post_snapshot_pr_comment(self.organization, client, mock.Mock(number=7, head_sha="old"))
+        client.get_pull_request.assert_not_called()
+        client.create_comment.assert_called_once()
+-- new/tests/sentry/preprod/vcs/pr_comments/test_snapshot_tasks.py --
+from unittest import mock
+
+from sentry.preprod.vcs.pr_comments.snapshot_tasks import post_snapshot_pr_comment
+from sentry.testutils.cases import TestCase
+
+
+class PostSnapshotPrCommentTaskTest(TestCase):
+    def test_skips_comment_when_head_moved(self):
+        client = mock.Mock()
+        client.get_pull_request.return_value = {"head": {"sha": "new"}}
+        post_snapshot_pr_comment(self.organization, client, mock.Mock(number=7, head_sha="old"))
+        client.create_comment.assert_not_called()

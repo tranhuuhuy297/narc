@@ -1,0 +1,64 @@
+# New model-backed lint steps are appended to a test job under a section comment that declares them advisory (findings become annotations, never a failure); nothing that gated before is relaxed.
+expect: clean
+-- old/.github/workflows/test.yml --
+name: Test
+on:
+  push:
+    branches: [canary]
+  pull_request:
+jobs:
+  test-desktop:
+    name: Test Desktop App
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Install deps
+        run: bun install --frozen-lockfile
+      - name: Test desktop
+        run: bun run --filter desktop test:coverage
+      - name: Upload coverage
+        uses: codecov/codecov-action@v5
+        with:
+          files: ./apps/desktop/coverage/lcov.info
+-- new/.github/workflows/test.yml --
+name: Test
+on:
+  push:
+    branches: [canary]
+  pull_request:
+jobs:
+  test-desktop:
+    name: ALint & Test Desktop App
+    runs-on: ubuntu-latest
+    env:
+      ALINT_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Install deps
+        run: bun install --frozen-lockfile
+      - name: Test desktop
+        run: bun run --filter desktop test:coverage
+      - name: Upload coverage
+        uses: codecov/codecov-action@v5
+        with:
+          files: ./apps/desktop/coverage/lcov.info
+
+      # ---- alint: model-backed lint rules on this push's diff ----
+      # Advisory: findings land as inline warning annotations and a job summary,
+      # never as a failure. Skipped when the provider secret is unavailable (forks).
+      - name: alint · expose the diff against the base as dirty changes
+        if: ${{ !cancelled() && env.ALINT_API_KEY != '' }}
+        continue-on-error: true
+        run: |
+          git fetch --no-tags --depth=1 origin "${MERGE_BASE}"
+          git reset --mixed "${MERGE_BASE}"
+
+      - name: alint · lint changed files
+        if: ${{ !cancelled() && env.ALINT_API_KEY != '' }}
+        continue-on-error: true
+        run: |
+          node_modules/.bin/alint --dirty --format json > alint-output.json || status=$?
+          if [ "${status:-0}" = "2" ]; then cat alint-output.json; exit 2; fi
+          bun packages/alint/annotate.ts alint-output.json

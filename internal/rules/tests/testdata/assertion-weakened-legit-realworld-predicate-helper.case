@@ -1,0 +1,33 @@
+# Real-world (PostHog): a new launch step is inserted before the preparation
+# command, so the expected command list shifts by one. The new check on
+# commands[1] calls a predicate helper of the test module; that is as
+# specific as the helper, not an existence check, and the prefix check moved
+# to commands[2].
+expect: clean
+-- old/products/tasks/backend/logic/services/tests/test_modal_sandbox.py --
+from products.tasks.backend.logic.services.modal_sandbox import start_agent_server
+
+
+def _is_preflight_command(command: str) -> bool:
+    return command.startswith("bash -lc 'command -v node'")
+
+
+class TestStartAgentServer:
+    def test_start_agent_server_separates_task_cleanup(self, sandbox):
+        commands = start_agent_server(sandbox, task_id="t-1")
+        assert _is_preflight_command(commands[0])
+        assert commands[1].startswith("bash /tmp/posthog-launch-preparation-")
+-- new/products/tasks/backend/logic/services/tests/test_modal_sandbox.py --
+from products.tasks.backend.logic.services.modal_sandbox import start_agent_server
+
+
+def _is_preflight_command(command: str) -> bool:
+    return command.startswith("bash -lc 'command -v node'")
+
+
+class TestStartAgentServer:
+    def test_start_agent_server_separates_task_cleanup(self, sandbox):
+        commands = start_agent_server(sandbox, task_id="t-1")
+        assert commands[0] == "mkdir -p /tmp/posthog-task-home"
+        assert _is_preflight_command(commands[1])
+        assert commands[2].startswith("bash /tmp/posthog-launch-preparation-")

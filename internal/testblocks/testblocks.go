@@ -48,6 +48,29 @@ type Block struct {
 	// the input. For a complete file this only means the test runs to EOF
 	// (normal for Python); for a fragment its body is cut off.
 	Open bool
+
+	// lazy holds what Count needs for a test found by FindLazy whose
+	// assertions were not counted yet (nil once counted).
+	lazy *lazyBlock
+}
+
+// lazyBlock is a test whose assertions FindLazy left uncounted.
+type lazyBlock struct {
+	t *text
+	r raw
+}
+
+// Counted reports whether the assertion fields (Assertions,
+// AssertionLines, Unreachable, Inert, Return) are filled in. They always
+// are for Find; for FindLazy, call Count first.
+func (b *Block) Counted() bool { return b.lazy == nil }
+
+// Count fills in the assertion fields of a test found by FindLazy. It is a
+// no-op for a test that was already counted.
+func (b *Block) Count() {
+	if b.lazy != nil {
+		*b = b.lazy.t.block(b.lazy.r)
+	}
 }
 
 // Supported reports whether Find recognizes tests written in l.
@@ -61,7 +84,14 @@ func Supported(l lang.Lang) bool {
 
 // Find returns the tests in lines, in source order. Tests nested inside
 // other tests are folded into their parent.
-func Find(l lang.Lang, lines []lang.LexedLine) []Block {
+func Find(l lang.Lang, lines []lang.LexedLine) []Block { return FindLazy(l, lines, nil) }
+
+// FindLazy is Find, but it counts the assertions only of the tests for
+// which count reports true, given the test's 1-based, inclusive line range
+// (all tests when count is nil). The others are counted by Block.Count,
+// when needed: callers that compare two versions of a file can skip the
+// tests that the change did not touch.
+func FindLazy(l lang.Lang, lines []lang.LexedLine, count func(start, end int) bool) []Block {
 	if len(lines) == 0 || !Supported(l) {
 		return nil
 	}
@@ -85,6 +115,11 @@ func Find(l lang.Lang, lines []lang.LexedLine) []Block {
 	found = outermost(found)
 	out := make([]Block, 0, len(found))
 	for _, r := range found {
+		if count != nil && !count(r.start+1, r.end+1) {
+			out = append(out, Block{Name: r.name, Bare: r.bare, Start: r.start + 1, Header: r.header + 1,
+				End: r.end + 1, Skipped: r.skipped, Open: r.open, lazy: &lazyBlock{t, r}})
+			continue
+		}
 		out = append(out, t.block(r))
 	}
 	return out
@@ -277,7 +312,11 @@ func (t *text) braceDead(header, end, to int) ([]span, int) {
 	var out []span
 	ret := -1
 	from := t.off[header]
-	for _, m := range ifFalseRe.FindAllStringIndex(t.code[from:to], -1) {
+	text := t.code[from:to]
+	if !strings.Contains(text, "false") && !strings.Contains(text, "(0") && !strings.Contains(text, "( 0") {
+		text = "" // no if (false) / if (0) block: skip the expression
+	}
+	for _, m := range ifFalseRe.FindAllStringIndex(text, -1) {
 		open := from + m[1] - 1
 		close, _ := t.closeOf(open)
 		out = append(out, span{open, min(close, to)})
@@ -392,6 +431,72 @@ func newText(l lang.Lang, lines []lang.LexedLine) *text {
 	t.code = b.String()
 	return t
 }
+
+// findAll returns the submatch indexes of re in text.code, like
+// re.FindAllStringSubmatchIndex(t.code, -1), for patterns whose matches
+// start on a line that contains one of the need words. It runs re on a
+// window of a few lines from each such line instead of on the whole file,
+// which keeps large files linear and skips most lines without running the
+// expression at all. Only matches that start on the window's first line
+// are kept, so each is reported once.
+func (t *text) findAll(re *regexp.Regexp, need []string) [][]int {
+	var out [][]int
+	last := len(t.lines) - 1
+	for i, ll := range t.lines {
+		if !containsWord(ll.Code, need) {
+			continue
+		}
+		from := t.off[i]
+		end := min(i+findWindow, last)
+		to := t.off[end] + len(t.lines[end].Code)
+		first := len(ll.Code) // offset of line i's newline in the window
+		for _, m := range re.FindAllStringSubmatchIndex(t.code[from:to], -1) {
+			if m[0] >= first {
+				break // starts on a later line (or its newline), searched on its own
+			}
+			for k := range m {
+				if m[k] >= 0 {
+					m[k] += from
+				}
+			}
+			out = append(out, m)
+		}
+	}
+	return out
+}
+
+// containsWord reports whether code contains one of the words as a whole
+// word, optionally prefixed by x or f (xit, fdescribe), or as the start
+// of a longer identifier for words that end in an upper-case letter
+// (TEST_F, TEST_CASE): the cheap test findAll runs before a pattern.
+func containsWord(code string, words []string) bool {
+	for _, w := range words {
+		for from := 0; ; {
+			k := strings.Index(code[from:], w)
+			if k < 0 {
+				break
+			}
+			p, end := from+k, from+k+len(w)
+			from = p + 1
+			left := p == 0 || !isWordByte(code[p-1]) ||
+				(code[p-1] == 'x' || code[p-1] == 'f') && (p == 1 || !isWordByte(code[p-2]))
+			upper := w[len(w)-1] >= 'A' && w[len(w)-1] <= 'Z'
+			right := end == len(code) || !isWordByte(code[end]) || upper || isUpperStart(code[end])
+			if left && right {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// isUpperStart reports an upper-case letter, which starts a new word in a
+// camelCase name (testWidgets, blocTest are matched by their own words).
+func isUpperStart(c byte) bool { return c >= 'A' && c <= 'Z' }
+
+// findWindow is how many lines after a candidate line findAll lets a
+// match run on.
+const findWindow = 3
 
 // lineOf returns the 0-based line index that contains offset pos.
 func (t *text) lineOf(pos int) int {

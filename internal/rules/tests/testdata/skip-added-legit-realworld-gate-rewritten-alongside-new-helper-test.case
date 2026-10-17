@@ -1,0 +1,124 @@
+# Real-world (qwen-code): the chmod-based tests of a suite trade their
+# Windows gate for a probe of whether permission bits bind at all, and the
+# change adds the probe with its own tests, which copy the old Windows gate
+# line. Each rewritten gate is an edit of the one it replaces; the copies in
+# the new helper test file must not take the old gates' place.
+expect: clean
+-- old/packages/cli/src/utils/housekeeping/cleanup.test.ts --
+import { describe, expect, it } from 'vitest';
+import fs from 'node:fs';
+import { cleanupOldOpenAILogs, cleanupOldDebugLogs } from './cleanup.js';
+
+describe('cleanupOldOpenAILogs', () => {
+  it('removes logs older than the cutoff', async () => {
+    const r = await cleanupOldOpenAILogs({ cutoffDate: cutoff });
+    expect(r).toEqual({ removed: 1, errors: 0, completed: true });
+  });
+
+  it.skipIf(process.platform === 'win32')(
+    'rejects when the log directory cannot be scanned',
+    async () => {
+      fs.chmodSync(logDir, 0o000);
+      try {
+        await expect(cleanupOldOpenAILogs({ cutoffDate: cutoff })).rejects.toThrow(/EACCES/);
+      } finally {
+        fs.chmodSync(logDir, 0o700);
+      }
+    },
+  );
+});
+
+describe('cleanupOldDebugLogs', () => {
+  it.skipIf(process.platform === 'win32')(
+    'counts a log it cannot unlink as an error',
+    async () => {
+      fs.chmodSync(debugDir, 0o500);
+      try {
+        const r = await cleanupOldDebugLogs({ cutoffDate: cutoff });
+        expect(r.errors).toBe(1);
+      } finally {
+        fs.chmodSync(debugDir, 0o700);
+      }
+    },
+  );
+});
+-- new/packages/cli/src/utils/housekeeping/cleanup.test.ts --
+import { describe, expect, it } from 'vitest';
+import fs from 'node:fs';
+import { cleanupOldOpenAILogs, cleanupOldDebugLogs } from './cleanup.js';
+import { arePermissionBitsEnforced } from '../../test-utils/permission-bits.js';
+
+describe('cleanupOldOpenAILogs', () => {
+  it('removes logs older than the cutoff', async () => {
+    const r = await cleanupOldOpenAILogs({ cutoffDate: cutoff });
+    expect(r).toEqual({ removed: 1, errors: 0, completed: true });
+  });
+
+  it.skipIf(!arePermissionBitsEnforced())(
+    'rejects when the log directory cannot be scanned',
+    async () => {
+      fs.chmodSync(logDir, 0o000);
+      try {
+        await expect(cleanupOldOpenAILogs({ cutoffDate: cutoff })).rejects.toThrow(/EACCES/);
+      } finally {
+        fs.chmodSync(logDir, 0o700);
+      }
+    },
+  );
+});
+
+describe('cleanupOldDebugLogs', () => {
+  it.skipIf(!arePermissionBitsEnforced())(
+    'counts a log it cannot unlink as an error',
+    async () => {
+      fs.chmodSync(debugDir, 0o500);
+      try {
+        const r = await cleanupOldDebugLogs({ cutoffDate: cutoff });
+        expect(r.errors).toBe(1);
+      } finally {
+        fs.chmodSync(debugDir, 0o700);
+      }
+    },
+  );
+});
+-- new/packages/cli/src/test-utils/permission-bits.ts --
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+
+let cached: boolean | undefined;
+
+// Whether a mode-000 directory refuses this process: false on Windows, and
+// for root holding CAP_DAC_OVERRIDE.
+export function arePermissionBitsEnforced(): boolean {
+  if (cached !== undefined) return cached;
+  if (process.platform === 'win32') return (cached = false);
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'perm-probe-'));
+  try {
+    fs.chmodSync(dir, 0o000);
+    fs.readdirSync(dir);
+    cached = false;
+  } catch (error) {
+    cached = (error as NodeJS.ErrnoException).code === 'EACCES';
+  } finally {
+    fs.chmodSync(dir, 0o700);
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+  return cached;
+}
+-- new/packages/cli/src/test-utils/permission-bits.test.ts --
+import { describe, expect, it } from 'vitest';
+import { arePermissionBitsEnforced } from './permission-bits.js';
+
+describe('arePermissionBitsEnforced', () => {
+  it.skipIf(process.platform === 'win32')(
+    'answers the same on a second call',
+    () => {
+      expect(arePermissionBitsEnforced()).toBe(arePermissionBitsEnforced());
+    },
+  );
+
+  it.skipIf(process.platform !== 'win32')('answers false on Windows', () => {
+    expect(arePermissionBitsEnforced()).toBe(false);
+  });
+});

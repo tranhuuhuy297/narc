@@ -1,0 +1,43 @@
+# Real-world (qwen-code): new tests replay a release step against a stub and
+# need bash and jq, so they are declared with it.skipIf(!replayable).each and
+# a table that Prettier puts on its own lines, with the name after it. The
+# tests are new and the gate is an environment probe.
+expect: clean
+-- old/scripts/tests/desktop-oss-workflow.test.js --
+import { describe, expect, it } from 'vitest';
+import { releaseYaml } from './workflow-fixtures.js';
+
+describe('Desktop OSS mirror workflow', () => {
+  it('publishes the stable feed only for stable releases', () => {
+    const step = releaseYaml.jobs.publish.steps.find(({ name }) => name === 'Update stable updater feed');
+    expect(step.if).toContain("steps.latest.outputs.matches == 'true'");
+  });
+});
+-- new/scripts/tests/desktop-oss-workflow.test.js --
+import { execFileSync } from 'node:child_process';
+import { describe, expect, it } from 'vitest';
+import { releaseYaml } from './workflow-fixtures.js';
+
+const hasJq = (() => {
+  try {
+    execFileSync('jq', ['--version'], { stdio: 'ignore' });
+    return true;
+  } catch {
+    return false;
+  }
+})();
+const replayable = process.platform !== 'win32' && hasJq;
+
+describe('Desktop OSS mirror workflow', () => {
+  it('publishes the stable feed only for stable releases', () => {
+    const step = releaseYaml.jobs.publish.steps.find(({ name }) => name === 'Update stable updater feed');
+    expect(step.if).toContain("steps.latest.outputs.matches == 'true'");
+  });
+
+  it.skipIf(!replayable).each([
+    ['an older feed', '1.2.2'],
+    ['a same-version rerun', '1.2.3'],
+  ])('rewrites the feed page text after advancing %s', (_name, feedVersion) => {
+    expect(runFeedUpdate({ FEED_VERSION: feedVersion }).calls).toEqual(advanceCalls);
+  });
+});

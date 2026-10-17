@@ -1,5 +1,5 @@
-# A real device state is handled but excluded from coverage as "out of scope" instead of being tested: the reason admits the branch is untested.
-expect: coverage-ignored@warning
+# A real device state is handled but excluded from coverage as "out of scope" instead of being tested: the reason admits the branch is untested. The branch is new code, so a note (judged true positive at info).
+expect: coverage-ignored@info
 -- old/homeassistant/components/pool/select.py --
 def _relay_mode(int_value: int) -> str:
     if int_value == 1:

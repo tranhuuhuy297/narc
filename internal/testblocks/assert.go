@@ -106,6 +106,8 @@ func init() {
 	need(jsAsserts.any[1], "should")
 	need(jsAsserts.any[2], "expect")
 	need(jsAsserts.any[3], "assert")
+	need(jsAsserts.any[4], "poll")
+	need(jsAsserts.any[5], "t.", "t .")
 }
 
 func containsAny(s string, words []string) bool {
@@ -251,7 +253,7 @@ var assertSets = map[lang.Lang]assertSet{
 			// platform with a stored snapshot (syrupy).
 			`(?:^|[^\w.])((?:async_)?snapshot_platform\s*\()`,
 		),
-		stmt: res(`(?:^|[^\w.])(assert)\b`),
+		stmt:  res(`(?:^|[^\w.])(assert)\b`),
 		setup: regexp.MustCompile(`^assert\s+(?:await\s+)?(?:[\w.]+\.)?(?:async_)?setup(?:_component|_entry|_platform|_integration)?\s*\(`),
 	},
 	lang.Go: {

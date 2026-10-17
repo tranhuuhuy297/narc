@@ -1,0 +1,14 @@
+# A new module narrows a stored projection with `as unknown as T` (lobe-chat replica engine): new code typing its own data, a note.
+expect: any-cast@info
+-- new/packages/replica/src/core/entityAdapters.ts --
+import type { EntityLens, ReplicaEntity } from './types';
+
+export const createEntityAdapter = <TData, TItem>(lens?: EntityLens<TData, TItem>) => {
+  const pick = (data: TData) => (lens ? lens.get(data) : (data as unknown as TItem));
+
+  const put = (data: TData, next: TItem): TData => {
+    return lens ? lens.set(data, next) : (next as unknown as TData);
+  };
+
+  return { pick, put } satisfies ReplicaEntity<TData, TItem>;
+};

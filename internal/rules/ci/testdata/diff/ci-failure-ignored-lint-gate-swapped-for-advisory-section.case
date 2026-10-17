@@ -1,0 +1,33 @@
+# Evasive: the blocking ESLint step is deleted and the same lint is re-added further down under an "advisory" section comment with continue-on-error, so lint errors no longer fail the job.
+expect: ci-failure-ignored
+-- old/.github/workflows/ci.yml --
+name: CI
+on:
+  pull_request:
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: pnpm install --frozen-lockfile
+      - name: Lint
+        run: pnpm eslint . --max-warnings 0
+      - name: Unit tests
+        run: pnpm vitest run
+-- new/.github/workflows/ci.yml --
+name: CI
+on:
+  pull_request:
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: pnpm install --frozen-lockfile
+      - name: Unit tests
+        run: pnpm vitest run
+
+      # Advisory: lint findings are reported as annotations while we migrate rules.
+      - name: Lint (annotations)
+        continue-on-error: true
+        run: pnpm eslint . --max-warnings 0 --format github

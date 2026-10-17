@@ -1,0 +1,92 @@
+# Real world (lobe-chat): the document portal dropped its two-button footer
+# (FooterActions.tsx was deleted and Export moved into the header menu).
+# The body's tests of the footer went with it, along with the test file's
+# mock of ./FooterActions: info.
+expect: test-deleted@info
+-- old/src/features/Portal/Document/FooterActions.tsx --
+export default function FooterActions({ fileBacked }: { fileBacked?: boolean }) {
+  return (
+    <footer data-testid="footer-actions">
+      <button type="button">Chat to edit</button>
+      {!fileBacked && <button type="button">Export</button>}
+    </footer>
+  );
+}
+-- old/src/features/Portal/Document/Body.tsx --
+import { useDocumentMeta } from './useDocumentMeta';
+import Editor from './Editor';
+import FooterActions from './FooterActions';
+
+export default function DocumentBody() {
+  const meta = useDocumentMeta();
+  return (
+    <div>
+      <Editor documentId={meta.id} />
+      <FooterActions fileBacked={!!meta.fileId} />
+    </div>
+  );
+}
+-- new/src/features/Portal/Document/Body.tsx --
+import { useDocumentMeta } from './useDocumentMeta';
+import Editor from './Editor';
+
+export default function DocumentBody() {
+  const meta = useDocumentMeta();
+  return (
+    <div>
+      <Editor documentId={meta.id} />
+    </div>
+  );
+}
+-- old/src/features/Portal/Document/Body.test.tsx --
+import { render, screen } from '@testing-library/react';
+import { describe, expect, it, vi } from 'vitest';
+
+import DocumentBody from './Body';
+
+const meta = vi.hoisted(() => ({ current: { id: 'doc-1', fileId: undefined as string | undefined } }));
+
+vi.mock('./useDocumentMeta', () => ({ useDocumentMeta: () => meta.current }));
+vi.mock('./Editor', () => ({ default: () => <div data-testid="editor-canvas" /> }));
+vi.mock('./FooterActions', () => ({
+  default: ({ fileBacked }: { fileBacked?: boolean }) => (
+    <div data-testid="footer-actions">{!fileBacked && <button data-testid="footer-export" type="button" />}</div>
+  ),
+}));
+
+describe('DocumentBody', () => {
+  it('mounts the editor', () => {
+    render(<DocumentBody />);
+    expect(screen.getByTestId('editor-canvas')).toBeTruthy();
+  });
+
+  it('hides the markdown export for a file-backed preview', () => {
+    meta.current = { id: 'doc-1', fileId: 'file-1' };
+    render(<DocumentBody />);
+    expect(screen.getByTestId('footer-actions')).toBeTruthy();
+    expect(screen.queryByTestId('footer-export')).toBeNull();
+  });
+
+  it('renders the footer actions for an agent document', () => {
+    meta.current = { id: 'doc-1', fileId: undefined };
+    render(<DocumentBody />);
+    expect(screen.getByTestId('footer-export')).toBeTruthy();
+  });
+});
+-- new/src/features/Portal/Document/Body.test.tsx --
+import { render, screen } from '@testing-library/react';
+import { describe, expect, it, vi } from 'vitest';
+
+import DocumentBody from './Body';
+
+const meta = vi.hoisted(() => ({ current: { id: 'doc-1', fileId: undefined as string | undefined } }));
+
+vi.mock('./useDocumentMeta', () => ({ useDocumentMeta: () => meta.current }));
+vi.mock('./Editor', () => ({ default: () => <div data-testid="editor-canvas" /> }));
+
+describe('DocumentBody', () => {
+  it('mounts the editor', () => {
+    render(<DocumentBody />);
+    expect(screen.getByTestId('editor-canvas')).toBeTruthy();
+  });
+});

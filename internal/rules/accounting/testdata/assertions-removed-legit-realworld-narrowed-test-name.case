@@ -1,0 +1,57 @@
+# Real world (PostHog): the desktop app stopped falling back to the retired
+# gateway when a source is configured, so the test "stays on legacy without
+# a project or a source" lost its source case and was renamed to "stays on
+# legacy without a project". The new name says what the test no longer
+# covers: info.
+expect: assertions-removed@info
+-- old/src/services/agent/auth-adapter.ts --
+export class AgentAuthAdapter {
+  constructor(private readonly source?: { getRoute(): Promise<{ mode: string }> }) {}
+
+  async ensureGatewayProxy(host: string, projectId: number | null): Promise<{ mode: string }> {
+    if (projectId === null || !this.source) {
+      return { mode: "legacy" };
+    }
+    const route = await this.source.getRoute();
+    return route.mode === "legacy" ? { mode: "legacy" } : { mode: "go" };
+  }
+}
+-- new/src/services/agent/auth-adapter.ts --
+export class AgentAuthAdapter {
+  constructor(private readonly source?: { getRoute(): Promise<{ mode: string }> }) {}
+
+  async ensureGatewayProxy(host: string, projectId: number | null): Promise<{ mode: string }> {
+    if (projectId === null) {
+      return { mode: "legacy" };
+    }
+    return { mode: "go" };
+  }
+}
+-- old/src/services/agent/auth-adapter.test.ts --
+import { describe, expect, it, vi } from "vitest";
+import { AgentAuthAdapter } from "./auth-adapter";
+
+describe("AgentAuthAdapter", () => {
+  describe("ensureGatewayProxy", () => {
+    it("stays on legacy without a project or a source", async () => {
+      const withGo = new AgentAuthAdapter({ getRoute: vi.fn() });
+      const adapter = new AgentAuthAdapter();
+
+      expect((await withGo.ensureGatewayProxy("https://app.posthog.com", null)).mode).toBe("legacy");
+      expect((await adapter.ensureGatewayProxy("https://app.posthog.com", 1)).mode).toBe("legacy");
+    });
+  });
+});
+-- new/src/services/agent/auth-adapter.test.ts --
+import { describe, expect, it, vi } from "vitest";
+import { AgentAuthAdapter } from "./auth-adapter";
+
+describe("AgentAuthAdapter", () => {
+  describe("ensureGatewayProxy", () => {
+    it("stays on legacy without a project", async () => {
+      const withGo = new AgentAuthAdapter({ getRoute: vi.fn() });
+
+      expect((await withGo.ensureGatewayProxy("https://app.posthog.com", null)).mode).toBe("legacy");
+    });
+  });
+});

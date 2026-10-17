@@ -31,7 +31,9 @@ var hardcodedAnswer = &core.Rule{
 		"literal, when both literals appear together in a test that calls the function: a test of the same change, or " +
 		"an existing test of the changed file (`x.test.ts`, `__tests__/`, `tests/test_x.py`, the package's " +
 		"`_test.go` files, `src/test/java/.../XTest.java`, `spec/.../x_spec.rb`, ...). A special case documented with " +
-		"a reference (an issue or a URL) is reported as a note. " +
+		"a reference (an issue or a URL) is reported as a note. It is a warning when the test existed before the change " +
+		"(an unchanged test file or test line): that test now passes without the code being right. When the test is " +
+		"written by the same change, next to the code it pins down, the special case is a note. " +
 		"Trivial values (0, 1, booleans, null, short or very common strings) are ignored, and so are lookup tables: " +
 		"functions made only of literal mappings, mappings added next to existing ones, category-to-label " +
 		"mappings (`if (code === \"ENOENT\") return \"File not found\"`, `if (status === \"blocked\") return \"Blocked\"`), " +
@@ -1164,7 +1166,8 @@ func judge(a *core.Analysis, ix *testIndex, f *core.FileInfo, s *side, c special
 				return core.Finding{}, false
 			}
 			test := "the test"
-			if ix.unchanged[pos.path] != nil {
+			existing := ix.unchanged[pos.path] != nil
+			if existing {
 				test = "the existing test"
 			}
 			msg := fmt.Sprintf("special-cases %s to return %s: the input and expected value used by %s at %s:%d",
@@ -1175,10 +1178,33 @@ func judge(a *core.Analysis, ix *testIndex, f *core.FileInfo, s *side, c special
 			if trackingRefRe.MatchString(lineNote(f, s, c.start)) {
 				fd.Severity = core.Info
 			}
+			// Special-casing the input of a test that already existed makes
+			// that test pass without the code being right; a test written
+			// with the change, next to the code it pins down, more often
+			// enumerates a real mapping (statuses, MIME types, flags).
+			if !existing && !unchangedLineOf(a, pos) {
+				fd.Severity = core.Info
+			}
 			return fd, true
 		}
 	}
 	return core.Finding{}, false
+}
+
+// unchangedLineOf reports whether the test line at pos (new side) is one
+// the change did not touch: the test existed before.
+func unchangedLineOf(a *core.Analysis, pos litPos) bool {
+	for _, f := range a.Files {
+		if f.Path != pos.path {
+			continue
+		}
+		if f.Diff.Kind == diff.Added {
+			return false
+		}
+		_, known := f.NewLine(pos.line)
+		return known && !changedLines(f)[pos.line]
+	}
+	return false
 }
 
 var (

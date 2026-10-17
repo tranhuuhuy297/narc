@@ -1,0 +1,56 @@
+# Real world (n8n): the packages import endpoint moved behind the public
+# API, and its handler unit tests were replaced by integration tests, one
+# moved as is and one whose title says the same thing in other words. The
+# handler's test file went away; its test has a lookalike: info.
+expect: test-file-deleted@info
+-- old/packages/cli/src/modules/n8n-packages/n8n-packages.handler.ts --
+import { ForbiddenError } from '@/errors/response-errors/forbidden.error';
+
+export async function importPackage(apiKey: { scopes: string[] }, projectId: string, body: unknown) {
+  if (!apiKey.scopes.includes('workflow:import')) {
+    throw new ForbiddenError(`Missing workflow:import scope for project ${projectId}`);
+  }
+  return await runImport(projectId, body);
+}
+-- new/packages/cli/src/modules/n8n-packages/n8n-packages.handler.ts --
+import { ForbiddenError } from '@/errors/response-errors/forbidden.error';
+
+export async function importPackage(apiKey: { scopes: string[] }, projectId: string, body: unknown) {
+  if (!apiKey.scopes.includes('workflow:import')) {
+    throw new ForbiddenError('Missing workflow:import scope');
+  }
+  return await runImport(projectId, body);
+}
+-- old/packages/cli/src/modules/n8n-packages/__tests__/n8n-packages.handler.test.ts --
+import { describe, expect, it } from 'vitest';
+import { importPackage } from '../n8n-packages.handler';
+
+describe('n8n-packages handler', () => {
+  describe('importPackage', () => {
+    it('throws ForbiddenError when the API key lacks workflow:import scope', async () => {
+      await expect(importPackage({ scopes: [] }, 'p1', {})).rejects.toThrow('Missing workflow:import scope for project p1');
+    });
+
+    it('imports the package into the requested project when the API key has the import scope', async () => {
+      const result = await importPackage({ scopes: ['workflow:import'] }, 'p1', { workflows: [] });
+      expect(result.projectId).toBe('p1');
+    });
+  });
+});
+-- new/packages/cli/test/integration/public-api/n8n-packages-import.test.ts --
+import { describe, expect, it } from 'vitest';
+import { createOwnerWithApiKey, publicApi } from '../shared/utils';
+
+describe('POST /n8n-packages/import', () => {
+  it('rejects the import when the API key lacks the workflow:import scope', async () => {
+    const owner = await createOwnerWithApiKey({ scopes: [] });
+    const response = await publicApi(owner).post('/n8n-packages/import').send({ projectId: 'p1' });
+    expect(response.statusCode).toBe(403);
+  });
+
+  it('imports the package into the requested project when the API key has the import scope', async () => {
+    const owner = await createOwnerWithApiKey({ scopes: ['workflow:import'] });
+    const response = await publicApi(owner).post('/n8n-packages/import').send({ projectId: 'p1', workflows: [] });
+    expect(response.body.projectId).toBe('p1');
+  });
+});

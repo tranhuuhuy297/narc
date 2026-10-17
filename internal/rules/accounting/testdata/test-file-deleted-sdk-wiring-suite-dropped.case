@@ -1,0 +1,115 @@
+# Real world (goose): two dictation API functions moved to new SDK
+# methods. Instead of updating the two tests that broke, the whole test
+# file was deleted, leaving the unchanged wiring (config, transcription,
+# model selection) with no tests at all. The module is still there and was
+# edited in the same change: an error.
+expect: test-file-deleted@error
+-- old/ui/goose2/src/shared/api/dictation.ts --
+import { getClient } from "./acpConnection";
+
+export type DictationProvider = "openai" | "groq" | "local";
+
+export async function getDictationConfig() {
+  const client = await getClient();
+  const response = await client.goose.GooseDictationConfig({});
+  return response.providers;
+}
+
+export async function transcribeDictation(request: { audio: string; mimeType: string; provider: DictationProvider }) {
+  const client = await getClient();
+  return client.goose.GooseDictationTranscribe(request);
+}
+
+export async function saveDictationModelSelection(provider: DictationProvider, modelId: string): Promise<void> {
+  const client = await getClient();
+  await client.goose.GooseDictationModelSelect({ provider, modelId });
+}
+
+export async function saveDictationProviderSecret(
+  _provider: DictationProvider,
+  value: string,
+  configKey?: string,
+): Promise<void> {
+  if (!configKey) {
+    throw new Error("No config key for this provider");
+  }
+  const client = await getClient();
+  await client.goose.GooseSecretUpsert({ key: configKey, value });
+}
+-- new/ui/goose2/src/shared/api/dictation.ts --
+import { getClient } from "./acpConnection";
+
+export type DictationProvider = "openai" | "groq" | "local";
+
+export async function getDictationConfig() {
+  const client = await getClient();
+  const response = await client.goose.GooseDictationConfig({});
+  return response.providers;
+}
+
+export async function transcribeDictation(request: { audio: string; mimeType: string; provider: DictationProvider }) {
+  const client = await getClient();
+  return client.goose.GooseDictationTranscribe(request);
+}
+
+export async function saveDictationModelSelection(provider: DictationProvider, modelId: string): Promise<void> {
+  const client = await getClient();
+  await client.goose.GooseDictationModelSelect({ provider, modelId });
+}
+
+export async function saveDictationProviderSecret(provider: DictationProvider, value: string): Promise<void> {
+  const client = await getClient();
+  await client.goose.GooseDictationSecretSave({ provider, value });
+}
+-- old/ui/goose2/src/shared/api/__tests__/dictation.test.ts --
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  getDictationConfig,
+  saveDictationModelSelection,
+  saveDictationProviderSecret,
+  transcribeDictation,
+} from "../dictation";
+import { getClient } from "../acpConnection";
+
+vi.mock("../acpConnection", () => ({ getClient: vi.fn() }));
+
+describe("dictation SDK wiring", () => {
+  let client: { goose: Record<string, ReturnType<typeof vi.fn>> };
+  beforeEach(() => {
+    client = {
+      goose: {
+        GooseDictationConfig: vi.fn().mockResolvedValue({ providers: { openai: { configured: true } } }),
+        GooseDictationTranscribe: vi.fn().mockResolvedValue({ text: "hello" }),
+      },
+    };
+    vi.mocked(getClient).mockResolvedValue(client as unknown as Awaited<ReturnType<typeof getClient>>);
+  });
+
+  it("getDictationConfig calls GooseDictationConfig and returns providers map", async () => {
+    const result = await getDictationConfig();
+    expect(client.goose.GooseDictationConfig).toHaveBeenCalledWith({});
+    expect(result.openai.configured).toBe(true);
+  });
+
+  it("transcribeDictation forwards audio + mimeType + provider", async () => {
+    const result = await transcribeDictation({ audio: "base64==", mimeType: "audio/webm", provider: "openai" });
+    expect(client.goose.GooseDictationTranscribe).toHaveBeenCalledWith({
+      audio: "base64==",
+      mimeType: "audio/webm",
+      provider: "openai",
+    });
+    expect(result.text).toBe("hello");
+  });
+
+  it("saveDictationModelSelection calls GooseDictationModelSelect", async () => {
+    client.goose.GooseDictationModelSelect = vi.fn().mockResolvedValue({});
+    await saveDictationModelSelection("local", "tiny");
+    expect(client.goose.GooseDictationModelSelect).toHaveBeenCalledWith({ provider: "local", modelId: "tiny" });
+  });
+
+  it("saveDictationProviderSecret calls GooseSecretUpsert", async () => {
+    client.goose.GooseSecretUpsert = vi.fn().mockResolvedValue({});
+    await saveDictationProviderSecret("groq", "gsk-test", "GROQ_API_KEY");
+    expect(client.goose.GooseSecretUpsert).toHaveBeenCalledWith({ key: "GROQ_API_KEY", value: "gsk-test" });
+  });
+});

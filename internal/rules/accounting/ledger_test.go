@@ -399,3 +399,14 @@ func TestTestishPath(t *testing.T) {
 		}
 	}
 }
+
+func TestIdentsMatchesRegexp(t *testing.T) {
+	for _, s := range []string{"", "a", "x1 = y2.z_3 + 4.5 - 6. + .7", "$el.$x = _ab$c(9a, 1.2.3)", "naïve := café(ü1)",
+		"expect(res.status).toBe(200);", "0x1F + 3e10 + 1_000", "a..b 1..2 3.x"} {
+		want := identRe.FindAllString(s, -1)
+		got := idents(s)
+		if fmt.Sprint(got) != fmt.Sprint(want) {
+			t.Errorf("idents(%q) = %q, want %q", s, got, want)
+		}
+	}
+}

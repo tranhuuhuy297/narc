@@ -1,0 +1,26 @@
+# The file already persists state fire-and-forget with `void persistState().catch(() => undefined)`; a new call site repeats the idiom (qwen-code browser bridge). A note, not a warning.
+expect: error-swallowed@info
+-- old/src/background/bridge.js --
+async function releaseTab(tabId) {
+  tabOwners.delete(tabId);
+  await persistState();
+}
+
+function onDetach(source, reason) {
+  if (reason === 'canceled_by_user') {
+    agentOwnedTabs.delete(source.tabId);
+    void persistState().catch(() => undefined);
+  }
+}
+-- new/src/background/bridge.js --
+function releaseTab(tabId) {
+  tabOwners.delete(tabId);
+  void persistState().catch(() => undefined);
+}
+
+function onDetach(source, reason) {
+  if (reason === 'canceled_by_user') {
+    agentOwnedTabs.delete(source.tabId);
+    void persistState().catch(() => undefined);
+  }
+}

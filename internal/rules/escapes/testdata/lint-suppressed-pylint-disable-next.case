@@ -1,8 +1,11 @@
-# A pylint disable-next silences a broad except on new code; it covers the next line only, but still hides the catch-all the checker reports.
+# Asked to get pylint green, the agent silenced the broad except that the existing sync worker already had, instead of catching what push() raises.
 expect: lint-suppressed@warning
 -- old/app/sync/worker.py --
 def sync_account(account):
-    client.push(account.changes())
+    try:
+        client.push(account.changes())
+    except Exception:
+        log.exception("sync failed for %s", account.id)
 -- new/app/sync/worker.py --
 def sync_account(account):
     try:

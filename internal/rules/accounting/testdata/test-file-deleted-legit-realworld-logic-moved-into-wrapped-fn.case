@@ -1,0 +1,108 @@
+# Real world (PostHog): the source's validate_credentials became a plain
+# pass-through, and the mapping from a failed check to an error message
+# moved into amazon_ads.validate_credentials, whose test file next door
+# gained a parametrized test of every outcome. The wrapper's single test
+# went away: reported as info.
+expect: test-file-deleted@info
+-- old/warehouse_sources/amazon_ads/amazon_ads.py --
+import requests
+
+
+def validate_credentials(region: str, client_id: str, client_secret: str, refresh_token: str) -> bool:
+    response = requests.post(_token_url(region), data={"client_id": client_id, "client_secret": client_secret,
+                                                        "refresh_token": refresh_token})
+    return response.status_code == 200
+
+
+def _token_url(region: str) -> str:
+    return {"na": "https://api.amazon.com/auth/o2/token"}.get(region, "https://api.amazon.co.uk/auth/o2/token")
+-- new/warehouse_sources/amazon_ads/amazon_ads.py --
+import requests
+
+
+def validate_credentials(
+    region: str, client_id: str, client_secret: str, refresh_token: str
+) -> tuple[bool, str | None]:
+    response = requests.post(_token_url(region), data={"client_id": client_id, "client_secret": client_secret,
+                                                        "refresh_token": refresh_token})
+    if response.status_code == 200:
+        return True, None
+    if response.status_code == 401:
+        return False, "Amazon Ads rejected the client ID or secret"
+    return False, "Amazon Ads rejected the refresh token"
+
+
+def _token_url(region: str) -> str:
+    return {"na": "https://api.amazon.com/auth/o2/token"}.get(region, "https://api.amazon.co.uk/auth/o2/token")
+-- old/warehouse_sources/amazon_ads/source.py --
+from warehouse_sources.amazon_ads.amazon_ads import validate_credentials as validate_amazon_ads_credentials
+
+
+class AmazonAdsSource:
+    def validate_credentials(self, config, team_id: int) -> tuple[bool, str | None]:
+        if validate_amazon_ads_credentials(config.region, config.client_id, config.client_secret, config.refresh_token):
+            return True, None
+        return False, "Invalid Amazon Ads credentials"
+-- new/warehouse_sources/amazon_ads/source.py --
+from warehouse_sources.amazon_ads.amazon_ads import validate_credentials as validate_amazon_ads_credentials
+
+
+class AmazonAdsSource:
+    def validate_credentials(self, config, team_id: int) -> tuple[bool, str | None]:
+        return validate_amazon_ads_credentials(config.region, config.client_id, config.client_secret, config.refresh_token)
+-- old/warehouse_sources/amazon_ads/tests/test_amazon_ads.py --
+from unittest import mock
+
+from warehouse_sources.amazon_ads.amazon_ads import validate_credentials
+
+
+@mock.patch("warehouse_sources.amazon_ads.amazon_ads.requests")
+def test_validate_credentials_accepts_200(mock_requests):
+    mock_requests.post.return_value.status_code = 200
+    assert validate_credentials("na", "cid", "sec", "rt") is True
+-- new/warehouse_sources/amazon_ads/tests/test_amazon_ads.py --
+from unittest import mock
+
+import pytest
+
+from warehouse_sources.amazon_ads.amazon_ads import validate_credentials
+
+
+@pytest.mark.parametrize(
+    "status_code, expected_valid, expected_message",
+    [
+        (200, True, None),
+        (401, False, "Amazon Ads rejected the client ID or secret"),
+        (400, False, "Amazon Ads rejected the refresh token"),
+    ],
+)
+@mock.patch("warehouse_sources.amazon_ads.amazon_ads.requests")
+def test_validate_credentials_reports_each_outcome(mock_requests, status_code, expected_valid, expected_message):
+    mock_requests.post.return_value.status_code = status_code
+    assert validate_credentials("na", "cid", "sec", "rt") == (expected_valid, expected_message)
+-- old/warehouse_sources/amazon_ads/tests/test_amazon_ads_source.py --
+from unittest import mock
+
+import pytest
+
+from warehouse_sources.amazon_ads.source import AmazonAdsSource
+
+
+class TestAmazonAdsSource:
+    def setup_method(self):
+        self.source = AmazonAdsSource()
+        self.config = mock.Mock(region="na", client_id="cid", client_secret="sec", refresh_token="rt")
+
+    @pytest.mark.parametrize(
+        "mock_return, expected_valid, expected_message",
+        [(True, True, None), (False, False, "Invalid Amazon Ads credentials")],
+    )
+    @mock.patch("warehouse_sources.amazon_ads.source.validate_amazon_ads_credentials")
+    def test_validate_credentials(self, mock_validate, mock_return, expected_valid, expected_message):
+        mock_validate.return_value = mock_return
+
+        is_valid, error_message = self.source.validate_credentials(self.config, 123)
+
+        assert is_valid is expected_valid
+        assert error_message == expected_message
+        mock_validate.assert_called_once_with("na", "cid", "sec", "rt")

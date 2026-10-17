@@ -1,0 +1,15 @@
+# A design-system "use our primitives" rule is silenced on an existing styled element during a spacing pass (sentry): a convention rule, a note.
+expect: lint-suppressed@info
+-- old/static/app/components/events/eventDrawer.tsx --
+export const EventDrawerContainer = styled('div')`
+  height: 100%;
+  display: grid;
+  grid-template-rows: max-content max-content auto;
+`;
+-- new/static/app/components/events/eventDrawer.tsx --
+// oxlint-disable-next-line @sentry/scraps/prefer-primitives
+export const EventDrawerContainer = styled('div')`
+  height: 100%;
+  display: grid;
+  grid-template-rows: max-content max-content auto;
+`;
