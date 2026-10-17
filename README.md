@@ -19,10 +19,12 @@ Coding agents are under pressure to make the build green, and sometimes they tak
 Reading every diff for that is exhausting. **narc** reads the diff for you and flags changes that **weaken verification instead of fixing code**. It runs offline in milliseconds, needs no API key, and only looks at what *changed*, so it never nags about your legacy code.
 
 ```bash
-brew install tranhuuhuy297/tap/narc     # or: go install github.com/tranhuuhuy297/narc/cmd/narc@latest
-narc                              # scan uncommitted changes
-narc install claude               # block cheating edits live in Claude Code (also codex, gemini, cursor, opencode)
-narc audit                        # rap sheet: which agents weakened tests in your git history
+curl -fsSL https://raw.githubusercontent.com/tranhuuhuy297/narc/main/install.sh | sh
+# or: go install github.com/tranhuuhuy297/narc/cmd/narc@latest
+
+narc                     # scan uncommitted changes
+narc install claude      # block cheating edits live in Claude Code (also codex, gemini, cursor, opencode)
+narc audit               # rap sheet: which agents weakened tests in your git history
 ```
 
 ## What it catches

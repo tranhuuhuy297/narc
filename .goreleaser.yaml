@@ -23,12 +23,22 @@ checksum:
   name_template: checksums.txt
 changelog:
   sort: asc
-brews:
-  - repository:
+  filters:
+    exclude: ["^docs:", "^test:", "^chore:"]
+# Homebrew: published to github.com/tranhuuhuy297/homebrew-tap when the
+# HOMEBREW_TAP_GITHUB_TOKEN secret is set; skipped otherwise.
+homebrew_casks:
+  - name: narc
+    repository:
       owner: tranhuuhuy297
       name: homebrew-tap
+      token: '{{ envOrDefault "HOMEBREW_TAP_GITHUB_TOKEN" "" }}'
     homepage: https://github.com/tranhuuhuy297/narc
     description: "Catch AI coding agents cheating on your tests"
-    license: MIT
-    test: |
-      system "#{bin}/narc", "version"
+    skip_upload: '{{ if eq (envOrDefault "HOMEBREW_TAP_GITHUB_TOKEN" "") "" }}true{{ else }}false{{ end }}'
+    hooks:
+      post:
+        install: |
+          if OS.mac? && system_command("/usr/bin/xattr", args: ["-h"]).exit_status == 0
+            system_command "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{staged_path}/narc"]
+          end
