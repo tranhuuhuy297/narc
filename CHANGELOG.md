@@ -1,6 +1,9 @@
 # Changelog
 
-## v0.1.0 — first release
+## v0.1.1 — first release
+
+(v0.1.0 was tagged, but its release build picked the wrong tag; v0.1.1 is the
+same code with fixed release automation.)
 
 - `narc scan`: flags changes that weaken verification — skipped or focused tests,
   deleted or hollowed tests, removed or weakened assertions, tautologies, retries,
