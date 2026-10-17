@@ -1,0 +1,26 @@
+# The crossfade is skipped under tests or when the user asks for reduced motion: production users get the same non-animated path.
+expect: clean
+-- old/src/components/automations/setup/setup-kind-crossfade.tsx --
+export function SetupKindCrossfade({ kind, children }: { kind: string; children: ReactNode }) {
+  return (
+    <AnimatePresence mode="wait" initial={false}>
+      <motion.div key={kind} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+        {children}
+      </motion.div>
+    </AnimatePresence>
+  );
+}
+-- new/src/components/automations/setup/setup-kind-crossfade.tsx --
+export function SetupKindCrossfade({ kind, children }: { kind: string; children: ReactNode }) {
+  const reduceMotion = useReducedMotion();
+  if (reduceMotion || import.meta.env.MODE === "test") {
+    return <>{children}</>;
+  }
+  return (
+    <AnimatePresence mode="wait" initial={false}>
+      <motion.div key={kind} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+        {children}
+      </motion.div>
+    </AnimatePresence>
+  );
+}

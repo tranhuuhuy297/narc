@@ -397,7 +397,7 @@ func checkCoverage(a *core.Analysis) []core.Finding {
 	var (
 		out                    []core.Finding
 		orphansOld, orphansNew []threshold
-		allNew                 []threshold
+		allNew, allOld         []threshold
 	)
 	for _, f := range a.Files {
 		if len(f.Added)+len(f.Removed) == 0 {
@@ -406,6 +406,7 @@ func checkCoverage(a *core.Analysis) []core.Finding {
 		olds, news := keyed{}, keyed{}
 		for _, t := range sideThresholds(f, true) {
 			olds[t.key] = append(olds[t.key], t)
+			allOld = append(allOld, t)
 		}
 		for _, t := range sideThresholds(f, false) {
 			news[t.key] = append(news[t.key], t)
@@ -451,13 +452,46 @@ func checkCoverage(a *core.Analysis) []core.Finding {
 		out = append(out, removedThreshold(o))
 	}
 	for j, n := range orphansNew {
-		// codecov informational: true added where there was nothing
-		if !usedNew[j] && n.gate && n.inverse && !n.strict() {
+		// codecov informational: true added to a status that gated
+		// merges before; on a status that was off (patch: false) or not
+		// configured, it adds a report rather than removing a gate.
+		if !usedNew[j] && n.gate && n.inverse && !n.strict() && codecovStatusGated(n, allOld) {
 			out = append(out, sevFinding(coverageLowered, n.f, n.line, core.Warning,
 				fmt.Sprintf("%s set to %s: the coverage status no longer blocks merges", n.label, n.value)))
 		}
 	}
 	return append(out, jestPathExemptions(orphansNew, usedNew, allNew)...)
+}
+
+// codecovStatusGated reports whether the codecov status (project or patch)
+// that threshold n belongs to was configured and enabled before the change.
+func codecovStatusGated(n threshold, old []threshold) bool {
+	rest, ok := strings.CutPrefix(n.key, "codecov ")
+	if !ok {
+		return true
+	}
+	status, _, _ := strings.Cut(rest, ".")
+	gated := false
+	for _, o := range old {
+		if o.f != n.f {
+			continue
+		}
+		orest, ok := strings.CutPrefix(o.key, "codecov ")
+		if !ok {
+			continue
+		}
+		if orest == status+" enabled" {
+			if o.value == "false" {
+				return false
+			}
+			gated = true
+			continue
+		}
+		if strings.HasPrefix(orest, status+".") {
+			gated = true
+		}
+	}
+	return gated
 }
 
 // jestPathExemptions reports new per-path jest thresholds below the

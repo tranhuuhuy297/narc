@@ -1,0 +1,12 @@
+# The lookup used to propagate its failure; now it becomes null and the code reads through it anyway, so a database outage looks like a missing user.
+expect: error-swallowed@warning
+-- old/src/users/profile.ts --
+export async function profileName(db: Db, id: string): Promise<string> {
+  const user = await db.users.findById(id);
+  return user.displayName;
+}
+-- new/src/users/profile.ts --
+export async function profileName(db: Db, id: string): Promise<string> {
+  const user = await db.users.findById(id).catch(() => null);
+  return user!.displayName;
+}

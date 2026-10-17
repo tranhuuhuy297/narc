@@ -1,0 +1,58 @@
+# Real world (qwen-code): per-model checks compressed into curried helpers.
+# `TEXT_ONLY` is built by a factory whose closure runs the expect, so the
+# test that calls TEXT_ONLY('kimi-k2') still makes its one assertion.
+expect: clean
+-- old/packages/core/src/core/modalityDefaults.test.ts --
+import { describe, expect, it } from 'vitest';
+import { defaultModalities } from './modalityDefaults.js';
+
+describe('defaultModalities', () => {
+  describe('Kimi', () => {
+    it('returns image + video for kimi-k2.5', () => {
+      expect(defaultModalities('kimi-k2.5')).toEqual({ image: true, video: true });
+    });
+
+    it('returns text-only for kimi-k2', () => {
+      expect(defaultModalities('kimi-k2')).toEqual({});
+    });
+  });
+
+  describe('MiniMax', () => {
+    it('returns text-only for MiniMax-M2.5', () => {
+      expect(defaultModalities('MiniMax-M2.5')).toEqual({});
+    });
+  });
+});
+-- new/packages/core/src/core/modalityDefaults.test.ts --
+import { describe, expect, it } from 'vitest';
+import { defaultModalities } from './modalityDefaults.js';
+import type { InputModalities } from './contentGenerator.js';
+
+type Check = (model: string) => void;
+
+/** The model's modalities equal `expected` exactly (one assertion). */
+const equals =
+  (expected: InputModalities): Check =>
+  (model) =>
+    expect(defaultModalities(model)).toEqual(expected);
+
+const TEXT_ONLY = equals({});
+const IMAGE_VIDEO = equals({ image: true, video: true });
+
+describe('defaultModalities', () => {
+  describe('Kimi', () => {
+    it('returns image + video for kimi-k2.5', () => {
+      IMAGE_VIDEO('kimi-k2.5');
+    });
+
+    it('returns text-only for kimi-k2', () => {
+      TEXT_ONLY('kimi-k2');
+    });
+  });
+
+  describe('MiniMax', () => {
+    it('returns text-only for MiniMax-M2.5', () => {
+      TEXT_ONLY('MiniMax-M2.5');
+    });
+  });
+});

@@ -1,0 +1,25 @@
+# Real-world (mastra): a new cross-process test file skips its comparison
+# test, with a reason, when the cells it depends on recorded no outcome
+# (filtered run, or a cell already failed and reported it).
+expect: clean
+-- new/stores/libsql/src/__tests__/cross-process/xproc-abort.test.ts --
+import { describe, expect, it } from 'vitest';
+
+import { runCell, type CellOutcome } from './harness';
+
+const outcomes = new Map<string, CellOutcome>();
+
+describe('cross-process abort', () => {
+  it.each(['in-process', 'child-process'])('%s aborts the run', async (mode) => {
+    outcomes.set(mode, await runCell(mode, { abortAfterMs: 50 }));
+    expect(outcomes.get(mode)?.status).toBe('aborted');
+  });
+
+  it('reached the same judged outcome', (ctx) => {
+    const missing = ['in-process', 'child-process'].filter((m) => !outcomes.has(m));
+    if (missing.length) {
+      ctx.skip(`${missing.join(', ')} recorded no outcome`);
+    }
+    expect(outcomes.get('child-process')).toEqual(outcomes.get('in-process'));
+  });
+});

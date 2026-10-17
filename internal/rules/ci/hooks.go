@@ -23,7 +23,9 @@ var hookBypassed = &core.Rule{
 		"switching them off with environment variables, or deleting them lets unverified code into the " +
 		"history.\n\n" +
 		"```diff\n-\tgit commit -m \"$(MSG)\"\n+\tgit commit --no-verify -m \"$(MSG)\"    # SUSPICIOUS\n```\n\n" +
-		"Covered: `--no-verify` (and `git commit -n`) in scripts, Makefiles and CI; `core.hooksPath=/dev/null`; " +
+		"Covered: `--no-verify` (and `git commit -n`) in scripts, Makefiles and CI; `core.hooksPath=/dev/null` " +
+		"(with `git -c`, only on commands that run hooks: commit, push, merge, rebase, am, cherry-pick, pull, " +
+		"revert, also through a prefix kept in a variable or alias); " +
 		"`HUSKY=0`, `LEFTHOOK=0` and similar on a git commit/push; pre-commit's `SKIP=` naming lint, type or " +
 		"test hooks; hooks removed from .pre-commit-config.yaml (unless replaced by an equivalent hook) or " +
 		"moved to the manual stage (also through `default_stages: [manual]`) or excluded from every file " +
@@ -31,8 +33,10 @@ var hookBypassed = &core.Rule{
 		"list only skips during those git operations); .husky hook files deleted, emptied or short-circuited " +
 		"with an unconditional `exit 0`. " +
 		"Not reported: release and bot jobs that commit generated files, test helpers that commit into a " +
-		"scratch repository, and checks that move to another hook or hook manager (husky → lefthook, " +
-		"pre-commit → lefthook) in the same change.",
+		"scratch repository, hardened git prefixes for maintenance commands on untrusted CI workspaces " +
+		"(`git -c core.hooksPath=/dev/null -c core.fsmonitor= worktree prune`), hooks deleted together with " +
+		"the whole subproject they checked, and checks that move to another hook or hook manager (husky → " +
+		"lefthook, pre-commit → lefthook) in the same change.",
 }
 
 func init() {
@@ -46,6 +50,9 @@ func checkHooks(a *core.Analysis) []core.Finding {
 	out = append(out, preCommitSkipEnv(a)...)
 	after := hookChecksAfter(a)
 	for _, f := range a.Files {
+		if f.Diff.Kind == diff.Deleted && dirGone(a, hookProjectRoot(f.Path)) {
+			continue // the subproject whose code the hook checked is gone too
+		}
 		base := strings.ToLower(path.Base(f.Path))
 		switch {
 		case strings.HasPrefix(base, ".pre-commit-config."):
@@ -59,6 +66,21 @@ func checkHooks(a *core.Analysis) []core.Finding {
 		}
 	}
 	return out
+}
+
+// hookProjectRoot returns the directory of the project a hook file belongs
+// to: the parent of its .husky/ directory, or the directory of a
+// pre-commit, lefthook or package.json file. It is "" at the repository
+// root.
+func hookProjectRoot(p string) string {
+	if i := strings.Index("/"+p, "/.husky/"); i >= 0 {
+		return strings.TrimSuffix(p[:i], "/")
+	}
+	d := path.Dir(p)
+	if d == "." {
+		return ""
+	}
+	return d
 }
 
 // hookChecksAfter collects the checks that git hooks run after the change,
@@ -132,15 +154,28 @@ func gitHookBypass(iv invocation) string {
 	}
 	args := iv.Args[1:]
 	// global options: -C dir, -c key=value
+	disabled := ""
 	for len(args) > 0 && strings.HasPrefix(args[0], "-") {
 		if (args[0] == "-c" || args[0] == "-C") && len(args) > 1 {
-			if args[0] == "-c" && hooksPathDisabled(args[1]) {
-				return "-c " + args[1]
+			if args[0] == "-c" && hooksPathDisabled(args[1]) && disabled == "" {
+				disabled = "-c " + args[1]
 			}
 			args = args[2:]
 			continue
 		}
 		args = args[1:]
+	}
+	if disabled != "" {
+		// `-c core.hooksPath=/dev/null` only matters for commands that run
+		// hooks. CI hardening wrappers use it (often with core.fsmonitor=)
+		// to run worktree/branch/fetch maintenance on an untrusted
+		// workspace without executing its hooks. Without a subcommand the
+		// invocation is a prefix kept in a variable or alias; callers look
+		// at where it is used.
+		if len(args) == 0 || hookCommands[args[0]] {
+			return disabled
+		}
+		return ""
 	}
 	if len(args) == 0 {
 		return ""
@@ -171,6 +206,42 @@ func gitHookBypass(iv invocation) string {
 		}
 	}
 	return ""
+}
+
+// hookCommands are git subcommands that run the hooks that lint and test
+// a change.
+var hookCommands = map[string]bool{
+	"commit": true, "push": true, "merge": true, "rebase": true, "am": true, "cherry-pick": true,
+	"pull": true, "revert": true,
+}
+
+// prefixDefRe finds the name a git prefix is stored under:
+// GIT_SAFE=(git -c ...), alias g='git -c ...', G="git -c ...".
+var prefixDefRe = regexp.MustCompile(`(?:^|[\s;])(?:alias\s+|local\s+|declare\s+-a\s+|export\s+|readonly\s+)?([A-Za-z_][A-Za-z0-9_-]*)=\(?\s*["']?git\b`)
+
+// prefixRunsHooks reports whether the git prefix defined by the command at
+// c (no subcommand of its own) is used anywhere in f to run a command that
+// runs hooks. A prefix that cannot be traced to its uses is not reported.
+func prefixRunsHooks(f *core.FileInfo, c cmdLine) bool {
+	m := prefixDefRe.FindStringSubmatch(c.Text)
+	if m == nil {
+		return false
+	}
+	name := regexp.QuoteMeta(m[1])
+	useRe := regexp.MustCompile(`(?:\$\{` + name + `(?:\[[@*]\])?\}|\$` + name + `\b|(?:^|[\s;|&(])` + name + `)["']?\s+(?:-[-\w=./"'$]+\s+)*([a-z][a-z-]*)`)
+	s := newSide(f)
+	for i := 1; i <= len(s.lines); i++ {
+		l, ok := s.get(i)
+		if !ok || i >= c.Line && i <= c.End {
+			continue
+		}
+		for _, u := range useRe.FindAllStringSubmatch(l.NoComment, -1) {
+			if hookCommands[u[1]] {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // gitValueFlags are git commit/push options whose value is the next word.
@@ -239,6 +310,7 @@ func hookEnv(env map[string]string) string {
 // hookBypassCommands reports git invocations that skip hooks.
 func hookBypassCommands(a *core.Analysis) []core.Finding {
 	var out []core.Finding
+	seen := map[string]bool{} // one finding per recipe copied across jobs and files
 	for _, f := range commandFiles(a) {
 		added, removed := changedCommands(f)
 		before := multiset{}
@@ -262,6 +334,14 @@ func hookBypassCommands(a *core.Analysis) []core.Finding {
 				if b == "" || before.take(b) || otherRepo(iv) {
 					continue
 				}
+				if strings.HasPrefix(b, "-c ") && len(gitSubArgs(iv.Args[1:])) == 0 && !prefixRunsHooks(f, c) {
+					continue // a hook-free git prefix for maintenance commands
+				}
+				key := b + "\x00" + rulekit.Normalize(iv.String())
+				if seen[key] {
+					continue
+				}
+				seen[key] = true
 				where := ""
 				if c.Owner != "" {
 					where = " in " + ownerLabel(kindOf(f), c.Owner)

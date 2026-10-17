@@ -1,0 +1,41 @@
+# A dev-stack status is mapped to its progress label branch by branch, next to real computation for the running states; the table test checks the same mapping.
+expect: clean
+-- old/frontend/infrastructure/infrastructureTypes.ts --
+export function devStackProgress(data: DevStackData): string {
+    if (data.status === 'building') {
+        return `Building ${data.completedSteps}/${data.totalSteps}`
+    }
+    return 'Idle'
+}
+-- new/frontend/infrastructure/infrastructureTypes.ts --
+export function devStackProgress(data: DevStackData): string {
+    if (data.status === 'disabled') {
+        return 'Disabled'
+    }
+    if (data.status === 'blocked') {
+        return 'Blocked'
+    }
+    if (data.status === 'retry_scheduled') {
+        return 'Retry scheduled'
+    }
+    if (data.status === 'building') {
+        return `Building ${data.completedSteps}/${data.totalSteps}`
+    }
+    if (data.status === 'verifying') {
+        return 'Verifying'
+    }
+    return 'Idle'
+}
+-- new/frontend/infrastructure/infrastructureTypes.test.ts --
+import { devStackProgress } from './infrastructureTypes'
+
+describe('devStackProgress', () => {
+    it.each([
+        ['verifying', 'Verifying'],
+        ['retry_scheduled', 'Retry scheduled'],
+        ['blocked', 'Blocked'],
+        ['disabled', 'Disabled'],
+    ])('labels %s', (status, label) => {
+        expect(devStackProgress({ status, completedSteps: 0, totalSteps: 3 })).toBe(label)
+    })
+})

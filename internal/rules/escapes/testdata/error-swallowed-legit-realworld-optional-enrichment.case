@@ -1,0 +1,15 @@
+# A tool result that already succeeded is enriched with a config snapshot when one can be read; a failed refresh leaves the result as it was.
+expect: clean
+-- old/src/agents/builder/tools.service.ts --
+export class AgentsBuilderToolsService {
+	async withConfigSnapshotOnResume(agentId: string, projectId: string, result: ToolResult): Promise<ToolResult> {
+		return result;
+	}
+}
+-- new/src/agents/builder/tools.service.ts --
+export class AgentsBuilderToolsService {
+	async withConfigSnapshotOnResume(agentId: string, projectId: string, result: ToolResult): Promise<ToolResult> {
+		const snapshot = await this.getConfigSnapshot(agentId, projectId).catch(() => null);
+		return snapshot ? { ...result, ...snapshot } : result;
+	}
+}

@@ -1,0 +1,36 @@
+# A new opt-in, model-backed lint step is added as advisory from the start; it never gated the pipeline (info).
+expect: ci-failure-ignored@info
+-- old/.github/workflows/test.yml --
+name: Test
+on:
+  pull_request:
+jobs:
+  test-desktop:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - run: pnpm install --frozen-lockfile
+      - name: Test desktop
+        run: pnpm --filter desktop test
+-- new/.github/workflows/test.yml --
+name: Test
+on:
+  pull_request:
+jobs:
+  test-desktop:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - run: pnpm install --frozen-lockfile
+      - name: Test desktop
+        run: pnpm --filter desktop test
+      # Advisory: findings surface as warnings, never as a failure. Runs only
+      # when the rules or their fixtures change, against a live LLM provider.
+      - name: alint · calibrate rule fixtures
+        if: steps.alint-changes.outputs.rules == 'true'
+        continue-on-error: true
+        env:
+          ALINT_PROVIDER_KEY: ${{ secrets.ALINT_PROVIDER_KEY }}
+        run: pnpm vitest run --config scripts/alint/vitest.config.ts

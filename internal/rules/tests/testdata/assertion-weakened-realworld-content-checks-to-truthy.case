@@ -1,0 +1,39 @@
+# Real-world (OpenHands): four content checks on the launched draft prompt
+# are collapsed into expect(draft).toBeTruthy(). The test no longer checks
+# what the prompt says at all.
+expect: assertion-weakened, assertions-removed
+-- old/__tests__/components/automations/recommended-automations.test.tsx --
+import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { describe, expect, it, vi } from "vitest";
+
+import { RecommendedAutomations } from "#/components/automations/recommended-automations";
+
+describe("RecommendedAutomations", () => {
+  it("launches the local automation draft with the API key placeholder", async () => {
+    const onLaunch = vi.fn();
+    render(<RecommendedAutomations onLaunch={onLaunch} />);
+    await userEvent.click(screen.getByRole("button", { name: "Use template" }));
+    const draft = onLaunch.mock.calls[0][0].prompt;
+    expect(draft).toContain("local");
+    expect(draft).toContain("$OPENHANDS_AUTOMATION_API_KEY");
+    expect(draft).not.toContain("cloud");
+    expect(draft).not.toContain("{{");
+  });
+});
+-- new/__tests__/components/automations/recommended-automations.test.tsx --
+import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { describe, expect, it, vi } from "vitest";
+
+import { RecommendedAutomations } from "#/components/automations/recommended-automations";
+
+describe("RecommendedAutomations", () => {
+  it("launches the local automation draft with the API key placeholder", async () => {
+    const onLaunch = vi.fn();
+    render(<RecommendedAutomations onLaunch={onLaunch} />);
+    await userEvent.click(screen.getByRole("button", { name: "Use template" }));
+    const draft = onLaunch.mock.calls[0][0].prompt;
+    expect(draft).toBeTruthy();
+  });
+});

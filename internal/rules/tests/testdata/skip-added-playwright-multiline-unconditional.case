@@ -1,0 +1,25 @@
+# Evasive: Prettier splits test.skip(true, '...') over three lines; the
+# constant condition still skips the existing e2e test every time.
+expect: skip-added@error
+-- old/e2e/checkout.spec.ts --
+import { expect, test } from '@playwright/test';
+
+test('applies a coupon at checkout', async ({ page }) => {
+  await page.goto('/checkout');
+  await page.getByLabel('Coupon').fill('SAVE10');
+  await page.getByRole('button', { name: 'Apply' }).click();
+  await expect(page.getByTestId('total')).toHaveText('$90.00');
+});
+-- new/e2e/checkout.spec.ts --
+import { expect, test } from '@playwright/test';
+
+test('applies a coupon at checkout', async ({ page }) => {
+  test.skip(
+    true,
+    'coupon service is slow today, re-enable once the total settles',
+  );
+  await page.goto('/checkout');
+  await page.getByLabel('Coupon').fill('SAVE10');
+  await page.getByRole('button', { name: 'Apply' }).click();
+  await expect(page.getByTestId('total')).toHaveText('$90.00');
+});

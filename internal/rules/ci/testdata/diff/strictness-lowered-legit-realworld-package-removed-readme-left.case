@@ -1,0 +1,35 @@
+# A deprecated terminal UI is removed; only its README stays behind as a deprecation notice, so its tsconfig.json governs nothing any more.
+expect: clean
+-- old/ui/text/tsconfig.json --
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "NodeNext",
+    "jsx": "react-jsx",
+    "strict": true,
+    "outDir": "dist"
+  },
+  "include": ["src"]
+}
+-- old/ui/text/package.json --
+{
+  "name": "@aaif/goose",
+  "version": "0.4.2",
+  "type": "module",
+  "bin": { "goose-tui": "dist/tui.js" },
+  "scripts": { "build": "tsc" }
+}
+-- old/ui/text/src/tui.tsx --
+import { render, Text } from 'ink';
+
+render(<Text>goose</Text>);
+-- old/ui/text/src/utils.tsx --
+export const truncate = (s: string, n: number) => (s.length > n ? `${s.slice(0, n - 1)}…` : s);
+-- old/ui/text/README.md --
+# goose ACP TUI
+
+Early stage and part of goose's broader move to ACP.
+-- new/ui/text/README.md --
+# goose ACP TUI — Deprecated
+
+> **This project is deprecated and no longer maintained.** Use the `goose` CLI or the desktop app.

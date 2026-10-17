@@ -10,6 +10,7 @@ import (
 	"github.com/tranhuuhuy297/narc/internal/core"
 	"github.com/tranhuuhuy297/narc/internal/diff"
 	"github.com/tranhuuhuy297/narc/internal/lang"
+	"github.com/tranhuuhuy297/narc/internal/rules/rulekit"
 )
 
 // ---- file versions ----
@@ -350,6 +351,187 @@ var testSupportRe = regexp.MustCompile(`(?i)(^|/)(` +
 // isTestSupport reports whether p is test infrastructure (see testSupportRe).
 func isTestSupport(p string) bool {
 	return testSupportRe.MatchString(strings.TrimPrefix(path.Clean("/"+p), "/"))
+}
+
+// testishPathRe matches test infrastructure that testSupportRe leaves out:
+// Storybook stories, underscore-prefixed test-utility directories
+// (`_test-utils/`, `__test_helpers__/`) and e2e/playwright fixture trees.
+var testishPathRe = regexp.MustCompile(`(?i)\.stories\.[cm]?[jt]sx?$|\.story\.[cm]?[jt]sx?$|` +
+	`(^|/)_+(test[-_]?utils?|test[-_]?helpers?|fixtures?|mocks?|testing)_*/|(^|/)(e2e|integration[-_]tests?)/`)
+
+// testish reports whether line n of f is test code or test infrastructure
+// (helpers, mocks, fixtures, stories), where escape hatches are routine.
+func testish(a *core.Analysis, f *core.FileInfo, n int) bool {
+	return testLines(a, f)(n) || isTestSupport(f.Path) || testishPathRe.MatchString(f.Path)
+}
+
+// fixtureDataRe matches directories that hold input data for a linter,
+// parser or formatter's own tests: the files are never executed, and a
+// suppression or a swallowed error in them is the thing being tested.
+var fixtureDataRe = regexp.MustCompile(`(^|/)(resources/test|testdata|test_data|__snapshots__|snapshots|` +
+	`test/fixtures|tests/fixtures|fixtures/[\w.-]+_errors?)/`)
+
+// isFixtureData reports whether p is test input data (see fixtureDataRe).
+func isFixtureData(p string) bool {
+	return fixtureDataRe.MatchString(strings.TrimPrefix(path.Clean("/"+p), "/"))
+}
+
+// devToolingRe matches developer tooling that never ships: agent skills and
+// editor/agent configuration, PR helpers, and the repository's (or a
+// package's) scripts and tools directories.
+var devToolingRe = regexp.MustCompile(`(?i)(^|/)(\.agents|\.claude|\.codex|\.cursor|\.pr|\.github/scripts|scripts)/|` +
+	`^(?:(?:packages|apps|libs|crates|services)/[^/]+/)?(?:tools|hack|dev[-_]?tools|bin)/`)
+
+// isDevTooling reports whether f is developer tooling (see devToolingRe),
+// or a standalone JavaScript/TypeScript script (`#!/usr/bin/env -S npx tsx`).
+func isDevTooling(f *core.FileInfo) bool {
+	if devToolingRe.MatchString(strings.TrimPrefix(path.Clean("/"+f.Path), "/")) {
+		return true
+	}
+	if f.Lang.IsJSLike() {
+		if b, ok := f.NewContent(); ok && strings.HasPrefix(string(b), "#!") {
+			return true
+		}
+	}
+	return false
+}
+
+// vendoredRe matches third-party code copied into the repository.
+var vendoredRe = regexp.MustCompile(`(^|/)(vendor|vendored|third[-_]party|_vendor)/`)
+
+// isVendored reports whether p is vendored third-party code.
+func isVendored(p string) bool {
+	return vendoredRe.MatchString(strings.TrimPrefix(path.Clean("/"+p), "/"))
+}
+
+// ---- prevalence ----
+
+// prevalenceKey memoizes repoCount per analysis.
+type prevalenceKey struct {
+	needle string
+	ext    string
+	opts   scanOpts
+}
+
+// scanOpts tunes repoCount.
+type scanOpts struct {
+	limit int // files to read at most
+	want  int // stop counting here
+	// anyLang reads files of every language, not only p's family; noTests
+	// leaves test files out.
+	anyLang, noTests bool
+}
+
+// repoCount counts the files of the repository, other than the ones the
+// change touched, whose content contains needle: how established an idiom
+// already is, or whether other code produces a value. It reads at most
+// opts.limit files (with the extension family of path p unless
+// opts.anyLang), nearest to p first, and stops counting at opts.want. It
+// returns 0 when the repository cannot be listed.
+func repoCount(a *core.Analysis, p, needle string, opts scanOpts) int {
+	if needle == "" {
+		return 0
+	}
+	ext := path.Ext(p)
+	return a.Memo(prevalenceKey{needle, ext, opts}, func() any {
+		t := repoTree(a)
+		if t == nil {
+			return 0
+		}
+		changed := map[string]bool{}
+		for _, f := range a.Files {
+			changed[f.Path] = true
+		}
+		var cands []string
+		for _, q := range t.all {
+			if changed[q] || (!opts.anyLang && !sameFamily(path.Ext(q), ext)) {
+				continue
+			}
+			if opts.anyLang && !lang.Detect(q).IsProgramming() && path.Ext(q) != ".md" {
+				continue
+			}
+			if opts.noTests && (core.IsTestPath(q) || core.MatchAny(a.Settings.TestGlobs, q) || isTestSupport(q)) {
+				continue
+			}
+			cands = append(cands, q)
+		}
+		// Nearest first: the longest common directory prefix with p.
+		dir := path.Dir(p)
+		sort.SliceStable(cands, func(i, j int) bool {
+			return commonPrefix(dir, path.Dir(cands[i])) > commonPrefix(dir, path.Dir(cands[j]))
+		})
+		if len(cands) > opts.limit {
+			cands = cands[:opts.limit]
+		}
+		n := 0
+		for _, q := range cands {
+			b, ok := a.ReadNew(q)
+			if !ok || len(b) > 512<<10 {
+				continue
+			}
+			if strings.Contains(string(b), needle) {
+				if n++; n >= opts.want {
+					break
+				}
+			}
+		}
+		return n
+	}).(int)
+}
+
+// sameFamily reports whether two file extensions belong to one language
+// family (.ts and .tsx, .js and .mjs).
+func sameFamily(a, b string) bool {
+	fam := func(e string) string {
+		switch e {
+		case ".ts", ".tsx", ".mts", ".cts", ".js", ".jsx", ".mjs", ".cjs":
+			return "js"
+		case ".h", ".hpp", ".c", ".cc", ".cpp":
+			return "c"
+		}
+		return e
+	}
+	return fam(a) == fam(b)
+}
+
+// commonPrefix returns the number of leading path segments a and b share.
+func commonPrefix(a, b string) int {
+	as, bs := strings.Split(a, "/"), strings.Split(b, "/")
+	n := 0
+	for n < len(as) && n < len(bs) && as[n] == bs[n] {
+		n++
+	}
+	return n
+}
+
+// ---- pre-existing code ----
+
+// existingCode reports whether new-side line n of f holds code that was
+// already there before the change: an unchanged line, or a changed line
+// whose code (comments and whitespace aside) a removed line of the same
+// file had, e.g. a line that only gained a trailing suppression comment.
+func existingCode(f *core.FileInfo, s *side, ch map[int]bool, n int) bool {
+	if n <= 0 {
+		return false
+	}
+	if !ch[n] {
+		_, ok := s.at(n)
+		return ok
+	}
+	l, ok := s.at(n)
+	if !ok {
+		return false
+	}
+	k := rulekit.Normalize(l.Code)
+	if k == "" {
+		return false
+	}
+	for _, r := range f.Removed {
+		if rulekit.Normalize(r.Code) == k {
+			return true
+		}
+	}
+	return false
 }
 
 // bootstrapRe matches configuration, settings and entry-point files, where

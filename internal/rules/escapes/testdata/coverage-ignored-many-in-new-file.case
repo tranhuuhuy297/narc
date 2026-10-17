@@ -1,0 +1,24 @@
+# A new platform file excludes branch after branch from coverage, each with a plausible reason; together they hide most of its logic from the coverage gate. Reported once for the file.
+expect: coverage-ignored@warning
+-- new/homeassistant/components/pool/number.py --
+class PoolNumber(PoolEntity, NumberEntity):
+    @property
+    def native_value(self) -> float | None:
+        raw = self.coordinator.data.get(self.entity_description.key)
+        if raw is None:  # pragma: no cover - register present once polled
+            return None
+        if self.entity_description.scale is None:  # pragma: no cover - descriptions always set a scale
+            return float(raw)
+        if raw < 0:  # pragma: no cover - device never reports negatives
+            return 0.0
+        return raw / self.entity_description.scale
+
+    async def async_set_native_value(self, value: float) -> None:
+        if self.entity_description.write_fn is None:  # pragma: no cover - every description wires write_fn
+            return
+        if value > self.native_max_value:  # pragma: no cover - the UI clamps values
+            value = self.native_max_value
+        raw = round(value * (self.entity_description.scale or 1))
+        if raw == self.coordinator.data.get(self.entity_description.key):  # pragma: no cover - HA skips no-op writes
+            return
+        await self.entity_description.write_fn(self.coordinator, raw)

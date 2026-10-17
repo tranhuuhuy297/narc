@@ -1,0 +1,75 @@
+# Real world (coder): the display-mode resolver no longer accepts undefined
+# (the parameter type was narrowed and `case undefined:` deleted), so the
+# assertion for that input went with it. One of five checks dropped beside
+# the change that removed the input: reported as info.
+expect: assertions-removed@info
+-- old/site/src/pages/AgentsPage/components/ChatElements/tools/displayMode.ts --
+export type AgentDisplayMode = "auto" | "compact" | "expanded" | "hidden";
+
+export interface AgentDisplayState {
+	collapsed: boolean;
+	visible: boolean;
+}
+
+export const resolveAgentDisplayState = (
+	mode: AgentDisplayMode | undefined,
+): AgentDisplayState => {
+	switch (mode) {
+		case "compact":
+			return { collapsed: true, visible: true };
+		case "expanded":
+			return { collapsed: false, visible: true };
+		case "hidden":
+			return { collapsed: true, visible: false };
+		case "auto":
+		case undefined:
+			return { collapsed: false, visible: true };
+	}
+};
+-- new/site/src/pages/AgentsPage/components/ChatElements/tools/displayMode.ts --
+export type AgentDisplayMode = "auto" | "compact" | "expanded" | "hidden";
+
+export interface AgentDisplayState {
+	collapsed: boolean;
+	visible: boolean;
+}
+
+export const resolveAgentDisplayState = (
+	mode: AgentDisplayMode,
+): AgentDisplayState => {
+	switch (mode) {
+		case "compact":
+			return { collapsed: true, visible: true };
+		case "expanded":
+			return { collapsed: false, visible: true };
+		case "hidden":
+			return { collapsed: true, visible: false };
+		case "auto":
+			return { collapsed: false, visible: true };
+	}
+};
+-- old/site/src/pages/AgentsPage/components/ChatElements/tools/displayMode.test.ts --
+import { describe, expect, it } from "vitest";
+import { resolveAgentDisplayState } from "./displayMode";
+
+describe("resolveAgentDisplayState", () => {
+	it("resolves auto and explicit display modes", () => {
+		expect(resolveAgentDisplayState("auto")).toEqual({ collapsed: false, visible: true });
+		expect(resolveAgentDisplayState(undefined)).toEqual({ collapsed: false, visible: true });
+		expect(resolveAgentDisplayState("compact")).toEqual({ collapsed: true, visible: true });
+		expect(resolveAgentDisplayState("expanded")).toEqual({ collapsed: false, visible: true });
+		expect(resolveAgentDisplayState("hidden")).toEqual({ collapsed: true, visible: false });
+	});
+});
+-- new/site/src/pages/AgentsPage/components/ChatElements/tools/displayMode.test.ts --
+import { describe, expect, it } from "vitest";
+import { resolveAgentDisplayState } from "./displayMode";
+
+describe("resolveAgentDisplayState", () => {
+	it("resolves auto and explicit display modes", () => {
+		expect(resolveAgentDisplayState("auto")).toEqual({ collapsed: false, visible: true });
+		expect(resolveAgentDisplayState("compact")).toEqual({ collapsed: true, visible: true });
+		expect(resolveAgentDisplayState("expanded")).toEqual({ collapsed: false, visible: true });
+		expect(resolveAgentDisplayState("hidden")).toEqual({ collapsed: true, visible: false });
+	});
+});

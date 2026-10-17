@@ -1,0 +1,24 @@
+# Writing a diagnostic line about a failure is best effort: a broken log sink must not turn the reported failure into a crash of its own.
+expect: clean
+-- old/packages/bridge/src/session-control-plane.ts --
+export function reportPersistenceFailure(entry: Entry, err: unknown, opts: Options): boolean {
+  const reason = err instanceof BridgeTimeoutError ? 'rpc_timeout' : 'rpc_rejected';
+  opts.onDiagnosticLine?.(`source_persistence_failed sessionId=${entry.sessionId} reason=${reason}`, 'warn');
+  return false;
+}
+-- new/packages/bridge/src/session-control-plane.ts --
+export function reportPersistenceFailure(entry: Entry, err: unknown, opts: Options): boolean {
+  const reason = err instanceof BridgeTimeoutError ? 'rpc_timeout' : 'rpc_rejected';
+  const message = `source_persistence_failed sessionId=${entry.sessionId} reason=${reason}`;
+  try {
+    opts.onDiagnosticLine?.(message, 'warn');
+  } catch {
+    /* Best effort. */
+  }
+  try {
+    writeStderrLine(message);
+  } catch {
+    /* Best effort. */
+  }
+  return false;
+}

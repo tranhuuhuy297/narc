@@ -12,6 +12,9 @@
 //     checks and issue references;
 //   - introduced.go: net-new detection for markers, so moved, reformatted,
 //     lightly edited or narrowed markers never count as new;
+//   - fresh.go: whether the test a marker or assertion belongs to was added
+//     by the change (renames and moves are not new), and how skips of new
+//     tests are judged;
 //   - jsdecl.go: JavaScript declaration forms (it['skip'], continuation
 //     lines, options objects, JSX text);
 //   - assertions.go: a multi-framework assertion parser used by tautology,

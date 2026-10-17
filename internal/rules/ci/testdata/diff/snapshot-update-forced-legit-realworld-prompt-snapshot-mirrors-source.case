@@ -1,0 +1,74 @@
+# The system prompt's comment guidance is reworded in prompts.ts; every rewritten snapshot line is that new sentence.
+expect: clean
+-- old/packages/core/src/core/prompts.ts --
+export function getCoreSystemPrompt(userMemory?: string): string {
+  const base = `
+You are an interactive CLI agent specializing in software engineering tasks.
+
+# Core Mandates
+- **Conventions:** Rigorously adhere to existing project conventions when reading or modifying code.
+- **Comments:** Add code comments sparingly. Focus on *why* something is done, especially for complex logic.
+- **Proactiveness:** Fulfill the user's request thoroughly.
+`.trim();
+  return userMemory ? `${base}\n\n---\n\n${userMemory.trim()}` : base;
+}
+-- new/packages/core/src/core/prompts.ts --
+export function getCoreSystemPrompt(userMemory?: string): string {
+  const base = `
+You are an interactive CLI agent specializing in software engineering tasks.
+
+# Core Mandates
+- **Conventions:** Rigorously adhere to existing project conventions when reading or modifying code.
+- **Comments:** Write comments only when they explain intent the code cannot express; never narrate edits or address the user through comments.
+- **Proactiveness:** Fulfill the user's request thoroughly.
+`.trim();
+  return userMemory ? `${base}\n\n---\n\n${userMemory.trim()}` : base;
+}
+-- old/packages/core/src/core/__snapshots__/prompts.test.ts.snap --
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`Core System Prompt (prompts.ts) > should return the base prompt when no userMemory is provided 1`] = `
+"You are an interactive CLI agent specializing in software engineering tasks.
+
+# Core Mandates
+- **Conventions:** Rigorously adhere to existing project conventions when reading or modifying code.
+- **Comments:** Add code comments sparingly. Focus on *why* something is done, especially for complex logic.
+- **Proactiveness:** Fulfill the user's request thoroughly."
+`;
+
+exports[`Core System Prompt (prompts.ts) > should append userMemory with separator when provided 1`] = `
+"You are an interactive CLI agent specializing in software engineering tasks.
+
+# Core Mandates
+- **Conventions:** Rigorously adhere to existing project conventions when reading or modifying code.
+- **Comments:** Add code comments sparingly. Focus on *why* something is done, especially for complex logic.
+- **Proactiveness:** Fulfill the user's request thoroughly.
+
+---
+
+This is custom user memory."
+`;
+-- new/packages/core/src/core/__snapshots__/prompts.test.ts.snap --
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`Core System Prompt (prompts.ts) > should return the base prompt when no userMemory is provided 1`] = `
+"You are an interactive CLI agent specializing in software engineering tasks.
+
+# Core Mandates
+- **Conventions:** Rigorously adhere to existing project conventions when reading or modifying code.
+- **Comments:** Write comments only when they explain intent the code cannot express; never narrate edits or address the user through comments.
+- **Proactiveness:** Fulfill the user's request thoroughly."
+`;
+
+exports[`Core System Prompt (prompts.ts) > should append userMemory with separator when provided 1`] = `
+"You are an interactive CLI agent specializing in software engineering tasks.
+
+# Core Mandates
+- **Conventions:** Rigorously adhere to existing project conventions when reading or modifying code.
+- **Comments:** Write comments only when they explain intent the code cannot express; never narrate edits or address the user through comments.
+- **Proactiveness:** Fulfill the user's request thoroughly.
+
+---
+
+This is custom user memory."
+`;

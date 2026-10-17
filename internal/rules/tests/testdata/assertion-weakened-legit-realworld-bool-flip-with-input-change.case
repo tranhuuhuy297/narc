@@ -1,0 +1,30 @@
+# Real-world (crush): the fixture switches from "option no-metrics" to
+# "option metrics false" (positive keys), and the expected disable_metrics
+# flips from false to true. Still an exact require.Equal.
+expect: clean
+-- old/internal/shellconfig/load_test.go --
+package shellconfig
+
+import (
+	"testing"
+
+	"github.com/stretchr/testify/require"
+)
+
+func TestLoadOptions(t *testing.T) {
+	opts := load(t, "option no-metrics\n")
+	require.Equal(t, false, opts["disable_metrics"])
+}
+-- new/internal/shellconfig/load_test.go --
+package shellconfig
+
+import (
+	"testing"
+
+	"github.com/stretchr/testify/require"
+)
+
+func TestLoadOptions(t *testing.T) {
+	opts := load(t, "option metrics false\n")
+	require.Equal(t, true, opts["disable_metrics"])
+}

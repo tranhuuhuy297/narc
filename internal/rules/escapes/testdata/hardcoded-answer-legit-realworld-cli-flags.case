@@ -1,0 +1,22 @@
+# Ordinary command-line parsing: --help and -h select the help command.
+expect: clean
+-- old/packages/live/src/cli-args.ts --
+export function parseLiveCliArgs(argv: string[]): LiveCommand {
+  return { kind: 'run', debug: false };
+}
+-- new/packages/live/src/cli-args.ts --
+export function parseLiveCliArgs(argv: string[]): LiveCommand {
+  let debug = false;
+  for (const argument of argv) {
+    if (argument === '--debug' || argument === '-d') debug = true;
+    else if (argument === '--help' || argument === '-h') return { kind: 'help' };
+    else throw new Error(`unknown argument: ${argument}`);
+  }
+  return { kind: 'run', debug };
+}
+-- new/packages/live/src/cli-args.test.ts --
+import { parseLiveCliArgs } from './cli-args';
+
+it('parses --help', () => {
+  expect(parseLiveCliArgs(['--help'])).toEqual({ kind: 'help' });
+});

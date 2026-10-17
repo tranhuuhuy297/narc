@@ -1,0 +1,70 @@
+# Real world (ruff): the parser stopped failing on deep nesting (it grows
+# the stack instead), so the recursion-limit tests now check that parsing
+# succeeds. `parse_module(&src).unwrap();` panics, and fails the test, on
+# any error; the error variant the old assertion matched is gone.
+expect: clean
+-- old/crates/ruff_python_parser/src/error.rs --
+#[derive(Debug, Clone, PartialEq)]
+pub enum ParseErrorType {
+    UnexpectedIndentation,
+    /// The parser gave up because the input nests too deeply.
+    RecursionLimitExceeded,
+    OtherError(String),
+}
+-- new/crates/ruff_python_parser/src/error.rs --
+#[derive(Debug, Clone, PartialEq)]
+pub enum ParseErrorType {
+    UnexpectedIndentation,
+    OtherError(String),
+}
+-- old/crates/ruff_python_parser/src/parser/tests.rs --
+use crate::{Mode, ParseErrorType, ParseOptions, parse, parse_module};
+
+#[test]
+fn recursion_limit_nested_def_blocks() {
+    // Nested function definitions exercise instrumentation on
+    // `parse_statement` rather than `parse_lhs_expression`.
+    let depth = 400;
+    let mut src = String::new();
+    for i in 0..depth {
+        src.push_str(&"\t".repeat(i));
+        src.push_str(&format!("def f{i}():\n"));
+    }
+    src.push_str(&"\t".repeat(depth));
+    src.push_str("pass\n");
+    let opts = ParseOptions::from(Mode::Module).with_max_recursion_depth(100);
+    let err = parse(&src, opts).unwrap_err();
+    assert!(matches!(err.error, ParseErrorType::RecursionLimitExceeded));
+}
+
+#[test]
+fn recursion_limit_normal_python_unaffected() {
+    let src = format!("x = {}1{}", "(".repeat(50), ")".repeat(50));
+    parse_module(&src).unwrap();
+}
+-- new/crates/ruff_python_parser/src/parser/tests.rs --
+use crate::{Mode, ParseOptions, parse, parse_module};
+
+// Keep recursive ASTs shallow enough for Windows's 1 MiB test-thread stacks.
+const RECURSIVE_AST_TEST_DEPTH: usize = 1_000;
+
+#[test]
+fn nested_def_blocks_grow_stack() {
+    // Each nested function crosses the suite boundary where the parser
+    // rechecks the stack.
+    let depth = RECURSIVE_AST_TEST_DEPTH;
+    let mut src = String::new();
+    for i in 0..depth {
+        src.push_str(&"\t".repeat(i));
+        src.push_str(&format!("def f{i}():\n"));
+    }
+    src.push_str(&"\t".repeat(depth));
+    src.push_str("pass\n");
+    parse_module(&src).unwrap();
+}
+
+#[test]
+fn normal_python_unaffected() {
+    let src = format!("x = {}1{}", "(".repeat(50), ")".repeat(50));
+    parse_module(&src).unwrap();
+}

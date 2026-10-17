@@ -1,0 +1,30 @@
+# Go idiom: the spill file's write error is checked, and the deferred Close is marked for errcheck.
+expect: lint-suppressed@info
+-- old/internal/shell/truncate.go --
+package shell
+
+func spill(dir, output string) (string, error) {
+	if len(output) < spillThreshold {
+		return "", nil
+	}
+	return "", errSpillDisabled
+}
+-- new/internal/shell/truncate.go --
+package shell
+
+import "os"
+
+func spill(dir, output string) (string, error) {
+	if len(output) < spillThreshold {
+		return "", nil
+	}
+	f, err := os.CreateTemp(dir, spillPattern)
+	if err != nil {
+		return "", err
+	}
+	defer f.Close() //nolint:errcheck
+	if _, err := f.WriteString(output); err != nil {
+		return "", err
+	}
+	return f.Name(), nil
+}

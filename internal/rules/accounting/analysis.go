@@ -20,6 +20,7 @@ const (
 	byBare              // same file, same name under a different suite
 	moved               // same name, another file
 	renamed             // another name, (nearly) the same body
+	inPlace             // another name and body, written where the old test was
 )
 
 // ledger is the test accounting of one change: every test before and
@@ -68,6 +69,18 @@ type ledger struct {
 	framework map[segKey]bool
 	withTests map[segKey]bool
 
+	// src describes the change's edits to production code (see source);
+	// fresh counts the new, unmatched tests per file (see newTestsIn).
+	src    *sourceModel
+	fresh  map[*core.FileInfo]int
+	locals map[*core.FileInfo]map[string]map[string]bool
+	// edited holds the functions called by tests the change wrote or
+	// edited (see testedElsewhere).
+	edited map[string]bool
+	// titles holds the string literals of added test code: the case
+	// titles of it.each / parametrize tables, among others.
+	titles map[string]bool
+
 	// a gives access to unchanged files (helpers the change did not touch).
 	a *core.Analysis
 	// external caches the assertion helpers found in unchanged files, by
@@ -86,6 +99,11 @@ type drop struct {
 	// atLeast: the old test was cut off by the end of a hunk, so its
 	// assertion count is a lower bound.
 	atLeast bool
+	// helped counts the assertions the new test makes through helpers;
+	// via names a helper with assertions that the old test did not call,
+	// to which the test now hands its checks.
+	helped int
+	via    string
 }
 
 // ledgerKey is the Analysis.Memo key of the ledger.
@@ -283,7 +301,7 @@ func build(a *core.Analysis) *ledger {
 		deletedStems: map[string]bool{}, a: a, external: map[string]map[string]int{}, nearby: map[string]map[string][]copyTest{},
 		renamedTo: map[*core.FileInfo]string{}, uncollected: map[string]bool{}, inline: map[*core.FileInfo]bool{},
 		segs: map[segKey][]*segment{}, imports: map[*core.FileInfo][]lang.LexedLine{}, framework: map[segKey]bool{},
-		withTests: map[segKey]bool{}}
+		withTests: map[segKey]bool{}, locals: map[*core.FileInfo]map[string]map[string]bool{}}
 	order := 0
 	var testFiles []*core.FileInfo // files with test code after the change
 	oldKeys, newKeys := map[string]int{}, map[string]int{}
@@ -346,7 +364,16 @@ func build(a *core.Analysis) *ledger {
 
 	match(l.olds, l.news)
 	l.findFormerTests()
+	l.matchInPlace()
 	l.fillPool(testFiles)
+	l.titles = map[string]bool{}
+	for _, f := range testFiles {
+		for _, ln := range f.Added {
+			for _, s := range ln.Strings {
+				l.titles[strings.TrimSpace(s)] = true
+			}
+		}
+	}
 	for _, o := range l.olds {
 		if d, ok := l.dropOf(o); ok {
 			l.drops = append(l.drops, d)
@@ -643,11 +670,15 @@ func (l *ledger) dropOf(o *instance) (drop, bool) {
 	if (o.partial || n.partial) && !sameWindow(o, n) && !returnsEarly(n) {
 		return drop{}, false
 	}
-	if n.assertions()+l.helperCalls(n) >= o.assertions() {
+	helped := l.helperCalls(n)
+	if n.assertions()+helped >= o.assertions() {
 		return drop{}, false // the checks moved into helpers the test calls
 	}
 	if _, ok := l.unresolvedHelper(o, n); ok {
 		return drop{}, false // the checks may live in a helper narc cannot read
+	}
+	if snapshotted(o, n) {
+		return drop{}, false // one snapshot comparison took over the checks
 	}
 	remaining := map[string]int{}
 	for _, s := range o.sites {
@@ -673,8 +704,8 @@ func (l *ledger) dropOf(o *instance) (drop, bool) {
 		if kept[s.key] {
 			continue // a repeated assertion; the test still makes it
 		}
-		if l.checksRemovedCode(s) {
-			continue // the function or type it checked was deleted
+		if l.checksRemovedCode(s) || l.siteVanished(s) {
+			continue // the function, type or value it checked was deleted
 		}
 		if dead[s.key] > 0 { // still there, after an early return
 			dead[s.key]--
@@ -687,7 +718,68 @@ func (l *ledger) dropOf(o *instance) (drop, bool) {
 	if len(lost) == 0 {
 		return drop{}, false
 	}
-	return drop{old: o, new: n, lost: lost, rewritten: gained || dice(o, n) < 0.5, atLeast: o.partial}, true
+	return drop{old: o, new: n, lost: lost, rewritten: gained || dice(o, n) < 0.5 || n.how == inPlace, atLeast: o.partial,
+		helped: helped, via: l.newHelper(o, n)}, true
+}
+
+// snapshotRe matches a snapshot assertion: toMatchSnapshot,
+// toMatchInlineSnapshot, syrupy's `== snapshot`, Home Assistant's
+// snapshot_platform, insta's assert_*_snapshot!, Verify.
+var snapshotRe = regexp.MustCompile(`(?i)snapshot|\bVerify\s*\(`)
+
+// snapshotted reports whether new test n compares with a snapshot and old
+// test o did not: the snapshot records everything the old assertions
+// checked (and the snapshot file shows it), so they were folded into it.
+func snapshotted(o, n *instance) bool {
+	for _, s := range o.sites {
+		if snapshotRe.MatchString(s.code) {
+			return false
+		}
+	}
+	for _, s := range n.sites {
+		if snapshotRe.MatchString(s.code) {
+			return true
+		}
+	}
+	return false
+}
+
+// siteVanished reports whether a lost assertion mentions a name that the
+// change removed from production code: it checked an input, an option or
+// a value that no longer exists.
+func (l *ledger) siteVanished(s site) bool {
+	if len(l.sourceChanged) == 0 {
+		return false
+	}
+	v := l.source().vanished
+	for _, tk := range s.toks {
+		if v[strings.TrimPrefix(tk, `"`)] {
+			return true
+		}
+	}
+	return false
+}
+
+// newHelper returns a helper with assertions that new test n calls and
+// old test o did not: the test now hands its checks to it.
+func (l *ledger) newHelper(o, n *instance) string {
+	for rel := n.block.Header + 1; rel <= n.block.End && rel-1 < len(n.seg.lines); rel++ {
+		code := n.seg.lines[rel-1].Code
+		calls := callRe.FindAllStringSubmatch(code, -1)
+		if n.seg.lang == lang.Go {
+			calls = append(calls, goLiteralRe.FindAllStringSubmatch(code, -1)...)
+		}
+		for _, m := range calls {
+			name := lastName(m[1])
+			if name == n.block.Bare || stopWords[name] || o.bag[name] > 0 {
+				continue
+			}
+			if l.helpers[name] > 0 || l.externalHelpers(n.file)[name] > 0 {
+				return name
+			}
+		}
+	}
+	return ""
 }
 
 // checksRemovedCode reports whether an assertion exercises a function or
@@ -818,8 +910,17 @@ func (l *ledger) explained(o *instance) bool {
 		return false
 	}
 	f := o.file
-	if f.Diff.Kind == diff.Deleted && (l.rustInline(f) || l.deletedStems[stem(f.Path, true)]) {
+	if f.Diff.Kind == diff.Deleted && (l.rustInline(f) || l.deletedStems[stem(f.Path, true)] || l.importsGone(f)) {
 		return true // the code under test (or the module holding the tests) was deleted
+	}
+	if f.Diff.Kind == diff.Deleted && migrationTestRe.MatchString(f.Path) {
+		return true // a one-off data migration's test, retired with the migration
+	}
+	if l.refsVanished(o) != "" {
+		return true // it exercises a function, type, option or value the change removed
+	}
+	if len(o.block.Bare) >= 8 && strings.ContainsAny(o.block.Bare, " :") && l.titles[o.block.Bare] {
+		return true // its title is now a row of a table of cases (it.each, parametrize)
 	}
 	for rel := o.block.Header; rel <= o.block.End && rel-1 < len(o.seg.lines); rel++ {
 		if l.callsRemoved(o.seg.lines[rel-1].Code, o.block.Bare) {

@@ -1,0 +1,23 @@
+# Fork-bomb guard: an unstubbed call must not re-execute the test binary, so under tests the resolver fails loudly with an error instead.
+expect: clean
+-- old/cmd/bd/agent_hook.go --
+package main
+
+func resolvePrimeExecutable() (string, error) {
+	return exec.LookPath("bd")
+}
+-- new/cmd/bd/agent_hook.go --
+package main
+
+var errPrimeTestBinary = errors.New("refusing to re-exec a test binary")
+
+func resolvePrimeExecutable() (string, error) {
+	if exe, err := os.Executable(); err == nil {
+		base := filepath.Base(exe)
+		if testing.Testing() || strings.HasSuffix(base, ".test") || strings.Contains(base, ".test.") {
+			return "", errPrimeTestBinary
+		}
+		return exe, nil
+	}
+	return exec.LookPath("bd")
+}

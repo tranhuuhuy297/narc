@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/tranhuuhuy297/narc/internal/core"
+	"github.com/tranhuuhuy297/narc/internal/diff"
 	"github.com/tranhuuhuy297/narc/internal/rules/rulekit"
 )
 
@@ -31,7 +32,15 @@ var strictnessLowered = &core.Rule{
 		"Psalm errorLevel raised; `--max-warnings` raised, `cargo clippy -- -D warnings` and `mypy --strict` " +
 		"dropped; mypy `disable_error_code` gaining codes (except for tests). A tsconfig option removed " +
 		"because the file `extends` a base is checked against that base when it can be read. Info: codes " +
-		"newly ignored by ruff/flake8/pylint, golangci-lint linters disabled, RuboCop cops disabled.",
+		"newly ignored by ruff/flake8/pylint (not those of a rule family the change starts selecting), " +
+		"golangci-lint linters disabled (not v2's moved formatters and merged linters), RuboCop cops disabled, " +
+		"strict-family overrides in a new package's tsconfig that no source or sibling package has, mypy " +
+		"overrides in a new section for modules outside the config's own project, and lint rules turned off " +
+		"with a comment that another linter owns them when no linter config of the repository confirms it.\n\n" +
+		"Not reported: configs deleted together with the package they governed, `-D warnings` dropped where " +
+		"Cargo's warning policy (`CARGO_BUILD_WARNINGS=deny`, `build.warnings = \"deny\"`) or RUSTFLAGS keeps " +
+		"warnings fatal, and Biome/ESLint rules turned off while another linter config of the repository " +
+		"(Oxlint, ESLint, Biome) enforces the same rule.",
 }
 
 func init() {
@@ -47,6 +56,9 @@ func checkStrictness(a *core.Analysis) []core.Finding {
 		if len(f.Added)+len(f.Removed) == 0 || !isConfigFile(f) {
 			continue
 		}
+		if f.Diff.Kind == diff.Deleted && dirGone(a, path.Dir(f.Path)) {
+			continue // the package it configured is deleted with it
+		}
 		base := strings.ToLower(path.Base(f.Path))
 		if strings.HasPrefix(base, "psalm.xml") {
 			out = append(out, psalmLevel(f)...)
@@ -59,11 +71,11 @@ func checkStrictness(a *core.Analysis) []core.Finding {
 		}
 		switch {
 		case f.Config == core.CfgTSConfig:
-			out = append(out, tsconfigStrictness(f, old, new, tsMoved, tsBaseReader(a))...)
+			out = append(out, tsconfigStrictness(f, old, new, tsMoved, tsBaseReader(a), tsMirror(a, f))...)
 		case f.Config == core.CfgESLint, f.Config == core.CfgPackageJSON:
-			out = append(out, eslintStrictness(f, old, new, moved)...)
+			out = append(out, eslintStrictness(a, f, old, new, moved)...)
 		case f.Config == core.CfgBiome:
-			out = append(out, biomeStrictness(f, old, new)...)
+			out = append(out, biomeStrictness(a, f, old, new)...)
 		case f.Config == core.CfgGolangci:
 			out = append(out, golangciStrictness(f, old, new)...)
 		case f.Config == core.CfgPHPStan:
@@ -73,7 +85,7 @@ func checkStrictness(a *core.Analysis) []core.Finding {
 		}
 		switch f.Config {
 		case core.CfgMypy, core.CfgSetupCfg, core.CfgPyproject:
-			out = append(out, mypyStrictness(f, old, new, moved)...)
+			out = append(out, mypyStrictness(a, f, old, new, moved)...)
 		}
 		if f.Config == core.CfgPyproject || base == "pyrightconfig.json" {
 			out = append(out, pyrightStrictness(f, old, new)...)
@@ -269,7 +281,7 @@ func enables(on map[string]bool, opt string) bool {
 	return isStrictFamily(opt) && on["strict"]
 }
 
-func tsconfigStrictness(f *core.FileInfo, old, new []entry, movedOn map[string]bool, readBase tsBase) []core.Finding {
+func tsconfigStrictness(f *core.FileInfo, old, new []entry, movedOn map[string]bool, readBase tsBase, mirrors func(opt string) bool) []core.Finding {
 	o, n := lookup(old), lookup(new)
 	extendsChanged := !sameValue(o[pathKey("extends")], n[pathKey("extends")])
 	var baseOn map[string]bool // what the new base enables, when readable
@@ -321,6 +333,19 @@ func tsconfigStrictness(f *core.FileInfo, old, new []entry, movedOn map[string]b
 			out = append(out, strictFinding(f, oe, nil, core.Warning, fmt.Sprintf("%s (%s) removed: the check is now off", name, oe.Value)))
 		case !was && oe == nil && ne != nil && falsy(ne.Value) && isStrictFamily(opt) && (strictNow || strictBefore):
 			// an explicit override that carves a hole into "strict": true
+			if f.Diff.Kind == diff.Added {
+				// A new package's tsconfig: nothing was checked by it
+				// before. Code moved out of a package with the same
+				// override, or a package that follows its siblings'
+				// convention, keeps exactly the strictness it had. A bare
+				// patch cannot show either, so it says nothing.
+				if mirrors == nil || mirrors(opt) {
+					continue
+				}
+				out = append(out, strictFinding(f, nil, ne, core.Info,
+					fmt.Sprintf("new %s sets %s to %s, overriding \"strict\": true", path.Base(f.Path), name, ne.Value)))
+				continue
+			}
 			out = append(out, strictFinding(f, nil, ne, core.Warning,
 				fmt.Sprintf("%s set to %s, overriding \"strict\": true", name, ne.Value)))
 		}
@@ -444,7 +469,7 @@ func testScope(files string) bool {
 	return true
 }
 
-func eslintStrictness(f *core.FileInfo, old, new []entry, base baseline) []core.Finding {
+func eslintStrictness(a *core.Analysis, f *core.FileInfo, old, new []entry, base baseline) []core.Finding {
 	isPkg := f.Config == core.CfgPackageJSON
 	or, _ := eslintRules(old, isPkg)
 	nr, scope := eslintRules(new, isPkg)
@@ -458,8 +483,10 @@ func eslintStrictness(f *core.FileInfo, old, new []entry, base baseline) []core.
 		}
 		if oe, ok := or[k]; ok {
 			if orank := eslintRank(oe.Value); orank > nrank && !testScope(scope[k]) {
-				out = append(out, strictFinding(f, oe, ne, core.Warning,
-					fmt.Sprintf("ESLint rule %s lowered %s → %s", rule, rankNames[orank], rankNames[nrank])))
+				msg := fmt.Sprintf("ESLint rule %s lowered %s → %s", rule, rankNames[orank], rankNames[nrank])
+				if fd, keep := handoffFinding(a, f, oe, ne, rule, false, msg); keep {
+					out = append(out, fd)
+				}
 			}
 			continue
 		}
@@ -469,6 +496,24 @@ func eslintStrictness(f *core.FileInfo, old, new []entry, base baseline) []core.
 		}
 	}
 	return out
+}
+
+// handoffFinding builds the finding for a lint rule lowered from oe to ne,
+// unless another linter of the repository enforces the rule (keep is
+// false). A comment that only claims so lowers the finding to info.
+func handoffFinding(a *core.Analysis, f *core.FileInfo, oe, ne *entry, rule string, biome bool, msg string) (core.Finding, bool) {
+	sev := core.Warning
+	if eslintRank(ne.Value) == 0 {
+		verified, claimed := handedOff(a, f, rule, ne.Line, biome)
+		if verified {
+			return core.Finding{}, false
+		}
+		if claimed {
+			sev = core.Info
+			msg += " (its comment says another linter enforces it, but no linter config of the repository turns it on)"
+		}
+	}
+	return strictFinding(f, oe, ne, sev, msg), true
 }
 
 // sortedEntryScopes returns the keys of a scope map in order.
@@ -488,14 +533,14 @@ func sortedEntryKeys(m map[string]*entry) []string {
 	return sortedKeys(set)
 }
 
-func biomeStrictness(f *core.FileInfo, old, new []entry) []core.Finding {
+func biomeStrictness(a *core.Analysis, f *core.FileInfo, old, new []entry) []core.Finding {
 	rules := func(es []entry) map[string]*entry {
 		m := map[string]*entry{}
 		for i := range es {
 			p := es[i].Path
 			if len(p) >= 4 && p[0] == "linter" && p[1] == "rules" {
-				if len(p) == 5 && p[4] != "level" {
-					continue
+				if len(p) >= 5 && !(len(p) == 5 && p[4] == "level") {
+					continue // rule options ("options.allow"), not its level
 				}
 				m[p[2]+"/"+p[3]] = &es[i]
 			}
@@ -516,8 +561,10 @@ func biomeStrictness(f *core.FileInfo, old, new []entry) []core.Finding {
 			continue
 		}
 		if orank, nrank := eslintRank(oe.Value), eslintRank(ne.Value); orank >= 0 && nrank >= 0 && orank > nrank {
-			out = append(out, strictFinding(f, oe, ne, core.Warning,
-				fmt.Sprintf("Biome rule %s lowered %s → %s", k, oe.Value, ne.Value)))
+			msg := fmt.Sprintf("Biome rule %s lowered %s → %s", k, oe.Value, ne.Value)
+			if fd, keep := handoffFinding(a, f, oe, ne, k, true, msg); keep {
+				out = append(out, fd)
+			}
 		}
 	}
 	return out
@@ -601,11 +648,15 @@ func mypyDisabledCodes(f *core.FileInfo, es []entry) map[string]map[string]*entr
 	return out
 }
 
-func mypyStrictness(f *core.FileInfo, old, new []entry, base baseline) []core.Finding {
+func mypyStrictness(a *core.Analysis, f *core.FileInfo, old, new []entry, base baseline) []core.Finding {
 	o, n := mypySettings(f, old), mypySettings(f, new)
 	var out []core.Finding
 	oldCodes := mypyDisabledCodes(f, old)
 	newCodes := mypyDisabledCodes(f, new)
+	oldScopes := map[string]bool{}
+	for _, st := range o {
+		oldScopes[st.scope] = true
+	}
 	for _, scope := range sortedEntryScopes(newCodes) {
 		if scope != "[mypy]" && scope != "[tool.mypy]" && lenientModuleRe.MatchString(scope) {
 			continue
@@ -621,6 +672,14 @@ func mypyStrictness(f *core.FileInfo, old, new []entry, base baseline) []core.Fi
 			}
 		}
 		if len(added) > 0 {
+			if !oldScopes[scope] && mypyExternalScope(a, f, scope) {
+				// A new section for modules that this config only reaches
+				// through imports (a sibling or third-party package checked
+				// elsewhere): errors in this project's code stay reported.
+				out = append(out, strictFinding(f, nil, at, core.Info,
+					fmt.Sprintf("mypy disable_error_code %s for %s, which is outside the project this config checks", strings.Join(added, ", "), scope)))
+				continue
+			}
 			out = append(out, strictFinding(f, nil, at, core.Warning,
 				fmt.Sprintf("mypy disable_error_code gained %s in %s: those type errors are no longer reported", strings.Join(added, ", "), scope)))
 		}
@@ -661,6 +720,76 @@ func mypyStrictness(f *core.FileInfo, old, new []entry, base baseline) []core.Fi
 		}
 	}
 	return out
+}
+
+// mypyScopeModules returns the module patterns of a per-module mypy scope
+// ("[mypy-pkg.sub.*,other]", "overrides(pkg.*,other)").
+func mypyScopeModules(scope string) []string {
+	var inner string
+	switch {
+	case strings.HasPrefix(scope, "[mypy-"):
+		inner = strings.TrimSuffix(strings.TrimPrefix(scope, "[mypy-"), "]")
+	case strings.HasPrefix(scope, "overrides("):
+		inner = strings.TrimSuffix(strings.TrimPrefix(scope, "overrides("), ")")
+	default:
+		return nil
+	}
+	var out []string
+	for _, m := range strings.Split(inner, ",") {
+		if m = strings.Trim(strings.TrimSpace(m), `"'[] `); m != "" {
+			out = append(out, m)
+		}
+	}
+	return out
+}
+
+// pythonRoot returns the directory of the Python project that a config
+// file belongs to: the nearest directory holding pyproject.toml, setup.py
+// or setup.cfg.
+func pythonRoot(a *core.Analysis, f *core.FileInfo) (string, bool) {
+	for d := path.Dir(f.Path); ; d = path.Dir(d) {
+		dir := d
+		if d == "." {
+			dir = ""
+		}
+		for _, m := range []string{"pyproject.toml", "setup.py", "setup.cfg"} {
+			if _, ok := a.ReadNew(path.Join(dir, m)); ok {
+				return dir, true
+			}
+		}
+		if d == "." || d == "/" {
+			return "", false
+		}
+	}
+}
+
+// mypyExternalScope reports whether every module of a per-module mypy
+// scope lies outside the Python project the config belongs to, such as a
+// sibling package or a dependency that the checked code imports.
+func mypyExternalScope(a *core.Analysis, f *core.FileInfo, scope string) bool {
+	mods := mypyScopeModules(scope)
+	if len(mods) == 0 {
+		return false
+	}
+	root, ok := pythonRoot(a, f)
+	if !ok {
+		return false
+	}
+	for _, m := range mods {
+		top, _, _ := strings.Cut(strings.TrimSuffix(m, ".*"), ".")
+		if top == "" || strings.ContainsAny(top, "*?") || top == path.Base(root) {
+			return false
+		}
+		for _, d := range []string{path.Join(root, top), path.Join(root, "src", top)} {
+			if ps, ok := a.ListNew(d); !ok || len(ps) > 0 {
+				return false
+			}
+		}
+		if _, ok := a.ReadNew(path.Join(root, top+".py")); ok {
+			return false
+		}
+	}
+	return true
 }
 
 // strictIn reports whether strict mode is on in a mypy scope.
@@ -796,8 +925,51 @@ func ignoredCodes(f *core.FileInfo, es []entry) map[string]map[string]*entry {
 	return out
 }
 
+// ruffSelected returns the rule selectors of ruff's select/extend-select.
+func ruffSelected(f *core.FileInfo, es []entry) map[string]bool {
+	out := map[string]bool{}
+	for _, e := range es {
+		rel := e.Path
+		if f.Config == core.CfgPyproject {
+			if len(rel) < 3 || rel[0] != "tool" || rel[1] != "ruff" {
+				continue
+			}
+			rel = rel[2:]
+		} else if f.Config != core.CfgRuff {
+			continue
+		}
+		if len(rel) > 0 && rel[0] == "lint" {
+			rel = rel[1:]
+		}
+		if len(rel) == 1 && (rel[0] == "select" || rel[0] == "extend-select") {
+			for _, c := range codeList(e.Value) {
+				out[c] = true
+			}
+		}
+	}
+	return out
+}
+
 func ignoreListStrictness(f *core.FileInfo, old, new []entry, base baseline) []core.Finding {
 	o, n := ignoredCodes(f, old), ignoredCodes(f, new)
+	// Codes ignored inside a rule family that the same change starts
+	// selecting ("ASYNC" selected, ASYNC109 ignored) were never checked:
+	// the change enables the rest of the family.
+	oldSel, newSel := ruffSelected(f, old), ruffSelected(f, new)
+	var gainedSel []string
+	for c := range newSel {
+		if !oldSel[c] {
+			gainedSel = append(gainedSel, c)
+		}
+	}
+	newlySelected := func(code string) bool {
+		for _, g := range gainedSel {
+			if g != "ALL" && strings.HasPrefix(code, g) {
+				return true
+			}
+		}
+		return false
+	}
 	var out []core.Finding
 	tools := map[string]bool{}
 	for t := range n {
@@ -810,6 +982,9 @@ func ignoreListStrictness(f *core.FileInfo, old, new []entry, base baseline) []c
 		var order []int
 		for _, code := range sortedEntryKeys(n[tool]) {
 			if _, had := o[tool][code]; had || base.ignoredOld[tool][code] {
+				continue
+			}
+			if strings.HasPrefix(tool, "ruff") && newlySelected(code) {
 				continue
 			}
 			e := n[tool][code]
@@ -844,6 +1019,12 @@ func golangciStrictness(f *core.FileInfo, old, new []entry) []core.Finding {
 	}
 	od, nd := list(old, "disable"), list(new, "disable")
 	oe, ne := list(old, "enable"), list(new, "enable")
+	formatters := map[string]bool{}
+	for _, e := range new {
+		if len(e.Path) == 2 && e.Path[0] == "formatters" && e.Path[1] == "enable" {
+			formatters[e.Value] = true
+		}
+	}
 	var out []core.Finding
 	for _, l := range sortedEntryKeys(nd) {
 		if od[l] == nil {
@@ -852,6 +1033,12 @@ func golangciStrictness(f *core.FileInfo, old, new []entry) []core.Finding {
 	}
 	for _, l := range sortedEntryKeys(oe) {
 		if ne[l] == nil && nd[l] == nil {
+			// golangci-lint v2 moved formatters (goimports, gofmt, ...) to
+			// formatters.enable, merged gosimple and stylecheck into
+			// staticcheck, and always runs typecheck.
+			if formatters[l] || l == "typecheck" || (l == "gosimple" || l == "stylecheck") && ne["staticcheck"] != nil {
+				continue
+			}
 			out = append(out, strictFinding(f, oe[l], nil, core.Info, fmt.Sprintf("golangci-lint linter %s no longer enabled", l)))
 		}
 	}
@@ -1048,8 +1235,10 @@ func atoi(s string) int { n, _ := strconv.Atoi(s); return n }
 
 // rustDenyRe matches settings that turn Rust warnings into errors outside
 // the clippy command line: RUSTFLAGS="-Dwarnings", rustflags = ["-D",
-// "warnings"] in .cargo/config.toml, or a [lints] table with warnings denied.
-var rustDenyRe = regexp.MustCompile(`(?i)(rustflags\b.*-D\s*["']?\s*,?\s*["']?warnings|\bwarnings\s*=\s*["']?(deny|forbid)|\ball\s*=\s*\{?\s*(level\s*=\s*)?["'](deny|forbid))`)
+// "warnings"] in .cargo/config.toml, a [lints] table with warnings denied,
+// or Cargo's warning policy (CARGO_BUILD_WARNINGS=deny, [build] warnings =
+// "deny" in .cargo/config.toml, --config build.warnings="deny").
+var rustDenyRe = regexp.MustCompile(`(?i)(rustflags\b.*-D\s*["']?\s*,?\s*["']?warnings|\bwarnings\s*=\s*["']?(deny|forbid)|\ball\s*=\s*\{?\s*(level\s*=\s*)?["'](deny|forbid)|\bCARGO_BUILD_WARNINGS\b["']?\s*[:=]\s*["']?deny)`)
 
 // rustflagsDeny reports whether a side (a workflow, a script) sets
 // RUSTFLAGS with -D warnings.
@@ -1062,8 +1251,12 @@ func rustflagsDeny(s side) bool {
 	return false
 }
 
-// denyWarningsEnv reports RUSTFLAGS=-Dwarnings on the command itself.
+// denyWarningsEnv reports RUSTFLAGS=-Dwarnings or Cargo's warning policy
+// (CARGO_BUILD_WARNINGS=deny) on the command itself.
 func denyWarningsEnv(env map[string]string) bool {
+	if v, ok := env["CARGO_BUILD_WARNINGS"]; ok && strings.EqualFold(strings.Trim(v, `"'`), "deny") {
+		return true
+	}
 	v, ok := env["RUSTFLAGS"]
 	return ok && rustDenyRe.MatchString("RUSTFLAGS="+v)
 }

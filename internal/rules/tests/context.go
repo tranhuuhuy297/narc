@@ -42,8 +42,10 @@ var declRes = []struct {
 	{regexp.MustCompile(`^\s*(?:@\w+\s+)*(?:(?:public|private|internal)\s+)?func\s+(\w+)\s*\(`), false},                                                                        // Swift
 	{regexp.MustCompile(`\bfunction\s+(\w+)\s*\(`), false},                                                                                                                     // PHP, JS
 	{regexp.MustCompile(`^\s*(?:(?:public|private|protected|internal|static|final|override|virtual|open|async)\s+)*(?:void|Task|ValueTask|async\s+Task)\s+(\w+)\s*\(`), false}, // Java, C#
+	// Java, C#, TypeScript: other methods (helpers), with at least one modifier
+	{regexp.MustCompile(`^\s*(?:(?:public|private|protected|internal|static|final|synchronized|abstract|override)\s+)+(?:<[^<>()]*>\s+)?[\w.]+(?:<[^()]*>)?(?:\[\])*\??\s+(\w+)\s*\(`), false},
 	{regexp.MustCompile(`^\s*(?:public\s+|internal\s+|private\s+)?(?:(?:final|abstract|sealed|data|open)\s+)?(?:class|object)\s+(\w+)`), false},
-	{regexp.MustCompile(`\b(?:TEST|TEST_F|TEST_P|TYPED_TEST)\s*\(\s*(\w+\s*,\s*\w+)`), false}, // GoogleTest
+	{regexp.MustCompile(`\b(?:TEST|TEST_F|TEST_P|TYPED_TEST)\s*\(\s*(\w+\s*,\s*\w+)`), false},                                                                                                                                   // GoogleTest
 	{regexp.MustCompile("(?:^|[^\\w$.])(?:[xf]?(?:it|test|describe|context|specify|suite|scenario|feature|example|should)|focus|testWidgets|group|test\\.describe|QUnit)(?:\\.\\w+)*\\s*\\(?\\s*[\"'`]([^\"'`]+)[\"'`]"), true}, // JS, Ruby, Elixir, Dart, kotest
 }
 
@@ -265,7 +267,13 @@ var (
 	postfixIfRe  = regexp.MustCompile(`\b(?:if|unless)\b\s*(.+)$`)
 	branchRe     = regexp.MustCompile(`^\s*(?:\}\s*)?(?:else\s*(?:\{|:)?\s*$|case\b|default\s*:)`)
 	condTailTrim = regexp.MustCompile(`(?:\{|:|\bthen|\bdo)\s*$`)
+	// catchRe matches the head of an exception handler: a skip inside one
+	// runs only when the code in the try block throws.
+	catchRe = regexp.MustCompile(`^\s*(?:\}\s*)?(?:catch|except|rescue)\b`)
 )
+
+// catchCond is the condition of a skip inside an exception handler.
+const catchCond = "the try block throws"
 
 // guard returns the condition that the statement at vt[pos:end] (value
 // text of new line l) runs under: an if/unless/guard on the same line, Ruby's
@@ -305,6 +313,9 @@ func guardIn(get lineGetter, lg lang.Lang, l core.Line, vt string, pos, end int)
 		if m := guardRe.FindStringSubmatch(pvt); m != nil {
 			return cleanCond(m[1]), true
 		}
+		if catchRe.MatchString(pvt) {
+			return catchCond, true // try { probe() } catch { t.skip() }
+		}
 		if m := switchRe.FindStringSubmatch(pvt); m != nil {
 			return cleanCond(m[1]), true
 		}
@@ -336,7 +347,7 @@ func cleanCond(s string) string {
 // ---- environment checks -----------------------------------------------------
 
 // envAPIRe matches APIs that inspect the environment a test runs in.
-var envAPIRe = regexp.MustCompile(`testing\.Short\(|runtime\.GO(?:OS|ARCH)|\bos\.(?:Getenv|LookupEnv|Geteuid|Getuid|environ|getenv|name|uname|platform|type|arch)\b|exec\.LookPath|\bsys\.(?:platform|version_info|implementation|maxsize)|\bplatform\.\w+|shutil\.which|importlib|find_spec|\bprocess\.(?:platform|env|arch|versions?)\b|navigator\.|typeof\s+(?:window|document|Deno|Bun)\b|Deno\.(?:build|env)|System\.(?:getenv|getProperty)|RuntimeInformation|OperatingSystem|Environment\.(?:GetEnvironmentVariable|OSVersion|Is64Bit\w*)|\bENV\b|RUBY_(?:PLATFORM|VERSION|ENGINE)|Gem\.win_platform|PHP_(?:OS|OS_FAMILY|VERSION|INT_SIZE)|\bgetenv\s*\(|extension_loaded|function_exists|\bcfg!|env::var|\btarget_(?:os|arch|family|pointer_width|env)\b|ProcessInfo|#available|\bPlatform\.|\bkIsWeb\b`)
+var envAPIRe = regexp.MustCompile(`\bexistsSync\(|\bfs\.(?:promises\.)?(?:exists|access)\w*\(|\bos\.path\.(?:exists|isfile|isdir)\(|\.exists\(\)|\.is_file\(\)|\bFiles\.(?:exists|isRegularFile|isDirectory|isExecutable)\(|\bos\.Stat\(|\bos\.Lstat\(|\bFile\.(?:exist|exists|file|directory)\?|\bfile_exists\(|testing\.Short\(|runtime\.GO(?:OS|ARCH)|\bos\.(?:Getenv|LookupEnv|Geteuid|Getuid|environ|getenv|name|uname|platform|type|arch)\b|exec\.LookPath|\bsys\.(?:platform|version_info|implementation|maxsize)|\bplatform\.\w+|shutil\.which|importlib|find_spec|\bprocess\.(?:platform|env|arch|versions?)\b|navigator\.|typeof\s+(?:window|document|Deno|Bun)\b|Deno\.(?:build|env)|System\.(?:getenv|getProperty)|RuntimeInformation|OperatingSystem|Environment\.(?:GetEnvironmentVariable|OSVersion|Is64Bit\w*)|\bENV\b|RUBY_(?:PLATFORM|VERSION|ENGINE)|Gem\.win_platform|PHP_(?:OS|OS_FAMILY|VERSION|INT_SIZE)|\bgetenv\s*\(|extension_loaded|function_exists|\bcfg!|env::var|\btarget_(?:os|arch|family|pointer_width|env)\b|ProcessInfo|#available|\bPlatform\.|\bkIsWeb\b`)
 
 // envWords are identifier parts that name an environment property:
 // isCI, hasDocker, RUN_SLOW_TESTS, onWindows, browserName.
@@ -348,13 +359,22 @@ var envWords = map[string]bool{
 	"os": true, "goos": true, "goarch": true, "browser": true, "webkit": true, "firefox": true, "chromium": true,
 	"safari": true, "headless": true, "mobile": true, "sudo": true, "cgo": true, "race": true, "installed": true,
 	"sys": true,
+	// capabilities of the machine or file system
+	"available": true, "unavailable": true, "supported": true, "unsupported": true, "inode": true, "ino": true,
+	"symlink": true, "symlinks": true, "hardlink": true, "posix": true, "unix": true, "root": true, "uid": true,
+	"euid": true, "getuid": true, "geteuid": true, "privileged": true, "elevated": true, "tty": true, "isatty": true,
+	"permission": true, "permissions": true,
 }
+
+// capabilityFlagRe matches a condition that is just a capability flag or
+// probe: !hasJq, !canDropPermissions, !bunAvailable(), !IS_GOOGLE_LOGIN_ENABLED.
+var capabilityFlagRe = regexp.MustCompile(`^!?\s*(?:(?:has|can|supports?)[A-Z]\w*|\w+(?:Available|Supported|Installed|Enabled|Present)|[A-Z][A-Z0-9_]*_(?:AVAILABLE|SUPPORTED|INSTALLED|ENABLED|PRESENT|CONFIGURED))(?:\(\))?$`)
 
 // isEnvCondition reports whether a skip condition depends on the machine or
 // configuration the tests run on rather than on the code under test.
 func isEnvCondition(cond string) bool {
 	cond = display(cond)
-	if envAPIRe.MatchString(cond) {
+	if envAPIRe.MatchString(cond) || capabilityFlagRe.MatchString(strings.TrimSpace(cond)) {
 		return true
 	}
 	for _, w := range words(cond) {
@@ -397,7 +417,7 @@ func words(s string) []string {
 
 // envReasonRe matches skip reasons that describe a missing environment
 // ("docker not available"), as opposed to a failing test ("flaky", "TODO").
-var envReasonRe = regexp.MustCompile(`(?i)\b(?:not (?:available|installed|running|reachable|configured|set)|unavailable|requires? (?:a |an )?(?:running |local )?(?:docker|network|internet|root|admin|gpu|database|db|redis|postgres|mysql|credentials|api key|token|display|browser)|only (?:on|runs on|works on|supported on)|short mode|-short|no (?:docker|network|internet|gpu|display|tty|database|db|credentials))\b`)
+var envReasonRe = regexp.MustCompile(`(?i)\b(?:not (?:available|installed|running|reachable|configured|set)|(?:not supported|unsupported) (?:on|by|in|under|here)|unavailable|requires? (?:a |an )?(?:running |local )?(?:docker|network|internet|root|admin|gpu|database|db|redis|postgres|mysql|credentials|api key|token|display|browser)|only (?:on|runs on|works on|supported on)|short mode|-short|no (?:docker|network|internet|gpu|display|tty|database|db|credentials))\b|\b(?:set|export)\s+(?-i:[A-Z][A-Z0-9]*_[A-Z0-9_]+)\b`)
 
 // ---- issue references -------------------------------------------------------
 

@@ -1,0 +1,33 @@
+# Evasive: a Biome rule is switched off with a comment claiming another linter owns it, but no linter config of the repository enables that rule (info).
+expect: strictness-lowered@info
+-- old/biome.json --
+{
+  "linter": {
+    "enabled": true,
+    "rules": {
+      "suspicious": {
+        "noExplicitAny": "error",
+        "noDoubleEquals": "error"
+      }
+    }
+  }
+}
+-- new/biome.json --
+{
+  "linter": {
+    "enabled": true,
+    "rules": {
+      "suspicious": {
+        "noExplicitAny": "off", // oxlint owns no-explicit-any (see no-debugger)
+        "noDoubleEquals": "error"
+      }
+    }
+  }
+}
+-- new/site/.oxlintrc.json --
+{
+  "rules": {
+    "no-debugger": "error",
+    "eqeqeq": "error"
+  }
+}

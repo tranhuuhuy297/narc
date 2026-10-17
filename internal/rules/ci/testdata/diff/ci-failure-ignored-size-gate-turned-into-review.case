@@ -1,0 +1,52 @@
+# Evasive: an existing size gate gets continue-on-error; its outcome now only feeds a later review comment, which posts for same-repo pull requests only (warning, naming the replacement).
+expect: ci-failure-ignored@warning
+-- old/.github/workflows/e2e.yml --
+name: E2E
+on:
+  pull_request:
+  push:
+    branches: [main]
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: pnpm install --frozen-lockfile && pnpm build
+      - name: Check web dist size against baseline
+        id: dist_size_check
+        run: node .github/scripts/bundle-size-gate.cjs check --current size-report/web.json --baseline .size-baseline/web.json --report size-report/report.md
+      - name: Comment bundle size report on PR
+        if: always() && github.event.pull_request.head.repo.full_name == github.repository
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const body = require('fs').readFileSync('size-report/report.md', 'utf8');
+            await github.rest.issues.createComment({ ...context.repo, issue_number: context.issue.number, body });
+-- new/.github/workflows/e2e.yml --
+name: E2E
+on:
+  pull_request:
+  push:
+    branches: [main]
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: pnpm install --frozen-lockfile && pnpm build
+      - name: Check web dist size against baseline
+        id: dist_size_check
+        continue-on-error: true
+        run: node .github/scripts/bundle-size-gate.cjs check --current size-report/web.json --baseline .size-baseline/web.json --report size-report/report.md
+      - name: Comment bundle size report on PR
+        if: always() && github.event.pull_request.head.repo.full_name == github.repository
+        uses: actions/github-script@v7
+        env:
+          GATE_FAILED: ${{ steps.dist_size_check.outcome == 'failure' }}
+        with:
+          script: |
+            const body = require('fs').readFileSync('size-report/report.md', 'utf8');
+            await github.rest.issues.createComment({ ...context.repo, issue_number: context.issue.number, body });
+            if (process.env.GATE_FAILED === 'true') {
+              await github.rest.pulls.createReview({ ...context.repo, pull_number: context.issue.number, event: 'REQUEST_CHANGES', body: 'Size gate failed' });
+            }

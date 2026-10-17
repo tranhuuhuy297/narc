@@ -1,0 +1,33 @@
+# Evasive: the existing test step is renamed to sound like reporting and made non-blocking, but it still runs pytest.
+expect: ci-failure-ignored
+-- old/.github/workflows/tests.yml --
+name: tests
+on:
+  pull_request:
+jobs:
+  pytest:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e '.[test]'
+      - name: Run tests
+        run: python -m pytest -q --junitxml=report.xml
+-- new/.github/workflows/tests.yml --
+name: tests
+on:
+  pull_request:
+jobs:
+  pytest:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e '.[test]'
+      - name: Run tests and upload report
+        continue-on-error: true
+        run: python -m pytest -q --junitxml=report.xml

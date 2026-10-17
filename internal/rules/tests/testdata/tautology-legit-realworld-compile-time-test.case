@@ -1,0 +1,36 @@
+# Real-world (mastra): a compile-time test. The real assertions are the
+# @ts-expect-error directives on the invalid config literals; the runtime
+# expect([...]).toBeDefined() only keeps the variables referenced.
+expect: clean
+-- old/channels/slack/src/client.test.ts --
+import { describe, expect, it } from 'vitest';
+
+import { SlackClient } from './client';
+
+describe('SlackClient', () => {
+  it('sends a message with a bot token', async () => {
+    const client = new SlackClient({ botToken: 'xoxb-1' });
+    await expect(client.post('#general', 'hi')).resolves.toEqual({ ok: true });
+  });
+});
+-- new/channels/slack/src/client.test.ts --
+import { describe, expect, it } from 'vitest';
+
+import { SlackClient, type SlackClientConfig } from './client';
+
+describe('SlackClient', () => {
+  it('sends a message with a bot token', async () => {
+    const client = new SlackClient({ botToken: 'xoxb-1' });
+    await expect(client.post('#general', 'hi')).resolves.toEqual({ ok: true });
+  });
+});
+
+describe('SlackClientConfig (compile-time)', () => {
+  it('rejects combining a static token with a tokenResolver', () => {
+    const selfManaged: SlackClientConfig = { botToken: 'xoxb-1' };
+    const delegated: SlackClientConfig = { tokenResolver: async () => 'xoxb-2' };
+    // @ts-expect-error a static token and a resolver are mutually exclusive
+    const tokenAndResolver: SlackClientConfig = { botToken: 'xoxb-1', tokenResolver: async () => 'x' };
+    expect([selfManaged, delegated, tokenAndResolver]).toBeDefined();
+  });
+});

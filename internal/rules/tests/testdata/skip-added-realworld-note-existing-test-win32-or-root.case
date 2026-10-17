@@ -1,0 +1,35 @@
+# Real-world (qwen-code): an existing permission test skips on Windows and
+# when running as root, where permission bits are not enforced. It still
+# runs as a normal user on Linux and macOS: a note.
+expect: skip-added@info
+-- old/packages/cli/src/config/settings.test.ts --
+import * as fs from 'node:fs';
+import { describe, expect, it } from 'vitest';
+
+import { loadSettings } from './settings.js';
+
+describe('loadSettings', () => {
+  it('reports an unreadable settings file instead of ignoring it', () => {
+    const file = writeSettings({ theme: 'dark' });
+    fs.chmodSync(file, 0o000);
+    const result = loadSettings(dirOf(file));
+    expect(result.errors).toEqual([expect.objectContaining({ path: file, code: 'EACCES' })]);
+  });
+});
+-- new/packages/cli/src/config/settings.test.ts --
+import * as fs from 'node:fs';
+import { describe, expect, it } from 'vitest';
+
+import { loadSettings } from './settings.js';
+
+describe('loadSettings', () => {
+  it.skipIf(process.platform === 'win32' || process.getuid?.() === 0)(
+    'reports an unreadable settings file instead of ignoring it',
+    () => {
+      const file = writeSettings({ theme: 'dark' });
+      fs.chmodSync(file, 0o000);
+      const result = loadSettings(dirOf(file));
+      expect(result.errors).toEqual([expect.objectContaining({ path: file, code: 'EACCES' })]);
+    },
+  );
+});

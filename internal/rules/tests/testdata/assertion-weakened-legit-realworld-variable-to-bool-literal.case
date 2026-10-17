@@ -1,0 +1,32 @@
+# Real-world (qwen-code): live-voice settings are now listed on every
+# platform, so .toBe(native) becomes .toBe(true): still a specific value. A
+# new assertion carries the platform check.
+expect: clean
+-- old/packages/cli/src/serve/server.test.ts --
+import { describe, expect, it } from 'vitest';
+
+describe('GET /settings', () => {
+  it.each([true, false])('lists live voice settings when nativeHost=%s', async (native) => {
+    const settings = await request(app(native)).get('/settings');
+    expect(
+      settings.body.settings.some((setting: { key: string }) =>
+        setting.key.startsWith('experimental.liveVoice.'),
+      ),
+    ).toBe(native);
+  });
+});
+-- new/packages/cli/src/serve/server.test.ts --
+import { describe, expect, it } from 'vitest';
+
+describe('GET /settings', () => {
+  it.each([true, false])('lists live voice settings when nativeHost=%s', async (native) => {
+    const settings = await request(app(native)).get('/settings');
+    const setup = await request(app(native)).get('/setup');
+    expect(
+      settings.body.settings.some((setting: { key: string }) =>
+        setting.key.startsWith('experimental.liveVoice.'),
+      ),
+    ).toBe(true);
+    expect(setup.body.nativeHost).toBe(native);
+  });
+});

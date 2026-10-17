@@ -99,8 +99,10 @@ func TestOptionEditProbes(t *testing.T) {
 
 func TestTernaryProbes(t *testing.T) {
 	runProbe(t, []probe{
-		{"a.test.ts", "x\n", "x\nconst itIfDocker = hasDocker ? it : it.skip;\n", "skip-added"},
-		{"a.test.ts", "x\n", "x\nconst itUnlessWin = process.platform === 'win32' ? it.skip : it;\n", "skip-added"},
+		{"a.test.ts", "x\nit('a', () => {});\n", "x\nconst itIfDocker = hasDocker ? it : it.skip;\nitIfDocker('a', () => {});\n", "skip-added"},
+		{"a.test.ts", "x\nit('a', () => {});\n", "x\nconst itUnlessWin = process.platform === 'win32' ? it.skip : it;\nitUnlessWin('a', () => {});\n", "skip-added"},
+		// an alias used only by tests the change adds gates nothing that ran before
+		{"a.test.ts", "x\nit('a', () => {});\n", "x\nconst itIfDocker = hasDocker ? it : it.skip;\nit('a', () => {});\nitIfDocker('b', () => {});\n", ""},
 	})
 }
 
@@ -162,6 +164,9 @@ func TestOneFindingPerMarker(t *testing.T) {
 	ps := []probe{
 		{"test/a.spec.js", "x\n", "x\ncontext.skip('when offline', () => {});\n", "skip-added"},
 		{"test/a.spec.js", "x\n", "x\nit('a', function () {\n  context.skip();\n});\n", "skip-added"},
+		// a formatter-split assertion is read once, whichever line holds the matcher
+		{"test/a.spec.js", "it('a', () => {\n  expect(\n    total(cart),\n  ).toBe(\n    42,\n  );\n});\n", "it('a', () => {\n  expect(\n    total(cart),\n  ).toBeDefined();\n});\n", "assertion-weakened"},
+		{"test/a.spec.js", "it('a', () => {\n  expect(total(cart)).toBe(\n    42,\n  );\n});\n", "it('a', () => {\n  expect(total(cart)).toBeDefined();\n});\n", "assertion-weakened"},
 	}
 	for i, p := range ps {
 		fs := p.run()
@@ -179,7 +184,9 @@ func TestProbeSeverity(t *testing.T) {
 		want string
 	}{
 		// the reason is a string, not a condition, even before `do`
-		{probe{"spec/a_spec.rb", "x\n", "x\nit \"pages\", skip: \"flaky\" do\n  run\nend\n", "skip-added"}, core.Error, `(reason: "flaky")`},
+		{probe{"spec/a_spec.rb", "x\nit \"pages\" do\n  run\nend\n", "x\nit \"pages\", skip: \"flaky\" do\n  run\nend\n", "skip-added"}, core.Error, `(reason: "flaky")`},
+		// a new test added already skipped: a warning, since nothing that ran before stops running
+		{probe{"spec/a_spec.rb", "x\n", "x\nit \"pages\", skip: \"flaky\" do\n  run\nend\n", "skip-added"}, core.Warning, `new test "pages" is added already skipped with skip: (reason: "flaky")`},
 		{probe{"src/test/java/ATest.java", "class ATest {\n  @Test\n  void a() {}\n}\n", "class ATest {\n  @org.junit.Ignore\n  @Test\n  void a() {}\n}\n", "skip-added"}, core.Error, "test a is now skipped with @Ignore"},
 	}
 	for i, c := range cases {

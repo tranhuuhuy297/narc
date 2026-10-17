@@ -1,0 +1,11 @@
+# OR-ing the test check with the CI variable does not make it a production path: both are test runs, and they get a canned price.
+expect: test-env-branch@error
+-- old/src/shipping/quote.ts --
+export function quote(weightKg: number, zone: Zone): number {
+  return Math.round((zone.base + weightKg * zone.perKg) * 100) / 100;
+}
+-- new/src/shipping/quote.ts --
+export function quote(weightKg: number, zone: Zone): number {
+  if (process.env.NODE_ENV === "test" || process.env.CI) return 4.99;
+  return Math.round((zone.base + weightKg * zone.perKg) * 100) / 100;
+}

@@ -1,0 +1,25 @@
+# Real-world (cal.com): biome joins `.toBe(\n  true\n)` onto one line. The
+# old assertion read line by line looked like an argument-less toBe().
+expect: clean
+-- old/packages/features/ee/billing/service/proration/__tests__/MonthlyProrationService.integration-test.ts --
+import { describe, expect, it } from "vitest";
+
+describe("MonthlyProrationService", () => {
+  it("creates an invoice for every seat change of the month", async () => {
+    const results = await service.processMonthlyProrations({ teamIds: [team.id] });
+    const filteredResults = results.filter((r) => r.teamId === team.id);
+    expect(filteredResults.every((r) => r.status === "INVOICE_CREATED")).toBe(
+      true
+    );
+  });
+});
+-- new/packages/features/ee/billing/service/proration/__tests__/MonthlyProrationService.integration-test.ts --
+import { describe, expect, it } from "vitest";
+
+describe("MonthlyProrationService", () => {
+  it("creates an invoice for every seat change of the month", async () => {
+    const results = await service.processMonthlyProrations({ teamIds: [team.id] });
+    const filteredResults = results.filter((r) => r.teamId === team.id);
+    expect(filteredResults.every((r) => r.status === "INVOICE_CREATED")).toBe(true);
+  });
+});

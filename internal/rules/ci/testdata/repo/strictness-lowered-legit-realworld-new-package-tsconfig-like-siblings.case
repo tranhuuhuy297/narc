@@ -1,0 +1,49 @@
+# A backend module extracted into a new package gets a tsconfig with the same strict-mode carve-outs as its sibling module packages, so the moved code keeps the strictness it had.
+expect: clean
+-- new/packages/modules/quick-connect/backend/tsconfig.json --
+{
+	"extends": [
+		"@n8n/typescript-config/tsconfig.common.go.json",
+		"@n8n/typescript-config/tsconfig.backend.go.json"
+	],
+	"compilerOptions": {
+		"emitDecoratorMetadata": true,
+		"experimentalDecorators": true,
+		"types": ["node", "vitest/globals"],
+		"strict": true,
+		"strictFunctionTypes": false,
+		"strictPropertyInitialization": false,
+		"useUnknownInCatchVariables": false
+	},
+	"include": ["src/**/*.ts", "test/**/*.ts"]
+}
+-- new/packages/modules/quick-connect/backend/src/quick-connect.service.ts --
+import { Service } from '@n8n/di';
+
+@Service()
+export class QuickConnectService {
+	private readonly options = new Map<string, string>();
+
+	register(id: string, credentialType: string) {
+		this.options.set(id, credentialType);
+	}
+}
+-- both/packages/modules/insights/backend/tsconfig.json --
+{
+	"extends": [
+		"@n8n/typescript-config/tsconfig.common.go.json",
+		"@n8n/typescript-config/tsconfig.backend.go.json"
+	],
+	"compilerOptions": {
+		"emitDecoratorMetadata": true,
+		"experimentalDecorators": true,
+		"types": ["node", "vitest/globals"],
+		"strict": true,
+		"strictFunctionTypes": false,
+		"strictPropertyInitialization": false,
+		"useUnknownInCatchVariables": false
+	},
+	"include": ["src/**/*.ts", "test/**/*.ts"]
+}
+-- both/packages/modules/insights/backend/src/index.ts --
+export { InsightsService } from './insights.service';

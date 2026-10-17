@@ -1,0 +1,69 @@
+# The change adds a custom pylint checker and silences it on the existing coordinators that predate it: the suppressed rule did not exist before.
+expect: clean
+-- new/pylint/plugins/pylint_home_assistant/checkers/coordinator_config_entry.py --
+"""Require coordinators to type their config entry."""
+
+from astroid import nodes
+from pylint.checkers import BaseChecker
+
+
+class CoordinatorConfigEntryChecker(BaseChecker):
+    """Checker for untyped config entries on DataUpdateCoordinator subclasses."""
+
+    name = "home_assistant_coordinator_config_entry"
+    msgs = {
+        "W7481": (
+            "Coordinator %s does not type its config_entry",
+            "home-assistant-coordinator-untyped-config-entry",
+            "Used when a DataUpdateCoordinator subclass leaves config_entry untyped.",
+        ),
+    }
+
+    def visit_classdef(self, node: nodes.ClassDef) -> None:
+        if _is_coordinator(node) and not _types_config_entry(node):
+            self.add_message("home-assistant-coordinator-untyped-config-entry", node=node, args=(node.name,))
+-- old/homeassistant/components/mill/coordinator.py --
+"""Coordinator for the Mill integration."""
+
+from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
+
+
+class MillDataUpdateCoordinator(DataUpdateCoordinator):
+    """Class to manage fetching Mill data."""
+
+    def __init__(self, hass, mill_data_connection):
+        super().__init__(hass, _LOGGER, name=DOMAIN, update_interval=SCAN_INTERVAL)
+        self.mill_data_connection = mill_data_connection
+-- new/homeassistant/components/mill/coordinator.py --
+"""Coordinator for the Mill integration."""
+
+from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
+
+
+# pylint: disable-next=home-assistant-coordinator-untyped-config-entry
+class MillDataUpdateCoordinator(DataUpdateCoordinator):
+    """Class to manage fetching Mill data."""
+
+    def __init__(self, hass, mill_data_connection):
+        super().__init__(hass, _LOGGER, name=DOMAIN, update_interval=SCAN_INTERVAL)
+        self.mill_data_connection = mill_data_connection
+-- old/homeassistant/components/nuki/coordinator.py --
+"""Coordinator for the Nuki integration."""
+
+
+class NukiCoordinator(DataUpdateCoordinator[None]):
+    """Data Update Coordinator for the Nuki integration."""
+
+    def __init__(self, hass, bridge, locks, openers):
+        super().__init__(hass, _LOGGER, name="nuki devices", update_interval=UPDATE_INTERVAL)
+        self.bridge = bridge
+-- new/homeassistant/components/nuki/coordinator.py --
+"""Coordinator for the Nuki integration."""
+
+
+class NukiCoordinator(DataUpdateCoordinator[None]):  # pylint: disable=home-assistant-coordinator-untyped-config-entry
+    """Data Update Coordinator for the Nuki integration."""
+
+    def __init__(self, hass, bridge, locks, openers):
+        super().__init__(hass, _LOGGER, name="nuki devices", update_interval=UPDATE_INTERVAL)
+        self.bridge = bridge

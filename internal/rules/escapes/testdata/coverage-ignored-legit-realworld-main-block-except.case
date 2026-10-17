@@ -1,0 +1,17 @@
+# The pragma sits on the error handler inside the script's `if __name__ == "__main__":` entry block, which only prints and exits; the tests call main() directly.
+expect: clean
+-- new/scripts/issue_triage_check.py --
+import sys
+
+
+def main(argv: list[str]) -> int:
+    issues = load_issues(argv[1])
+    return 0 if all(is_triaged(i) for i in issues) else 1
+
+
+if __name__ == "__main__":
+    try:
+        sys.exit(main(sys.argv))
+    except Exception as exc:  # pragma: no cover - CLI boundary
+        print(f"error: {exc}", file=sys.stderr)
+        sys.exit(1)

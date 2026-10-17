@@ -1,0 +1,77 @@
+# Real world (crush): a flaky 100ms wall-clock check was replaced by a test
+# double whose Read method fails the test if it is ever called, which
+# proves the guard short-circuited. The t.Error inside the double counts.
+expect: clean
+-- old/internal/shell/jq_test.go --
+package shell
+
+import (
+	"bytes"
+	"context"
+	"errors"
+	"io"
+	"testing"
+	"time"
+)
+
+// TestJQ_CtxCancel_PreCancel verifies the fast-fail path: a ctx already
+// cancelled before handleJQ is called returns context.Canceled
+// immediately via the outer-loop guard, never entering io.ReadAll.
+func TestJQ_CtxCancel_PreCancel(t *testing.T) {
+	t.Parallel()
+
+	ctx, cancel := context.WithCancel(t.Context())
+	cancel()
+
+	start := time.Now()
+	err := handleJQ(ctx, []string{"jq", "-R", "."},
+		bytes.NewReader(bytes.Repeat([]byte("a"), 1024)),
+		io.Discard, io.Discard)
+	elapsed := time.Since(start)
+
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("expected context.Canceled, got %v", err)
+	}
+	if elapsed > 100*time.Millisecond {
+		t.Fatalf("pre-cancel fast-fail took %v; outer guard is not firing", elapsed)
+	}
+}
+-- new/internal/shell/jq_test.go --
+package shell
+
+import (
+	"context"
+	"errors"
+	"io"
+	"testing"
+)
+
+// failOnReadReader fails the test if Read is ever called. It proves that a
+// code path short-circuited before touching the input, without relying on
+// wall-clock timing.
+type failOnReadReader struct {
+	t *testing.T
+}
+
+func (r failOnReadReader) Read(p []byte) (int, error) {
+	r.t.Error("Read called; outer guard did not short-circuit before io.ReadAll")
+	return 0, io.EOF
+}
+
+// TestJQ_CtxCancel_PreCancel verifies the fast-fail path: a ctx already
+// cancelled before handleJQ is called returns context.Canceled
+// immediately via the outer-loop guard, never entering io.ReadAll.
+func TestJQ_CtxCancel_PreCancel(t *testing.T) {
+	t.Parallel()
+
+	ctx, cancel := context.WithCancel(t.Context())
+	cancel()
+
+	err := handleJQ(ctx, []string{"jq", "-R", "."},
+		failOnReadReader{t: t},
+		io.Discard, io.Discard)
+
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("expected context.Canceled, got %v", err)
+	}
+}

@@ -1,0 +1,36 @@
+# Real-world (OpenHands): existing e2e suites now skip themselves when the
+# frontend build is missing, with Prettier splitting test.skip(cond, reason)
+# over several lines. A fixture gate, so a warning rather than an error, but
+# a CI job that forgets the build step now passes without running them.
+expect: skip-added@warning
+-- old/tests/e2e/mock-llm/mock-llm-partial-stack.spec.ts --
+import { existsSync } from "node:fs";
+import { join } from "node:path";
+
+import { expect, test } from "@playwright/test";
+
+test.describe("partial stack: --frontend-only", () => {
+  test("serves the app without a backend", async ({ page }) => {
+    const stack = await startStack(["--frontend-only"]);
+    await page.goto(stack.url);
+    await expect(page.getByText("Backend unavailable")).toBeVisible();
+  });
+});
+-- new/tests/e2e/mock-llm/mock-llm-partial-stack.spec.ts --
+import { existsSync } from "node:fs";
+import { join } from "node:path";
+
+import { expect, test } from "@playwright/test";
+
+test.describe("partial stack: --frontend-only", () => {
+  test.skip(
+    !existsSync(join(PROJECT_ROOT, "build/index.html")),
+    "build/index.html missing — skipped (run `npm run build:app` or use the npm e2e config)",
+  );
+
+  test("serves the app without a backend", async ({ page }) => {
+    const stack = await startStack(["--frontend-only"]);
+    await page.goto(stack.url);
+    await expect(page.getByText("Backend unavailable")).toBeVisible();
+  });
+});

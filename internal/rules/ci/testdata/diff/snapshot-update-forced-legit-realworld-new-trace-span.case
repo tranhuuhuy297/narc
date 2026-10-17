@@ -1,0 +1,67 @@
+# A new processor joins the default pipeline; the trace snapshot gains a processor_run span named after it, shaped like the existing spans.
+expect: clean
+-- new/observability/mastra/src/processors/unsupported-file-handler.ts --
+import type { Processor } from './types';
+
+export const unsupportedFileHandler: Processor = {
+  id: 'unsupported-file-handler',
+  name: 'Unsupported File Handler',
+  async processInput({ messages }) {
+    return messages.filter(m => m.type !== 'file' || m.mimeType.startsWith('text/'));
+  },
+};
+-- old/observability/mastra/src/processors/default-pipeline.ts --
+import { tokenLimiter } from './token-limiter';
+
+export const defaultInputProcessors = [tokenLimiter];
+-- new/observability/mastra/src/processors/default-pipeline.ts --
+import { tokenLimiter } from './token-limiter';
+import { unsupportedFileHandler } from './unsupported-file-handler';
+
+export const defaultInputProcessors = [unsupportedFileHandler, tokenLimiter];
+-- old/observability/mastra/src/__snapshots__/agent-processors-trace.json --
+{
+  "spans": [
+    {
+      "name": "agent run: 'Test Agent'",
+      "type": "agent_run",
+      "entityType": "agent",
+      "isRootSpan": true
+    },
+    {
+      "name": "input processor: token-limiter",
+      "type": "processor_run",
+      "entityType": "input_processor",
+      "entityId": "token-limiter",
+      "attributes": { "processorExecutor": "legacy", "processorIndex": 0 },
+      "isRootSpan": false
+    }
+  ]
+}
+-- new/observability/mastra/src/__snapshots__/agent-processors-trace.json --
+{
+  "spans": [
+    {
+      "name": "agent run: 'Test Agent'",
+      "type": "agent_run",
+      "entityType": "agent",
+      "isRootSpan": true
+    },
+    {
+      "name": "input processor: unsupported-file-handler",
+      "type": "processor_run",
+      "entityType": "input_processor",
+      "entityId": "unsupported-file-handler",
+      "attributes": { "processorExecutor": "legacy", "processorIndex": 0 },
+      "isRootSpan": false
+    },
+    {
+      "name": "input processor: token-limiter",
+      "type": "processor_run",
+      "entityType": "input_processor",
+      "entityId": "token-limiter",
+      "attributes": { "processorExecutor": "legacy", "processorIndex": 1 },
+      "isRootSpan": false
+    }
+  ]
+}

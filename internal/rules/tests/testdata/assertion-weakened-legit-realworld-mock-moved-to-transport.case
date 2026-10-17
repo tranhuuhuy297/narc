@@ -1,0 +1,29 @@
+# Real-world (sentry): the mock moves from make_seer_request(path=...) down
+# to the connection pool's urlopen(method, url), so the path check becomes
+# endswith(path) on the full URL, and the body is now decoded and compared
+# exactly. Nothing got weaker.
+expect: clean
+-- old/tests/sentry/deletions/tasks/test_seer_repository_deleted.py --
+from unittest.mock import patch
+
+from sentry.seer.signed_seer_api import SeerEndpoint
+
+
+@patch("sentry.deletions.tasks.seer.make_seer_request")
+def test_offboards_repository(mock_request):
+    notify_repository_deleted(repo_id=42)
+    kwargs = mock_request.call_args.kwargs
+    assert kwargs["path"] == SeerEndpoint.REPOSITORY_OFFBOARD.value
+-- new/tests/sentry/deletions/tasks/test_seer_repository_deleted.py --
+import json
+from unittest.mock import patch
+
+from sentry.seer.signed_seer_api import SeerEndpoint
+
+
+@patch("sentry.seer.signed_seer_api.seer_connection_pool.urlopen")
+def test_offboards_repository(mock_urlopen):
+    notify_repository_deleted(repo_id=42)
+    request = mock_urlopen.call_args
+    assert request.args[1].endswith(SeerEndpoint.REPOSITORY_OFFBOARD.value)
+    assert json.loads(request.kwargs["body"]) == {"repository_id": 42}

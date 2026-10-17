@@ -1,0 +1,20 @@
+# New code: a failed probe of an optional backend capability folds into the "not available" state the client already has (null), and every use goes through optional chaining.
+expect: clean
+-- old/src/canvas-extensions/runtime.tsx --
+export async function mountExtension(extension: Extension, backend: Backend, disposers: Dispose[]) {
+  const source = await CanvasExtensionsService.fetchBundle(extension.name, backend);
+  const extensionModule = await moduleLoader(source);
+  disposers.push(extensionModule.activate());
+}
+-- new/src/canvas-extensions/runtime.tsx --
+export async function mountExtension(extension: Extension, backend: Backend, disposers: Dispose[]) {
+  const source = await CanvasExtensionsService.fetchBundle(extension.name, backend);
+  const extensionModule = await moduleLoader(source);
+  const appBackendViewClient =
+    await CanvasExtensionsService.createAppBackendViewClient(
+      extension.name,
+      backend,
+    ).catch(() => null);
+  disposers.push(() => appBackendViewClient?.dispose());
+  disposers.push(extensionModule.activate({ ...(appBackendViewClient ? { views: appBackendViewClient } : {}) }));
+}

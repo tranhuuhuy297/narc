@@ -1,0 +1,43 @@
+# The legacy speech-to-text settings are deleted from the defaults; the settings selector snapshot only loses those keys.
+expect: clean
+-- old/packages/const/src/settings/tts.ts --
+export const DEFAULT_TTS_CONFIG = {
+  openAI: { sttModel: 'whisper-1', ttsModel: 'tts-1' },
+  sttAutoStop: true,
+  sttServer: 'openai',
+  ttsServer: 'openai',
+  voice: 'alloy',
+};
+-- new/packages/const/src/settings/tts.ts --
+export const DEFAULT_TTS_CONFIG = {
+  openAI: { ttsModel: 'tts-1' },
+  ttsServer: 'openai',
+  voice: 'alloy',
+};
+-- old/src/store/user/slices/settings/selectors/__snapshots__/settings.test.ts.snap --
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`settingsSelectors > currentTTS > should return the tts settings 1`] = `
+{
+  "openAI": {
+    "sttModel": "whisper-1",
+    "ttsModel": "tts-1",
+  },
+  "sttAutoStop": true,
+  "sttServer": "openai",
+  "ttsServer": "openai",
+  "voice": "alloy",
+}
+`;
+-- new/src/store/user/slices/settings/selectors/__snapshots__/settings.test.ts.snap --
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`settingsSelectors > currentTTS > should return the tts settings 1`] = `
+{
+  "openAI": {
+    "ttsModel": "tts-1",
+  },
+  "ttsServer": "openai",
+  "voice": "alloy",
+}
+`;

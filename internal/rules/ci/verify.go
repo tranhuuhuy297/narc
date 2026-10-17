@@ -85,6 +85,9 @@ var nonVerifyWords = map[string]bool{
 	"snapshot": true, "snapshots": true, "deps": true, "outdated": true,
 	// steps that only publish results produced by an earlier check
 	"badge": true, "badges": true, "comment": true, "annotate": true, "summary": true, "notify": true,
+	// telemetry about the run, caches: ci_analytics_extract.py, "Restore verify cache"
+	"analytics": true, "metrics": true, "telemetry": true, "extract": true, "stats": true, "restore": true,
+	"cache": true,
 }
 
 // nameWords splits a script/target name into lower-case words on

@@ -1,0 +1,39 @@
+# Real-world (ruff): an existing file-watching test that used to run in CI
+# gets #[ignore = "Flaky ..."]. Switching off a running test because it is
+# flaky is what this rule is for.
+expect: skip-added@error
+-- old/crates/ty/tests/file_watching.rs --
+use ty_test::setup;
+
+#[test]
+fn symlink_inside_project() -> anyhow::Result<()> {
+    let mut case = setup(|context: &mut SetupContext| {
+        context.write_project_file("patched/bar/baz.py", "def baz(): ...")?;
+        context.symlink_project_dir("patched/bar", "bar")
+    })?;
+
+    case.write_file("patched/bar/baz.py", "def baz(): print('changed')")?;
+    let changes = case.stop_watch(event_for_file("baz.py"));
+    case.apply_changes(changes, None);
+
+    assert_eq!(source_text(case.db(), case.file("bar/baz.py")?).as_str(), "def baz(): print('changed')");
+    Ok(())
+}
+-- new/crates/ty/tests/file_watching.rs --
+use ty_test::setup;
+
+#[test]
+#[ignore = "Flaky symlink file-watching test"]
+fn symlink_inside_project() -> anyhow::Result<()> {
+    let mut case = setup(|context: &mut SetupContext| {
+        context.write_project_file("patched/bar/baz.py", "def baz(): ...")?;
+        context.symlink_project_dir("patched/bar", "bar")
+    })?;
+
+    case.write_file("patched/bar/baz.py", "def baz(): print('changed')")?;
+    let changes = case.stop_watch(event_for_file("baz.py"));
+    case.apply_changes(changes, None);
+
+    assert_eq!(source_text(case.db(), case.file("bar/baz.py")?).as_str(), "def baz(): print('changed')");
+    Ok(())
+}

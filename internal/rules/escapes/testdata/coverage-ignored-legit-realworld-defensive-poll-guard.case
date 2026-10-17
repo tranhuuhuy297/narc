@@ -1,0 +1,21 @@
+# Two defensive guards on coordinator data that is always present after the first poll, each with its reason: notes, not a pattern.
+expect: coverage-ignored@info
+-- old/homeassistant/components/pool/select.py --
+class PoolSelect(PoolEntity, SelectEntity):
+    @property
+    def current_option(self) -> str | None:
+        return self.entity_description.options_map.get(self.coordinator.data[self.entity_description.key])
+-- new/homeassistant/components/pool/select.py --
+class PoolSelect(PoolEntity, SelectEntity):
+    @property
+    def current_option(self) -> str | None:
+        value = self.coordinator.data.get(self.entity_description.key)
+        if value is None:  # pragma: no cover - register always present once polled
+            return None
+        return self.entity_description.options_map.get(value)
+
+    async def async_select_option(self, option: str) -> None:
+        raw = _option_to_raw(self.entity_description, option)
+        if raw is None:  # pragma: no cover - options come from the same map
+            return
+        await self.coordinator.write(self.entity_description.key, raw)

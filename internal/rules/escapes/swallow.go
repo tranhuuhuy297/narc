@@ -30,7 +30,14 @@ var errorSwallowed = &core.Rule{
 		"wraps code the test already ran or guards an assertion; a new test that drives a failure path on purpose " +
 		"and then checks the aftermath is not reported. Handlers with a comment " +
 		"that explains why ignoring the error is safe, and a specific exception caught into a variable named " +
-		"`ignored` are reported as notes. Not reported: best-effort cleanup (`try? removeItem`, `@unlink`, " +
+		"`ignored` are reported as notes. In non-test code, a handler is a warning when it hides an error that " +
+		"used to surface: it wraps code that was already there, an existing handler lost its body, or an awaited " +
+		"call became a detached `void p.catch(noop)`; graceful degradation written with new code is a note. " +
+		"Not reported: a serialization queue (`prev.catch(noop).then(next)`), a result checked right after " +
+		"(`const team = await getTeam(id).catch(() => null); if (!team) ...`), a fallback (`?? defaults`), " +
+		"a react-query `mutateAsync` whose mutation has `onError`, telemetry and log calls, Go `return nil` in a " +
+		"`filepath.WalkDir` callback, fire-and-forget code in new files, linter fixtures, developer scripts, " +
+		"and best-effort cleanup (`try? removeItem`, `@unlink`, " +
 		"`with suppress(Exception): os.remove(tmp)`), a PHP " +
 		"`@` call whose result is checked, and the JUnit idiom of catching the exception a test expects " +
 		"(`fail(\"...\"); } catch (ParseException expected) {}`).",
@@ -56,6 +63,12 @@ type swallow struct {
 	// guard is the code the handler protects (the try block, or the
 	// expression before `rescue nil` / `.catch(...)`), when it is known.
 	guard []guardStmt
+	// benign: an idiom that loses no error a caller relies on, such as a
+	// serialization queue (`prev.catch(noop).then(next)`) or a result
+	// checked right after (`const team = await getTeam(id).catch(() => null);
+	// if (!team) ...`). detached: a fire-and-forget `void p.catch(noop)`,
+	// benign unless the call used to be awaited.
+	benign, detached bool
 }
 
 // guardStmt is one piece of the code an error handler protects.
@@ -71,15 +84,16 @@ func (s swallow) lines() (int, int) { return s.start, s.end }
 func (s swallow) ident() string     { return s.key }
 
 func checkErrorSwallowed(a *core.Analysis) []core.Finding {
-	files := rulekit.Files(a, func(f *core.FileInfo) bool { return f.Lang.IsProgramming() })
+	files := rulekit.Files(a, func(f *core.FileInfo) bool { return f.Lang.IsProgramming() && !isFixtureData(f.Path) })
 	var out []core.Finding
+	var removed map[string]bool
 	for _, fs := range newConstructs(files, findSwallows) {
 		f, s, sw := fs.file, fs.side, fs.v
 		if cleanupGuard(sw.guard) {
 			continue // try { fs.unlinkSync(tmp) } catch {}: best-effort cleanup
 		}
 		sev := errorSwallowed.Severity
-		if testLines(a, f)(sw.start) {
+		if testish(a, f, sw.start) {
 			if sw.expectedInTest {
 				continue // asserting that the code throws, not swallowing
 			}
@@ -87,6 +101,28 @@ func checkErrorSwallowed(a *core.Analysis) []core.Finding {
 				continue // a new test driving the failure path on purpose
 			}
 			sev = core.Info
+		} else {
+			if sw.benign {
+				continue // a serialization queue, a result checked right after, telemetry
+			}
+			if removed == nil {
+				removed = removedGuardKeys(a)
+			}
+			// New code that degrades gracefully is a design decision; what
+			// hides a failure is a handler wrapped around code that used to
+			// propagate its error, or an existing handler emptied.
+			wraps := wrapsExisting(f, s, sw, removed)
+			if sw.detached && !wraps {
+				continue // void work().catch(noop): fire-and-forget by design
+			}
+			if !wraps {
+				if isDevTooling(f) {
+					continue
+				}
+				sev = core.Info
+			} else if isDevTooling(f) {
+				sev = downgrade(sev)
+			}
 		}
 		note := strings.Join([]string{s.comments(sw.start, sw.end), commentsAbove(f, s, sw.start)}, " ")
 		if explained(note) || sw.namedIgnored {
@@ -97,6 +133,71 @@ func checkErrorSwallowed(a *core.Analysis) []core.Finding {
 		out = append(out, fd)
 	}
 	return out
+}
+
+// removedGuardsKey memoizes removedGuardKeys.
+type removedGuardsKey struct{}
+
+// removedGuardKeys returns the guard keys of every line the change removed,
+// in any file: code that may now sit, moved or re-wrapped, inside a handler.
+func removedGuardKeys(a *core.Analysis) map[string]bool {
+	return a.Memo(removedGuardsKey{}, func() any {
+		out := map[string]bool{}
+		for _, f := range a.Files {
+			for _, l := range f.Removed {
+				if k := guardKey(l.Code); k != "" {
+					out[k] = true
+				}
+			}
+		}
+		return out
+	}).(map[string]bool)
+}
+
+// wrapsExisting reports whether a handler in non-test code hides an error
+// that used to surface: it protects code that was already there (unchanged
+// lines, or lines the change re-wrapped or moved), or the handler itself
+// existed and lost its body (`return fmt.Errorf(...)` became `return nil`).
+// For handlers whose protected code is unknown, code right above it that
+// predates the change stands in for it (`}.catch { }` on an existing flow).
+func wrapsExisting(f *core.FileInfo, s *side, sw swallow, removed map[string]bool) bool {
+	ch := changedLines(f)
+	for n := sw.start; n <= sw.end; n++ {
+		if _, ok := s.at(n); ok && !ch[n] {
+			return true
+		}
+	}
+	for _, g := range sw.guard {
+		k := guardKey(g.code)
+		if k == "" {
+			continue
+		}
+		// A bare name (`result`) matches too many removed lines to say
+		// that a call moved inside the handler.
+		if (removed[k] && strings.Contains(k, "(")) || (g.whole && !ch[g.line]) {
+			return true
+		}
+	}
+	if sw.guard == nil {
+		if p := prevCode(s, sw.start); p > 0 && !ch[p] {
+			return true
+		}
+	}
+	return false
+}
+
+// prevCode returns the last line before n that has code, or 0.
+func prevCode(s *side, n int) int {
+	for m := n - 1; m >= 1 && m > n-20; m-- {
+		c, ok := s.code(m)
+		if !ok {
+			return 0
+		}
+		if strings.TrimSpace(c) != "" {
+			return m
+		}
+	}
+	return 0
 }
 
 // findSwallows finds error handlers that discard the error in one version
@@ -173,7 +274,8 @@ func hidesFailure(f *core.FileInfo, guard []guardStmt) bool {
 }
 
 // cleanupGuard reports whether every statement a handler protects is a
-// cleanup call (see cleanupRe).
+// cleanup call (see cleanupRe) or a diagnostic side channel: a log line or
+// a telemetry event whose failure must not become the caller's failure.
 func cleanupGuard(guard []guardStmt) bool {
 	n := 0
 	for _, g := range guard {
@@ -181,7 +283,7 @@ func cleanupGuard(guard []guardStmt) bool {
 		if code == "" {
 			continue
 		}
-		if !cleanupRe.MatchString(code) {
+		if !cleanupRe.MatchString(code) && !logCallRe.MatchString(code) && !sideChannelRe.MatchString(code) {
 			return false
 		}
 		n++
@@ -189,17 +291,26 @@ func cleanupGuard(guard []guardStmt) bool {
 	return n > 0
 }
 
+// logCallRe matches a statement that only writes a log or diagnostic line.
+var logCallRe = regexp.MustCompile(`(?i)^(?:await\s+)?(?:console\.\w+|(?:this\.)?(?:log|logger)(?:\.\w+)?|[\w.]*\.(?:log|warn|debug|trace|info)|` +
+	`write(?:Stderr|Stdout)\w*|(?:[\w.]*\.)?on\w*Diagnostic\w*(?:\?\.)?|process\.(?:stderr|stdout)\.write)\s*\(`)
+
 // assertionRe matches the assertion calls of common test frameworks.
 var assertionRe = regexp.MustCompile(`(?i)\b(?:expect|assert\w*|should\w*|xctassert\w*|require\.\w+|t\.(?:error|fatal)\w*)\s*[(.!{]|^\s*assert\b`)
 
 // guardKeyPrefixRe matches the keywords a re-wrapped statement gains or
 // loses (`try save()` becomes `try? save()`, `run()` becomes `await run()`).
-var guardKeyPrefixRe = regexp.MustCompile(`^(?:(?:await|try[?!]?|return|_\s*=|@)\s*)+`)
+var guardKeyPrefixRe = regexp.MustCompile(`^(?:(?:await|void|try[?!]?|return|_\s*=|@)\s*)+`)
 
-// guardKey normalizes a guarded statement for comparison with removed code.
+// guardKey normalizes a guarded statement for comparison with removed code;
+// a statement without a name in it (`)`, `});`) has no key.
 func guardKey(code string) string {
 	code = strings.Trim(strings.TrimSpace(code), "{}; \t")
-	return rulekit.Normalize(guardKeyPrefixRe.ReplaceAllString(code, ""))
+	k := rulekit.Normalize(guardKeyPrefixRe.ReplaceAllString(code, ""))
+	if len(k) < 3 || !strings.ContainsFunc(k, func(r rune) bool { return r == '_' || r >= 'a' && r <= 'z' || r >= 'A' && r <= 'Z' }) {
+		return ""
+	}
+	return k
 }
 
 // ---- Python ----
@@ -752,11 +863,155 @@ func promiseCatches(s *side) []swallow {
 					}
 				}
 			}
-			out = append(out, swallow{start: n, end: end, key: "js:promise-catch", guard: guard,
-				msg: fmt.Sprintf("`.catch(%s)` silently discards the rejection", shorten(handler, 40))})
+			after := ""
+			if _, close, ok := rulekit.CallArgs(code, loc[0]+len(".catch")); ok {
+				after = code[close+1:]
+			}
+			sw := swallow{start: n, end: end, key: "js:promise-catch", guard: guard,
+				msg: fmt.Sprintf("`.catch(%s)` silently discards the rejection", shorten(handler, 40))}
+			sw.benign, sw.detached = benignPromise(s, n, end, code[:loc[0]], after)
+			out = append(out, sw)
 		}
 	}
 	return out
+}
+
+var (
+	// bareRefRe matches a promise held in a variable or field (`previous`,
+	// `this.queue`), as opposed to a call that starts work.
+	bareRefRe = regexp.MustCompile(`^(?:await\s+)?[\w$]+(?:\??\.[\w$#]+)*$`)
+	// chainRe matches what follows the handler of a serialization queue.
+	chainRe = regexp.MustCompile(`^\s*\.(?:then|finally)\(`)
+	// fallbackRe matches a fallback applied to the handler's result.
+	fallbackRe = regexp.MustCompile(`^[\s)]*(?:\?\?|\|\|)`)
+	// assignHeadRe matches the variable a statement assigns.
+	assignHeadRe = regexp.MustCompile(`^(?:export\s+)?(?:(?:const|let|var)\s+([\w$]+)\s*(?::[^=]+)?=|([\w$.#]+)\s*=[^=>])`)
+	// sideChannelRe matches calls whose failure must never affect the
+	// caller: telemetry, analytics and logging.
+	sideChannelRe = regexp.MustCompile(`(?i)\b(?:track\w*|capture(?:Event|Exception|Message)?|send(?:Beacon|Analytics|Telemetry|Metrics?)\w*|` +
+		`log(?:Event|Usage|Metric)\w*|record(?:Metric|Event|Usage)\w*|report(?:Usage|Event|Metric|Telemetry)\w*|telemetry\w*|analytics\w*)\s*\(`)
+)
+
+// benignPromise reports whether a `.catch(noop)` on line n (handler ending
+// on line end) loses no error that someone relies on: the promise is
+// detached with `void`, it is a stored promise kept from rejecting in a
+// serialization queue, the handler's empty result gets a fallback or is
+// checked right after, a react-query mutation reports errors through its
+// onError, or the call only feeds telemetry. before is the code before
+// `.catch` on line n; after is the code after the call, when on the line.
+func benignPromise(s *side, n, end int, before, after string) (benign, detached bool) {
+	head := stmtHead(s, n, before)
+	var parts []string
+	for m := head; m < n; m++ {
+		if c, ok := s.code(m); ok {
+			parts = append(parts, strings.TrimSpace(c))
+		}
+	}
+	parts = append(parts, strings.TrimSpace(before))
+	stmt := strings.TrimSpace(strings.Join(parts, " "))
+	if strings.HasPrefix(stmt, "void ") || strings.HasPrefix(stmt, "void(") {
+		return false, true
+	}
+	expr := strings.TrimPrefix(stmt, "return ")
+	v := ""
+	if m := assignHeadRe.FindStringSubmatchIndex(expr); m != nil {
+		switch {
+		case m[2] >= 0:
+			v = expr[m[2]:m[3]]
+		case m[4] >= 0:
+			v = expr[m[4]:m[5]]
+		}
+		expr = strings.TrimLeft(strings.TrimSpace(expr[m[1]-1:]), "= ")
+	}
+	queue := bareRefRe.MatchString(strings.Join(strings.Fields(expr), ""))
+	if after == "" && end == n {
+		if nc, ok := s.code(s.nextCode(n)); ok && chainRe.MatchString(nc) {
+			after = nc
+		}
+	}
+	switch {
+	case queue && chainRe.MatchString(after):
+		return true, false // prev.catch(noop).then(next)
+	case fallbackRe.MatchString(after):
+		return true, false // (await load().catch(() => null)) ?? defaults
+	case strings.Contains(expr, "mutateAsync(") && fileMentions(s, "onError"):
+		return true, false // the mutation's onError reports the failure
+	case sideChannelRe.MatchString(expr):
+		return true, false
+	case v == "":
+		return false, false
+	case queue && !strings.Contains(stmt, "await"):
+		return true, false // this.tail = write.catch(noop): a settled promise kept for later
+	}
+	return checkedAfter(s, end, v), false
+}
+
+// stmtHead returns the line on which the statement holding line n starts:
+// brackets closed on line n (before the match) are followed back to their
+// opening, chained calls (`.then(...)` lines) to the expression they
+// continue, and a value to the assignment it is written below.
+func stmtHead(s *side, n int, before string) int {
+	depth := 0
+	m := n
+	text := before
+	for k := 0; k < 30; k++ {
+		for i := len(text) - 1; i >= 0; i-- {
+			switch text[i] {
+			case ')', ']', '}':
+				depth++
+			case '(', '[', '{':
+				depth--
+			}
+		}
+		t := strings.TrimSpace(text)
+		p := prevCode(s, m)
+		if depth <= 0 && t != "" && !strings.HasPrefix(t, ".") && !strings.HasPrefix(t, "?.") {
+			pc, _ := s.code(p)
+			if p == 0 || !continuesRe.MatchString(pc) {
+				return m
+			}
+		}
+		if p == 0 {
+			return m
+		}
+		m = p
+		text, _ = s.code(m)
+	}
+	return m
+}
+
+// continuesRe matches a line whose expression continues on the next one.
+var continuesRe = regexp.MustCompile(`(?:[=?:]|=>|&&|\|\||\?\?|\bawait|\breturn)\s*$`)
+
+// checkedAfter reports whether variable v is tested within a few lines
+// after line end: `if (!team) return ...`, `team?.name`, `snapshot ? ... : ...`.
+func checkedAfter(s *side, end int, v string) bool {
+	if v == "" {
+		return false
+	}
+	q := regexp.QuoteMeta(v)
+	re := regexp.MustCompile(`\bif\s*\(\s*!?\s*\(?\s*` + q + `\b|!\s*` + q + `\b|(?:^|[^\w$.])` + q +
+		`\s*(?:\?\.|\?\?|\?\s|&&|\|\||[!=]==?\s*(?:null|undefined))|\b` + q + `\s*\?\s*[^.?]`)
+	m := end
+	for k := 0; k < 5; k++ {
+		if m = s.nextCode(m); m == 0 {
+			return false
+		}
+		if c, _ := s.code(m); re.MatchString(c) {
+			return true
+		}
+	}
+	return false
+}
+
+// fileMentions reports whether the file version s contains word in code.
+func fileMentions(s *side, word string) bool {
+	for _, n := range s.lineNos() {
+		if c, ok := s.code(n); ok && strings.Contains(c, word) {
+			return true
+		}
+	}
+	return false
 }
 
 var promiseThenRe = regexp.MustCompile(`\.then\(`)
@@ -879,8 +1134,11 @@ func goSwallows(s *side) []swallow {
 			out = append(out, swallow{start: n, end: end, key: "go:empty-if-err",
 				msg: fmt.Sprintf("empty `if %s != nil {}` block ignores the error", name)})
 		case len(stmts) == 1 && goReturnNilsRe.MatchString(stmts[0]):
-			results := goResults(s, n)
+			results, sig := goResults(s, n)
 			nils := strings.Count(stmts[0], "nil")
+			if walkCallbackRe.MatchString(sig) {
+				continue // a Walk callback: returning nil means "skip this entry, keep walking"
+			}
 			if len(results) == nils && results[len(results)-1] == "error" {
 				out = append(out, swallow{start: n, end: end, key: "go:return-nil-on-err",
 					msg: fmt.Sprintf("`if %s != nil { %s }` drops the error: callers see success", name, stmts[0])})
@@ -890,14 +1148,19 @@ func goSwallows(s *side) []swallow {
 	return out
 }
 
+// walkCallbackRe matches the head of a function literal passed to a tree
+// walker (filepath.Walk, fs.WalkDir, fastwalk.Walk), whose nil result means
+// "continue".
+var walkCallbackRe = regexp.MustCompile(`\b(?:Walk|WalkDir|Walker|WalkFunc|WalkDirFunc)\b\s*\(.*\bfunc\s*\(|\b(?:WalkFunc|WalkDirFunc)\b`)
+
 // goResults returns the result types of the function enclosing line n, or
-// nil if it cannot be determined.
-func goResults(s *side, n int) []string {
+// nil if it cannot be determined, and the code of its signature.
+func goResults(s *side, n int) ([]string, string) {
 	depth := 0
 	for m := n - 1; m >= 1 && m > n-1000; m-- {
 		code, ok := s.code(m)
 		if !ok {
-			return nil
+			return nil, ""
 		}
 		for i := len(code) - 1; i >= 0; i-- {
 			switch code[i] {
@@ -909,12 +1172,22 @@ func goResults(s *side, n int) []string {
 					continue
 				}
 				if sig, ok := goSignature(s, m, code[:i]); ok {
-					return goResultTypes(sig)
+					head := code[:i]
+					if p := prevCode(s, m); p > 0 && !goFuncRe.MatchString(head) {
+						pc, _ := s.code(p)
+						head = pc + " " + head
+					} else if p > 0 {
+						// `err := filepath.WalkDir(root,` on the line above.
+						if pc, _ := s.code(p); strings.HasSuffix(strings.TrimSpace(pc), ",") || strings.HasSuffix(strings.TrimSpace(pc), "(") {
+							head = pc + " " + head
+						}
+					}
+					return goResultTypes(sig), head
 				}
 			}
 		}
 	}
-	return nil
+	return nil, ""
 }
 
 var (

@@ -1,0 +1,16 @@
+# Evasive: a new nested tsconfig.json excludes the package's tests, which the parent tsconfig type-checked until now.
+expect: tests-excluded
+-- new/packages/features/ee/billing/tsconfig.json --
+{
+  "extends": "../../tsconfig.json",
+  "include": ["**/*.ts", "**/*.tsx"],
+  "exclude": ["dist", "**/node_modules/**", "**/__tests__/*"]
+}
+-- new/packages/features/ee/billing/lib/stripe.ts --
+export const toCents = (amount: number) => Math.round(amount * 100);
+-- both/packages/features/tsconfig.json --
+{
+  "compilerOptions": { "strict": true, "noEmit": true },
+  "include": ["**/*.ts", "**/*.tsx"],
+  "exclude": ["dist", "**/node_modules/**"]
+}

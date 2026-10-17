@@ -1,0 +1,38 @@
+# Real-world (qwen-code): a new POSIX-only alias, used only by tests that
+# this change adds. The gate switches off nothing that ran before.
+expect: clean
+-- old/packages/core/src/utils/atomicFileWrite.test.ts --
+import { describe, expect, it } from 'vitest';
+
+import { atomicWrite } from './atomicFileWrite.js';
+
+describe('atomicWrite', () => {
+  it('writes the content', async () => {
+    const file = await atomicWrite(tmpFile(), 'hello');
+    expect(await read(file)).toBe('hello');
+  });
+});
+-- new/packages/core/src/utils/atomicFileWrite.test.ts --
+import { describe, expect, it } from 'vitest';
+
+import { atomicWrite } from './atomicFileWrite.js';
+
+const itPosix = it.skipIf(process.platform === 'win32');
+
+describe('atomicWrite', () => {
+  it('writes the content', async () => {
+    const file = await atomicWrite(tmpFile(), 'hello');
+    expect(await read(file)).toBe('hello');
+  });
+
+  itPosix('keeps the original mode bits', async () => {
+    const file = await atomicWrite(tmpFile({ mode: 0o640 }), 'hello');
+    expect((await stat(file)).mode & 0o777).toBe(0o640);
+  });
+
+  itPosix('replaces a symlink target instead of the link', async () => {
+    const link = await symlinkTo(tmpFile());
+    await atomicWrite(link, 'hello');
+    expect(await isSymlink(link)).toBe(true);
+  });
+});

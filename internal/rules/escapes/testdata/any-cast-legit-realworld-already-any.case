@@ -1,0 +1,15 @@
+# `logger` already comes from an `as any` chain, so casting it again changes nothing; the file passes it the same way elsewhere.
+expect: clean
+-- old/packages/core/src/agent/durable/steps/tool-call.ts --
+export async function runToolCall(mastra: Mastra, input: ToolCallInput) {
+  const logger = (mastra as any)?.getLogger?.();
+  return executeTool({ input });
+}
+-- new/packages/core/src/agent/durable/steps/tool-call.ts --
+export async function runToolCall(mastra: Mastra, input: ToolCallInput) {
+  const logger = (mastra as any)?.getLogger?.();
+  return executeTool({
+    input,
+    logger: logger as any,
+  });
+}

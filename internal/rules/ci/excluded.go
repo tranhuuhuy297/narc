@@ -32,7 +32,10 @@ var testsExcluded = &core.Rule{
 		"test globs added to tsconfig.json `exclude`; Maven surefire, Gradle and PHPUnit excludes; " +
 		"`//go:build ignore` or a contradictory constraint (`linux && !linux`) on a `_test.go` file (error). " +
 		"An exclusion is fine when the same change runs the excluded tests elsewhere (a new e2e job, a " +
-		"separate config), or a sibling tsconfig (tsconfig.spec.json) already includes them.\n\n" +
+		"separate config), a sibling tsconfig (tsconfig.spec.json) already includes them, or another project " +
+		"of the same vitest config includes them. A new nested tsconfig.json is compared with the tsconfig " +
+		"that covered its directory before (info when there was none), and replacing " +
+		"`...coverageConfigDefaults.exclude` with its literal entries excludes nothing new.\n\n" +
 		"Info: source files newly omitted from coverage measurement (`omit`, `coveragePathIgnorePatterns`, " +
 		"codecov `ignore`), which inflates the coverage number.",
 }
@@ -227,6 +230,30 @@ func (ctx *excludeCtx) compareList(f *core.FileInfo, spec listSpec, old, new []e
 	for _, e := range nv {
 		has[normPattern(e.Value)] = true
 	}
+	// A spread of vitest's defaults replaced by their literal contents
+	// (vitest 4 emptied coverageConfigDefaults.exclude) excludes nothing new.
+	for _, d := range []string{"coverageConfigDefaults.exclude", "configDefaults.exclude"} {
+		if had["..."+d] && !has["..."+d] {
+			for _, p := range vitestDefaultExcludes {
+				had[normPattern(p)] = true
+			}
+		}
+	}
+	// A new nested tsconfig.json starts from the excludes of the tsconfig
+	// that covered its directory before.
+	freshProject := false
+	if f.Config == core.CfgTSConfig && f.Diff.Kind == diff.Added && spec.kind == listExclude {
+		switch anc, ok := ctx.ancestorTSConfig(f); {
+		case ok:
+			for _, e := range listValues(anc, spec.match) {
+				had[normPattern(e.Value)] = true
+			}
+		case ctx.a.Source == nil && path.Dir(f.Path) != ".":
+			return nil // a bare patch cannot show what covered the directory before
+		default:
+			freshProject = true
+		}
+	}
 	var out []core.Finding
 	switch spec.kind {
 	case listExclude, listCoverageOmit:
@@ -244,11 +271,18 @@ func (ctx *excludeCtx) compareList(f *core.FileInfo, spec listSpec, old, new []e
 				if f.Config == core.CfgTSConfig && ctx.siblingTSConfigIncludes(f, e.Value) {
 					continue // tsconfig.test.json next to it type-checks the tests
 				}
+				if f.Config == core.CfgVitest && includedByOtherProject(new, e) {
+					continue // the vitest projects partition the tests
+				}
 				effect := spec.effect
 				if effect == "" {
 					effect = "those tests no longer run"
 				}
-				out = append(out, sevFinding(testsExcluded, f, e.Line, core.Warning,
+				sev := core.Warning
+				if freshProject {
+					sev = core.Info // a new project's own config: nothing checked them before
+				}
+				out = append(out, sevFinding(testsExcluded, f, e.Line, sev,
 					fmt.Sprintf("%s gained %s: %s", spec.name, quote(e.Value), effect)))
 				continue
 			}
@@ -282,6 +316,57 @@ func (ctx *excludeCtx) compareList(f *core.FileInfo, spec listSpec, old, new []e
 		}
 	}
 	return out
+}
+
+// vitestDefaultExcludes are the entries of vitest's configDefaults.exclude
+// and (before vitest 4) coverageConfigDefaults.exclude, which configs
+// spread into their own lists.
+var vitestDefaultExcludes = []string{
+	"**/node_modules/**", "**/dist/**", "**/cypress/**", "**/.{idea,git,cache,output,temp}/**",
+	"**/{karma,rollup,webpack,vite,vitest,jest,ava,babel,nyc,cypress,tsup,build,eslint,prettier}.config.*",
+	"coverage/**", "dist/**", "**/[.]**", "packages/*/test?(s)/**", "**/*.d.ts", "**/virtual:*", "**/__x00__*",
+	"**/\x00*", "cypress/**", "test?(s)/**", "test?(-*).?(c|m)[jt]s?(x)",
+	"**/*{.,-}{test,spec,bench,benchmark}?(-d).?(c|m)[jt]s?(x)", "**/__tests__/**",
+	"**/vitest.{workspace,projects}.[jt]s?(on)", "**/.{eslint,mocha,prettier}rc.{?(c|m)js,yml}",
+}
+
+// includedByOtherProject reports whether a pattern (or a spread list
+// variable) excluded from one vitest project is included by another
+// project of the same config, so the tests still run there.
+func includedByOtherProject(es []entry, ex entry) bool {
+	v := strings.TrimPrefix(normPattern(ex.Value), "...")
+	if v == "" {
+		return false
+	}
+	for _, e := range es {
+		if e.Last() != "include" || e.Line == ex.Line {
+			continue
+		}
+		for _, part := range strings.FieldsFunc(e.Value, func(r rune) bool { return r == ',' || r == ' ' || r == '\n' }) {
+			if strings.TrimPrefix(normPattern(part), "...") == v {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// ancestorTSConfig returns the entries, at the old revision, of the
+// nearest tsconfig.json above a newly added one.
+func (ctx *excludeCtx) ancestorTSConfig(f *core.FileInfo) ([]entry, bool) {
+	r := repoOf(ctx.a)
+	for d := path.Dir(path.Dir(f.Path)); ; d = path.Dir(d) {
+		p := path.Join(d, "tsconfig.json")
+		if d == "." {
+			p = "tsconfig.json"
+		}
+		if doc, ok := r.get(p, true); ok {
+			return parseConfig(fmtJSON, doc.s.text(), doc.s.lines), true
+		}
+		if d == "." || d == "/" {
+			return nil, false
+		}
+	}
 }
 
 // normPattern canonicalizes a path pattern for comparison.
@@ -452,9 +537,13 @@ func excludesTests(p string) bool {
 var benignOmitRe = regexp.MustCompile(`(?i)(migrations?|generated|__generated__|vendor|node_modules|dist|build|\.d\.ts|__init__\.py|setup\.py|conftest|docs?(/|$)|scripts?(/|$)|stories|\.stories\.|__mocks__|mocks?(/|$)|fixtures?|\.config\.|config(/|$)|settings(/|\.py$|$)|wsgi\.py|asgi\.py|manage\.py|coverage|venv|site-packages|\.tox|_pb2|\.pb\.go|main\.py$|cmd/|__main__\.py|\.gen\.|typings?|types\.ts$|\bbin/)`)
 
 // looksLikeSource reports whether an omitted path is application code.
+// Dot-directories (.git, .cache, .idea, ".*") hold tooling, not code.
 func looksLikeSource(p string) bool {
-	return !looksLikeTestPath(p) && !benignOmitRe.MatchString(p) && strings.Trim(p, `"'*/. `) != ""
+	return !looksLikeTestPath(p) && !benignOmitRe.MatchString(p) && strings.Trim(p, `"'*/. `) != "" && !dotDirRe.MatchString(p)
 }
+
+// dotDirRe matches patterns for dot-directories: "**/.{idea,git}/**", ".cache/".
+var dotDirRe = regexp.MustCompile(`(^|/)\.(\{|\*|[\w-]+/)`)
 
 // ---- pytest addopts ----
 

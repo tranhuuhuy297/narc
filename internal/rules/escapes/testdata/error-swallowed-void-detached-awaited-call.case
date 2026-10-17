@@ -1,0 +1,12 @@
+# The charge used to be awaited, so its failure failed the checkout; now it is detached with void and its rejection discarded.
+expect: error-swallowed@warning
+-- old/src/checkout/complete.ts --
+export async function completeCheckout(order: Order): Promise<void> {
+  await payments.charge(order.card, order.totalCents);
+  await orders.markPaid(order.id);
+}
+-- new/src/checkout/complete.ts --
+export async function completeCheckout(order: Order): Promise<void> {
+  void payments.charge(order.card, order.totalCents).catch(() => {});
+  await orders.markPaid(order.id);
+}

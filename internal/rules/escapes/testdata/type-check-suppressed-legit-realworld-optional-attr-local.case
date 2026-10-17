@@ -1,0 +1,13 @@
+# union-attr ignores on an Optional attribute of an object built a few lines earlier with that attribute set: no None can reach them. A note at most.
+expect: type-check-suppressed@info
+-- old/enterprise/server/services/org_conversation_service.py --
+def usage_row(conversation: Conversation) -> UsageRow:
+    return UsageRow(id=conversation.id)
+-- new/enterprise/server/services/org_conversation_service.py --
+def usage_row(conversation: Conversation, token_usage: TokenUsage) -> UsageRow:
+    metrics = MetricsSnapshot(accumulated_token_usage=token_usage)
+    return UsageRow(
+        id=conversation.id,
+        prompt_tokens=metrics.accumulated_token_usage.prompt_tokens,  # type: ignore[union-attr]
+        completion_tokens=metrics.accumulated_token_usage.completion_tokens,  # type: ignore[union-attr]
+    )

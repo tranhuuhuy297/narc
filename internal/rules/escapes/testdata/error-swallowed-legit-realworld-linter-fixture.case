@@ -1,0 +1,8 @@
+# A linter's semantic-error test fixture: the file is input data for the checker's snapshot tests and is never executed.
+expect: clean
+-- new/crates/linter/resources/test/fixtures/semantic_errors/nonlocal_parameter.py --
+def f(a):
+    try:
+        nonlocal a
+    except Exception:
+        pass

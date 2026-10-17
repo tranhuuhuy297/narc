@@ -1,0 +1,31 @@
+# Real-world (n8n): two new Playwright e2e tests for multi-main mode skip
+# themselves when the environment has fewer than two mains: Playwright's
+# standard conditional skip, on tests that never ran before.
+expect: clean
+-- old/packages/testing/playwright/tests/e2e/nodes/webhook.spec.ts --
+import { test, expect } from '../../../fixtures/base';
+
+test.describe('Webhook node', () => {
+  test('should listen for a GET request', async ({ n8n }) => {
+    await n8n.canvas.addNode('Webhook');
+    const response = await n8n.webhooks.call('GET', 'test');
+    expect(response.status()).toBe(200);
+  });
+});
+-- new/packages/testing/playwright/tests/e2e/nodes/webhook.spec.ts --
+import { test, expect } from '../../../fixtures/base';
+
+test.describe('Webhook node', () => {
+  test('should listen for a GET request', async ({ n8n }) => {
+    await n8n.canvas.addNode('Webhook');
+    const response = await n8n.webhooks.call('GET', 'test');
+    expect(response.status()).toBe(200);
+  });
+
+  test('should respond with last node output @mode:multi-main', async ({ n8n, mainUrls }) => {
+    test.skip(mainUrls.length < 2, 'Requires at least 2 mains');
+    await n8n.canvas.addNode('Webhook', { responseMode: 'lastNode' });
+    const response = await n8n.webhooks.callOn(mainUrls[1], 'GET', 'test');
+    expect(await response.json()).toEqual({ ok: true });
+  });
+});

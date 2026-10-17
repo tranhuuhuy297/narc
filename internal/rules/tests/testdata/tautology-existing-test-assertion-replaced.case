@@ -1,0 +1,26 @@
+# An existing test's real check is replaced by `assert True`: the test that
+# used to verify the signature now passes whatever verify() does.
+expect: tautology
+-- old/tests/test_webhooks.py --
+import pytest
+
+from app.webhooks import InvalidSignature, sign, verify
+
+
+def test_verify_rejects_tampered_body():
+    sig = sign(b"body", "secret")
+    with pytest.raises(InvalidSignature):
+        verify(b"tampered", sig, "secret")
+-- new/tests/test_webhooks.py --
+import pytest
+
+from app.webhooks import InvalidSignature, sign, verify
+
+
+def test_verify_rejects_tampered_body():
+    sig = sign(b"body", "secret")
+    try:
+        verify(b"tampered", sig, "secret")
+    except InvalidSignature:
+        pass
+    assert True

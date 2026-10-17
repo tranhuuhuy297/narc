@@ -1,0 +1,18 @@
+# The runtime check right above proves the value is a string, which the declared response type leaves out: the cast is guarded.
+expect: clean
+-- old/static/app/components/connectRepository/connectionModalFrame.tsx --
+export function getApiErrorMessage(error: unknown): string {
+  return t('Failed to connect repository');
+}
+-- new/static/app/components/connectRepository/connectionModalFrame.tsx --
+export function getApiErrorMessage(error: unknown): string {
+  if (!(error instanceof RequestError)) {
+    return t('Failed to connect repository');
+  }
+  const json = error.responseJSON;
+  if (typeof (json as unknown) === 'string') {
+    return json as unknown as string;
+  }
+  const {detail} = json ?? {};
+  return typeof detail === 'string' ? detail : t('Failed to connect repository');
+}

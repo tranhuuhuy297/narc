@@ -1,0 +1,22 @@
+# A classifier turns a booking's status into the list tab it belongs to; the test enumerates the categories.
+expect: clean
+-- old/apps/web/modules/bookings/hooks/useSwitchToCorrectStatusTab.ts --
+export function getTabForBooking(booking: BookingLike, now: Date): BookingTab {
+  return new Date(booking.endTime) < now ? "past" : "upcoming";
+}
+-- new/apps/web/modules/bookings/hooks/useSwitchToCorrectStatusTab.ts --
+export function getTabForBooking(booking: BookingLike, now: Date): BookingTab {
+  if (booking.status === "CANCELLED" || booking.status === "REJECTED") return "cancelled";
+  if (booking.status === "PENDING") return "unconfirmed";
+  if (booking.recurringEventId) return "recurring";
+  return new Date(booking.endTime) < now ? "past" : "upcoming";
+}
+-- new/apps/web/modules/bookings/hooks/useSwitchToCorrectStatusTab.test.ts --
+import { getTabForBooking } from "./useSwitchToCorrectStatusTab";
+
+const now = new Date("2026-01-01T00:00:00Z");
+
+it("puts cancelled and rejected bookings in the cancelled tab", () => {
+  expect(getTabForBooking({ status: "CANCELLED", endTime: "2026-02-01" }, now)).toBe("cancelled");
+  expect(getTabForBooking({ status: "REJECTED", endTime: "2026-02-01" }, now)).toBe("cancelled");
+});

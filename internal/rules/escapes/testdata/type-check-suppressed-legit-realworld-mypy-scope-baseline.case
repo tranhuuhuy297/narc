@@ -1,0 +1,28 @@
+# The change adds the SDK to mypy's checked packages and records the errors it now reports on lines that were not checked before.
+expect: clean
+-- old/enterprise/dev_config/python/mypy.ini --
+[mypy]
+files = enterprise/server
+
+[mypy-enterprise.sync.*]
+disable_error_code = redundant-cast
+-- new/enterprise/dev_config/python/mypy.ini --
+[mypy]
+files = enterprise/server, enterprise/sdk
+
+[mypy-enterprise.sync.*]
+disable_error_code = redundant-cast
+-- old/enterprise/sdk/sharing/shared_conversation_info.py --
+def to_info(stored: StoredConversation) -> SharedConversationInfo:
+    return SharedConversationInfo(
+        id=stored.conversation_id,
+        per_turn_token=stored.per_turn_token,
+        accumulated_cost=stored.accumulated_cost,
+    )
+-- new/enterprise/sdk/sharing/shared_conversation_info.py --
+def to_info(stored: StoredConversation) -> SharedConversationInfo:
+    return SharedConversationInfo(
+        id=stored.conversation_id,
+        per_turn_token=stored.per_turn_token,  # type: ignore[arg-type]
+        accumulated_cost=stored.accumulated_cost,  # type: ignore[arg-type]
+    )

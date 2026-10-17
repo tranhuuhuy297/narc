@@ -1,0 +1,15 @@
+# Widening a typed action to Record<string, unknown> to read one optional field, which is then validated: the cast checks more, not less.
+expect: clean
+-- old/src/components/chat/event-content-helpers/get-event-content.tsx --
+export const getVisionToolContent = (event: ToolEvent): React.ReactNode | null => {
+  return null;
+};
+-- new/src/components/chat/event-content-helpers/get-event-content.tsx --
+export const getVisionToolContent = (event: ToolEvent): React.ReactNode | null => {
+  if (event.tool_name !== "inspect_image_with_vision") {
+    return null;
+  }
+  const action = event.action as unknown as Record<string, unknown>;
+  const profileName = getNonEmptyString(action.profile_name);
+  return profileName ? `Describing image with ${profileName}` : "Describing image";
+};

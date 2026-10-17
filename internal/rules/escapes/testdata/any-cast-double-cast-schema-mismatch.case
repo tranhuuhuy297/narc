@@ -1,0 +1,17 @@
+# The commit switched Recipe to a different DTO, and the request body stopped type-checking; a double cast hides the schema mismatch between two named types instead of converting.
+expect: any-cast@warning
+-- old/ui/desktop/src/schedule.ts --
+import type { Recipe } from './api';
+
+export async function createSchedule(request: { id: string; recipe: Recipe; cron: string }): Promise<ScheduledJob> {
+  const response = await apiCreateSchedule({ body: request });
+  return response.data as ScheduledJob;
+}
+-- new/ui/desktop/src/schedule.ts --
+import type { Recipe } from './recipe';
+
+export async function createSchedule(request: { id: string; recipe: Recipe; cron: string }): Promise<ScheduledJob> {
+  type ApiCreateScheduleBody = Parameters<typeof apiCreateSchedule>[0]['body'];
+  const response = await apiCreateSchedule({ body: request as unknown as ApiCreateScheduleBody });
+  return response.data as ScheduledJob;
+}

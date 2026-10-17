@@ -1,0 +1,33 @@
+# Evasive: the blocking test step is replaced by a "new" step that runs the same suite with continue-on-error.
+expect: ci-failure-ignored
+-- old/.github/workflows/ci.yml --
+name: CI
+on:
+  pull_request:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm ci
+      - name: Unit tests
+        run: npx vitest run --coverage
+-- new/.github/workflows/ci.yml --
+name: CI
+on:
+  pull_request:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm ci
+      - name: Vitest (sharded)
+        continue-on-error: true
+        run: npx vitest run --coverage --shard=1/1

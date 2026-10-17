@@ -1,0 +1,44 @@
+# A new step reports how much test code a pull request adds, as a job summary; it is non-blocking because it reports and checks nothing (its own unit tests run in the blocking helper-test step).
+expect: clean
+-- old/.github/workflows/ci.yml --
+name: CI
+on:
+  pull_request:
+jobs:
+  lint_and_static:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm ci
+      - name: Lint
+        run: npm run lint
+      - name: Helper script tests
+        run: node --test .github/scripts/check-version.test.mjs
+-- new/.github/workflows/ci.yml --
+name: CI
+on:
+  pull_request:
+jobs:
+  lint_and_static:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm ci
+      - name: Lint
+        run: npm run lint
+      - name: Helper script tests
+        run: node --test .github/scripts/check-version.test.mjs .github/scripts/check-test-growth.test.mjs
+      - name: Report test growth
+        if: github.event_name == 'pull_request'
+        continue-on-error: true
+        run: node .github/scripts/check-test-growth.mjs --base "origin/${{ github.base_ref }}" --summary "$GITHUB_STEP_SUMMARY"

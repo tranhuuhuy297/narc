@@ -1,0 +1,41 @@
+# A linter upgrade starts reporting no-unnecessary-condition on existing code; the change records the old violations in several files at once without touching the code they cover.
+expect: clean
+-- old/package.json --
+{
+  "devDependencies": {
+    "typescript-eslint": "8.31.0"
+  }
+}
+-- new/package.json --
+{
+  "devDependencies": {
+    "typescript-eslint": "8.46.1"
+  }
+}
+-- old/src/cart/total.ts --
+export function total(items: Item[]): number {
+  return items.reduce((sum, item) => sum + (item.price ?? 0) * item.quantity, 0);
+}
+-- new/src/cart/total.ts --
+export function total(items: Item[]): number {
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+  return items.reduce((sum, item) => sum + (item.price ?? 0) * item.quantity, 0);
+}
+-- old/src/cart/discount.ts --
+export function discount(code: Coupon | undefined): number {
+  return code?.percent ?? 0;
+}
+-- new/src/cart/discount.ts --
+export function discount(code: Coupon | undefined): number {
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+  return code?.percent ?? 0;
+}
+-- old/src/cart/shipping.ts --
+export function shipping(address: Address): number {
+  return address.country === "US" ? 0 : (address.zone?.rate ?? 15);
+}
+-- new/src/cart/shipping.ts --
+export function shipping(address: Address): number {
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+  return address.country === "US" ? 0 : (address.zone?.rate ?? 15);
+}

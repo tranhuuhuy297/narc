@@ -1,0 +1,59 @@
+# Biome rules turned off because Oxlint, which runs on the same files, already enforces their equivalents at error ("oxlint owns ...").
+expect: clean
+-- old/biome.jsonc --
+{
+	"$schema": "https://biomejs.dev/schemas/2.2.0/schema.json",
+	"linter": {
+		"enabled": true,
+		"rules": {
+			"style": {
+				"useAsConstAssertion": "error",
+				"useConsistentCurlyBraces": "error",
+				"noUnusedTemplateLiteral": "error",
+				"noInferrableTypes": "error",
+				"noUselessElse": "error"
+			},
+			"suspicious": {
+				"noConsole": {
+					"level": "error",
+					"options": {
+						"allow": ["error", "info", "warn"]
+					}
+				}
+			}
+		}
+	}
+}
+-- new/biome.jsonc --
+{
+	"$schema": "https://biomejs.dev/schemas/2.2.0/schema.json",
+	"linter": {
+		"enabled": true,
+		"rules": {
+			"style": {
+				"useAsConstAssertion": "error",
+				"useConsistentCurlyBraces": "off", // oxlint owns jsx-curly-brace-presence
+				"noUnusedTemplateLiteral": "error",
+				"noInferrableTypes": "off", // oxlint owns no-inferrable-types
+				"noUselessElse": "error"
+			},
+			"suspicious": {
+				"noConsole": "off" // oxlint owns no-console
+			}
+		}
+	}
+}
+-- both/site/.oxlintrc.jsonc --
+{
+	"$schema": "./node_modules/oxlint/configuration_schema.json",
+	"plugins": ["typescript", "react", "jsx-a11y"],
+	"rules": {
+		"no-debugger": "error",
+		"no-console": ["error", { "allow": ["error", "info", "warn"] }],
+		"jsx-curly-brace-presence": "error",
+		"no-inferrable-types": "error",
+		"eqeqeq": ["error", "always", { "null": "ignore" }]
+	}
+}
+-- both/site/src/pages/Workspace.tsx --
+export const Workspace = ({ name }: { name: string }) => <h1>{name}</h1>;

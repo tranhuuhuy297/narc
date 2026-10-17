@@ -1,0 +1,40 @@
+# Scripts were made self-contained: a helper and its existing ignore were copied word for word from a shared module that the same change deletes.
+expect: clean
+-- old/scripts/_utils.py --
+import re
+
+
+def get_indent(line: str) -> str:
+    return re.match(r"^\s*", line).group()  # type: ignore[union-attr]
+-- old/scripts/add_rule.py --
+from _utils import get_indent
+
+
+def add(line: str) -> str:
+    return get_indent(line) + "rule"
+-- new/scripts/add_rule.py --
+import re
+
+
+def get_indent(line: str) -> str:
+    return re.match(r"^\s*", line).group()  # type: ignore[union-attr]
+
+
+def add(line: str) -> str:
+    return get_indent(line) + "rule"
+-- old/scripts/add_plugin.py --
+from _utils import get_indent
+
+
+def add(line: str) -> str:
+    return get_indent(line) + "plugin"
+-- new/scripts/add_plugin.py --
+import re
+
+
+def get_indent(line: str) -> str:
+    return re.match(r"^\s*", line).group()  # type: ignore[union-attr]
+
+
+def add(line: str) -> str:
+    return get_indent(line) + "plugin"

@@ -1,0 +1,55 @@
+# Dev-only browser daemon under .agents/skills: its `eval` command exists to evaluate an expression, so no-new-func is silenced on purpose. Dev tooling never ships: a note at most.
+expect: lint-suppressed@info
+-- old/.agents/skills/verify-app/scripts/browser-daemon.mjs --
+#!/usr/bin/env node
+import { chromium } from "playwright";
+
+const events = [];
+let activePage;
+
+const commands = {
+  async open({ url }) {
+    const browser = await chromium.launch();
+    activePage = await browser.newPage();
+    await activePage.goto(url);
+    return { ok: true };
+  },
+  async events({ kinds, last }) {
+    const wanted = kinds ? kinds.split(",") : null;
+    const list = events.filter((e) => !wanted || wanted.includes(e.kind));
+    return { events: list.slice(-Number(last ?? 20)) };
+  },
+};
+
+export default commands;
+-- new/.agents/skills/verify-app/scripts/browser-daemon.mjs --
+#!/usr/bin/env node
+import { chromium } from "playwright";
+
+const events = [];
+let activePage;
+
+const commands = {
+  async open({ url }) {
+    const browser = await chromium.launch();
+    activePage = await browser.newPage();
+    await activePage.goto(url);
+    return { ok: true };
+  },
+  async events({ kinds, last }) {
+    const wanted = kinds ? kinds.split(",") : null;
+    const list = events.filter((e) => !wanted || wanted.includes(e.kind));
+    return { events: list.slice(-Number(last ?? 20)) };
+  },
+  async eval({ expression }) {
+    // Inspection only: the CLI documents that state must not be mutated here.
+    const value = await activePage.evaluate((source) => {
+      // eslint-disable-next-line no-new-func
+      const result = new Function(`return (${source});`)();
+      return result instanceof Promise ? result : Promise.resolve(result);
+    }, expression);
+    return { value };
+  },
+};
+
+export default commands;

@@ -1,0 +1,27 @@
+# A new test, added in this change, carries a platform skipif from the start.
+# Nothing that ran before stops running, so the gate is not reported.
+expect: clean
+-- old/tests/test_paths.py --
+from tool.paths import normalize
+
+
+def test_normalize_collapses_dots():
+    assert normalize("a/./b/../c") == "a/c"
+-- new/tests/test_paths.py --
+import sys
+
+import pytest
+
+from tool.paths import normalize
+
+
+def test_normalize_collapses_dots():
+    assert normalize("a/./b/../c") == "a/c"
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="POSIX permissions only")
+def test_normalize_keeps_executable_bit(tmp_path):
+    script = tmp_path / "run.sh"
+    script.write_text("#!/bin/sh\n")
+    script.chmod(0o755)
+    assert normalize(str(script)).endswith("run.sh")

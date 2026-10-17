@@ -1,0 +1,38 @@
+# Real world (qwen-code): permission checks moved into a local arrow helper
+# that returns an `expect(...).resolves.toBe(...)` chain, which each test
+# awaits. The helper's parameters span several lines.
+expect: clean
+-- old/packages/core/src/memory/memory-scoped-agent-config.test.ts --
+import { describe, expect, it } from 'vitest';
+import { createMemoryScopedAgentConfig } from './memory-scoped-agent-config.js';
+import { EDIT, makePermissionManager, pinnedFile, plainFile } from './fixtures.js';
+
+describe('createMemoryScopedAgentConfig', () => {
+  it('protects user pinned memory when user memory is included', async () => {
+    const pm = createMemoryScopedAgentConfig(makePermissionManager(), { includeUserMemory: true });
+    await expect(pm.evaluate({ toolName: EDIT, filePath: pinnedFile('user') })).resolves.toBe('deny');
+    await expect(pm.evaluate({ toolName: EDIT, filePath: plainFile('user') })).resolves.toBe('allow');
+  });
+});
+-- new/packages/core/src/memory/memory-scoped-agent-config.test.ts --
+import { describe, expect, it } from 'vitest';
+import type { PermissionManager } from '../permissions/permission-manager.js';
+import { createMemoryScopedAgentConfig } from './memory-scoped-agent-config.js';
+import { EDIT, makePermissionManager, pinnedFile, plainFile } from './fixtures.js';
+
+describe('createMemoryScopedAgentConfig', () => {
+  const scopedPm = (options = {}) => createMemoryScopedAgentConfig(makePermissionManager(), options);
+
+  const evalIs = (
+    pm: PermissionManager,
+    toolName: string,
+    filePath: string,
+    decision: string,
+  ) => expect(pm.evaluate({ toolName, filePath })).resolves.toBe(decision);
+
+  it('protects user pinned memory when user memory is included', async () => {
+    const pm = scopedPm({ includeUserMemory: true });
+    await evalIs(pm, EDIT, pinnedFile('user'), 'deny');
+    await evalIs(pm, EDIT, plainFile('user'), 'allow');
+  });
+});

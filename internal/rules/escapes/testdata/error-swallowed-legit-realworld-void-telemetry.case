@@ -1,0 +1,14 @@
+# Fire-and-forget telemetry: the comment says it must never be what keeps a run from recovering.
+expect: clean
+-- old/src/store/agentRun/gateway.ts --
+export async function recoverRun(runId: string) {
+  const run = await gateway.resume(runId);
+  set({ status: run.status });
+}
+-- new/src/store/agentRun/gateway.ts --
+export async function recoverRun(runId: string) {
+  // Telemetry must never be what keeps a run from recovering.
+  void trackProductUsageEvent({ event: 'agent_run_recovered', runId }).catch(() => {});
+  const run = await gateway.resume(runId);
+  set({ status: run.status });
+}

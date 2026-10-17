@@ -1,0 +1,28 @@
+# A node's dynamic multi-options field silences a display-name convention rule of the nodes plugin: presentation, not correctness. A note at most.
+expect: lint-suppressed@info
+-- old/packages/nodes-base/nodes/MondayCom/V2/actions/board/BoardDescription.ts --
+export const boardFields: INodeProperties[] = [
+	{
+		displayName: 'Board ID',
+		name: 'boardId',
+		type: 'string',
+		default: '',
+	},
+];
+-- new/packages/nodes-base/nodes/MondayCom/V2/actions/board/BoardDescription.ts --
+export const boardFields: INodeProperties[] = [
+	{
+		displayName: 'Board ID',
+		name: 'boardId',
+		type: 'string',
+		default: '',
+	},
+	{
+		// eslint-disable-next-line n8n-nodes-base/node-param-display-name-wrong-for-dynamic-multi-options
+		displayName: 'Columns',
+		name: 'columnIds',
+		type: 'multiOptions',
+		typeOptions: { loadOptionsMethod: 'getColumns' },
+		default: [],
+	},
+];

@@ -1,0 +1,17 @@
+# The tab nav renders its non-animated variant for measurement clones, reduced-motion users and tests alike.
+expect: clean
+-- old/src/components/conversation/conversation-tab-nav.tsx --
+export function ConversationTabNav({ active, measureOnly }: Props) {
+  const reduceMotion = useReducedMotion();
+  return <motion.span layoutId="tab-indicator" className="indicator" data-active={active} />;
+}
+-- new/src/components/conversation/conversation-tab-nav.tsx --
+export function ConversationTabNav({ active, measureOnly }: Props) {
+  const reduceMotion = useReducedMotion();
+  const disableAnimation =
+    measureOnly || reduceMotion || import.meta.env.MODE === "test";
+  if (disableAnimation) {
+    return <span className="indicator" data-active={active} />;
+  }
+  return <motion.span layoutId="tab-indicator" className="indicator" data-active={active} />;
+}

@@ -1,0 +1,19 @@
+# A chat-bot heuristic tolerates a referenced message that was deleted; the result is only read through optional chaining.
+expect: clean
+-- old/services/bot/events/messageCreate.ts --
+export async function onMessage(message: Message) {
+  if (message.author.bot) return;
+  await answer(message);
+}
+-- new/services/bot/events/messageCreate.ts --
+export async function onMessage(message: Message) {
+  if (message.author.bot) return;
+  await answer(message);
+}
+
+async function shouldSendFollowUpHint(thread: ThreadChannel, ref: string): Promise<boolean> {
+  const referenced = await thread.messages
+    .fetch(ref)
+    .catch(() => null);
+  return referenced?.author.bot === true;
+}

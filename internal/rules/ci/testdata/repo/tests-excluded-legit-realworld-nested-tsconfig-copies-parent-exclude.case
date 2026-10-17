@@ -1,0 +1,29 @@
+# A nested package gets its own tsconfig.json split out of the parent's for faster type-checks; it copies the parent's exclude list, which already left test files to the test tsconfig.
+expect: clean
+-- new/packages/features/ee/billing/tsconfig.json --
+{
+  "extends": "@calcom/tsconfig/react-library.json",
+  "compilerOptions": {
+    "baseUrl": ".",
+    "composite": true
+  },
+  "include": ["**/*.ts", "**/*.tsx"],
+  "exclude": ["dist", "build", "**/node_modules/**", "**/*.test.*", "**/__mocks__/*", "**/__tests__/*"]
+}
+-- new/packages/features/ee/billing/lib/stripe.ts --
+export const toCents = (amount: number) => Math.round(amount * 100);
+-- both/packages/features/tsconfig.json --
+{
+  "extends": "@calcom/tsconfig/react-library.json",
+  "compilerOptions": {
+    "baseUrl": "."
+  },
+  "include": ["**/*.ts", "**/*.tsx"],
+  "exclude": ["dist", "build", "**/node_modules/**", "**/*.test.*", "**/__mocks__/*", "**/__tests__/*"]
+}
+-- both/packages/features/tsconfig.test.json --
+{
+  "extends": "./tsconfig.json",
+  "include": ["**/*.test.ts", "**/__tests__/*"],
+  "exclude": []
+}

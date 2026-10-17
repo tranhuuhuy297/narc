@@ -1,0 +1,42 @@
+# A shadow selector records which lanes a new capability model would pick, without changing which jobs run; it is allowed to fail by design.
+expect: clean
+-- old/.github/workflows/pr-risk.yml --
+name: PR Risk
+on:
+  pull_request:
+jobs:
+  detect-ci-tier:
+    runs-on: ubuntu-latest
+    outputs:
+      full_embedded: ${{ steps.tier.outputs.full_embedded }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Detect CI tier
+        id: tier
+        run: bash .github/scripts/ci-embedded-tier.sh
+-- new/.github/workflows/pr-risk.yml --
+name: PR Risk
+on:
+  pull_request:
+jobs:
+  detect-ci-tier:
+    runs-on: ubuntu-latest
+    outputs:
+      full_embedded: ${{ steps.tier.outputs.full_embedded }}
+      shadow_full: ${{ steps.shadow-selector.outputs.full }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Detect CI tier
+        id: tier
+        run: bash .github/scripts/ci-embedded-tier.sh
+      - name: Shadow CI capability selector
+        id: shadow-selector
+        continue-on-error: true
+        run: |
+          set -o pipefail
+          selection="$(bash .github/scripts/ci-capability-selector.sh)"
+          printf '%s\n' "$selection" >> "$GITHUB_STEP_SUMMARY"

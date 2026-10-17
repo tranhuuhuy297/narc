@@ -1,0 +1,43 @@
+# Rust: a boolean result that already mapped to "✓ Completed" becomes a match over status keys; the label and its test assertion predate the change.
+expect: clean
+-- old/crates/agents/src/summon.rs --
+pub fn status_line(task: &TaskHandle) -> String {
+    if task.result.is_ok() {
+        "✓ Completed".to_string()
+    } else {
+        "✗ Failed".to_string()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn completed_task_line() {
+        let task = TaskHandle::finished("completed");
+        assert_eq!(status_line(&task), "✓ Completed");
+    }
+}
+-- new/crates/agents/src/summon.rs --
+pub fn status_line(task: &TaskHandle) -> String {
+    let status_key = task.status_key();
+    if status_key == "completed" {
+        return "✓ Completed".to_string();
+    }
+    if status_key == "panicked" {
+        return "✗ Panicked".to_string();
+    }
+    format!("✗ Failed ({})", task.error_summary())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn completed_task_line() {
+        let task = TaskHandle::finished("completed");
+        assert_eq!(status_line(&task), "✓ Completed");
+    }
+}

@@ -1,0 +1,22 @@
+# The sandbox helper (vendored C) prints this exact record before exiting with 125; matching it verbatim is strict protocol parsing, and the helper's source in the repository emits it.
+expect: clean
+-- both/packages/core/vendor/landlock-run/src/stdio-relay.h --
+#define STDIO_SETUP_FAILED_RECORD "{\"state\":\"stdio-setup-failed\"}\n"
+#define STDIO_SETUP_FAILED_EXIT 125
+-- old/packages/core/src/sandbox/landlock-status.ts --
+export function landlockStatus(wire: string, exitCode: number): LandlockStatus {
+  if (exitCode === 0) return 'confirmed';
+  return 'failed';
+}
+-- new/packages/core/src/sandbox/landlock-status.ts --
+export function landlockStatus(wire: string, exitCode: number): LandlockStatus {
+  if (exitCode === 0) return 'confirmed';
+  if (wire === '{"state":"stdio-setup-failed"}\n' && exitCode === 125) return 'unconfirmed';
+  return 'failed';
+}
+-- new/packages/core/src/sandbox/landlock-status.test.ts --
+import { landlockStatus } from './landlock-status';
+
+it('treats a stdio setup failure as unconfirmed', () => {
+  expect(landlockStatus('{"state":"stdio-setup-failed"}\n', 125)).toBe('unconfirmed');
+});

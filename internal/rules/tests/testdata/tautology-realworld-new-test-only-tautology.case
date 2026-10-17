@@ -1,0 +1,38 @@
+# Real-world (qwen-code): a new test named after a behaviour ("stops the
+# state table growing past the cap") has expect(true).toBe(true) as its only
+# assertion, and a comment admitting there is nothing to assert. False
+# coverage in a new test: a warning.
+expect: tautology@warning
+-- old/packages/core/src/ipc/peer-drop-reports.test.ts --
+import { describe, expect, it } from 'vitest';
+
+import { PeerDropReports } from './peer-drop-reports.js';
+
+describe('PeerDropReports', () => {
+  it('records one report per peer', () => {
+    const reports = new PeerDropReports({ cap: 4 });
+    reports.record('peer-a', 'timeout');
+    expect(reports.size).toBe(1);
+  });
+});
+-- new/packages/core/src/ipc/peer-drop-reports.test.ts --
+import { describe, expect, it } from 'vitest';
+
+import { PeerDropReports } from './peer-drop-reports.js';
+
+describe('PeerDropReports', () => {
+  it('records one report per peer', () => {
+    const reports = new PeerDropReports({ cap: 4 });
+    reports.record('peer-a', 'timeout');
+    expect(reports.size).toBe(1);
+  });
+
+  it('stops the state table growing past the cap', () => {
+    const reports = new PeerDropReports({ cap: 4 });
+    for (let i = 0; i < 100; i++) {
+      reports.record(`peer-${i}`, 'timeout');
+    }
+    // The table is private; nothing observable to assert beyond not throwing.
+    expect(true).toBe(true);
+  });
+});

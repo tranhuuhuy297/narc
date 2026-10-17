@@ -1,0 +1,48 @@
+# Real-world (beads): a new opt-in helper skips the tests that call it unless
+# an environment variable enables the embedded-Dolt tier. A new helper
+# disables nothing that ran before.
+expect: clean
+-- old/internal/httpclient/served_test.go --
+package httpclient
+
+import "testing"
+
+func TestServedHealth(t *testing.T) {
+	srv := startServer(t)
+	if got := get(t, srv.URL+"/health"); got != "ok" {
+		t.Errorf("health = %q", got)
+	}
+}
+-- new/internal/httpclient/served_test.go --
+package httpclient
+
+import (
+	"os"
+	"testing"
+)
+
+// skipUnlessEmbeddedDolt skips the served-surface conformance tier unless
+// BEADS_TEST_EMBEDDED_DOLT=1.
+func skipUnlessEmbeddedDolt(t *testing.T) {
+	t.Helper()
+	if os.Getenv("BEADS_TEST_EMBEDDED_DOLT") == "1" {
+		return
+	}
+	t.Skip("set BEADS_TEST_EMBEDDED_DOLT=1 to run the served-surface conformance tier")
+}
+
+func TestServedHealth(t *testing.T) {
+	srv := startServer(t)
+	if got := get(t, srv.URL+"/health"); got != "ok" {
+		t.Errorf("health = %q", got)
+	}
+}
+
+func TestServedIssueRoundTrip(t *testing.T) {
+	skipUnlessEmbeddedDolt(t)
+	srv := startEmbeddedServer(t)
+	id := create(t, srv, "first issue")
+	if got := show(t, srv, id).Title; got != "first issue" {
+		t.Errorf("title = %q", got)
+	}
+}

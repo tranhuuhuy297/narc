@@ -1,0 +1,32 @@
+# A new package's tsconfig copies the strict-mode carve-outs of the package it is split from, and its comment names that tsconfig.
+expect: clean
+-- new/packages/@n8n/backend-services/tsconfig.json --
+{
+	"extends": "../../cli/tsconfig.base.json",
+	"compilerOptions": {
+		"types": ["node", "vitest/globals"],
+		// Same relaxations as packages/cli/tsconfig.json, so a file moved from cli compiles unchanged.
+		"strict": true,
+		"strictFunctionTypes": false,
+		"strictPropertyInitialization": false
+	},
+	"include": ["src/**/*.ts", "test/**/*.ts"]
+}
+-- new/packages/@n8n/backend-services/src/index.ts --
+export {};
+-- both/packages/cli/tsconfig.json --
+{
+	"compilerOptions": {
+		"types": ["node", "vitest/globals", "vite/client"],
+		"strict": true,
+		"strictFunctionTypes": false,
+		"strictPropertyInitialization": false,
+		// TODO: remove all options below this line
+		"useUnknownInCatchVariables": false
+	},
+	"include": ["src/**/*.ts", "test/**/*.ts"]
+}
+-- both/packages/cli/tsconfig.base.json --
+{
+	"compilerOptions": { "target": "es2022", "module": "commonjs" }
+}

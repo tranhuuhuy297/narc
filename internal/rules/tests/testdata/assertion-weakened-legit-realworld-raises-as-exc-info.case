@@ -1,0 +1,57 @@
+# Real-world (home-assistant): pytest.raises(..., match=...) becomes
+# pytest.raises(...) as exc_info followed by an assertion on the
+# exception's translation_key, the convention for translated errors.
+expect: clean
+-- old/tests/components/watergate/test_number.py --
+import pytest
+
+from homeassistant.exceptions import HomeAssistantError
+
+
+async def test_set_auto_shut_off_failure(hass, mock_watergate_client):
+    mock_watergate_client.async_set_auto_shut_off.side_effect = ApiError
+    with pytest.raises(HomeAssistantError, match="Failed to update auto shut-off"):
+        await set_number(hass, "number.sonic_auto_shut_off", 30)
+-- old/tests/components/camera/test_init.py --
+from unittest.mock import patch
+
+import pytest
+
+from homeassistant.exceptions import HomeAssistantError
+
+
+@pytest.mark.parametrize(("error", "message"), [(13, "Permission denied"), (28, "No space left")])
+async def test_snapshot_os_error(hass, error, message):
+    with (
+        patch("homeassistant.components.camera.services.os.makedirs", side_effect=OSError(error, "Error")),
+        pytest.raises(HomeAssistantError, match=message),
+    ):
+        await take_snapshot(hass, "camera.demo_camera", "/test/snapshot.jpg")
+-- new/tests/components/camera/test_init.py --
+from unittest.mock import patch
+
+import pytest
+
+from homeassistant.exceptions import HomeAssistantError
+
+
+@pytest.mark.parametrize(("error", "message"), [(13, "Permission denied"), (28, "No space left")])
+async def test_snapshot_os_error(hass, error, message):
+    with (
+        patch("homeassistant.components.camera.services.os.makedirs", side_effect=OSError(error, "Error")),
+        pytest.raises(HomeAssistantError) as exc_info,
+    ):
+        await take_snapshot(hass, "camera.demo_camera", "/test/snapshot.jpg")
+    assert exc_info.value.translation_key == "cannot_write_snapshot"
+    assert exc_info.value.translation_placeholders == {"error": message}
+-- new/tests/components/watergate/test_number.py --
+import pytest
+
+from homeassistant.exceptions import HomeAssistantError
+
+
+async def test_set_auto_shut_off_failure(hass, mock_watergate_client):
+    mock_watergate_client.async_set_auto_shut_off.side_effect = ApiError
+    with pytest.raises(HomeAssistantError) as exc_info:
+        await set_number(hass, "number.sonic_auto_shut_off", 30)
+    assert exc_info.value.translation_key == "auto_shut_off_update_failed"

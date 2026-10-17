@@ -1,0 +1,21 @@
+# A new runtime guard replaces a lint rule, but it defaults to off whenever Vitest runs, so no integration test ever exercises it: a boundary violation passes CI and throws only in production.
+expect: test-env-branch@warning
+-- new/packages/db/src/subscribers/workflow-entity-subscriber.ts --
+@EventSubscriber()
+export class WorkflowEntitySubscriber implements EntitySubscriberInterface<WorkflowEntity> {
+	constructor(private readonly enforce = process.env.VITEST !== 'true') {}
+
+	listenTo() {
+		return WorkflowEntity;
+	}
+
+	beforeInsert(_event: InsertEvent<WorkflowEntity>) {
+		this.assertContentWriteAllowed();
+	}
+
+	private assertContentWriteAllowed() {
+		if (this.enforce && !consumeWorkflowContentWrite()) {
+			throw new UnexpectedError('Workflow content writes must use a policy-cleared repository method');
+		}
+	}
+}

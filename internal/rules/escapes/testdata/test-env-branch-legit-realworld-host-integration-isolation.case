@@ -1,0 +1,27 @@
+# A test binary inherits the developer's HERDR_* environment and would attach to their live terminal pane; the integration is disabled under go test, as the comment explains. A note at most.
+expect: test-env-branch@info
+-- old/internal/herdr/client.go --
+package herdr
+
+func newFromEnv() *Client {
+	if os.Getenv("HERDR_ENV") != "1" {
+		return nil
+	}
+	return &Client{socket: os.Getenv("HERDR_SOCKET_PATH"), pane: os.Getenv("HERDR_PANE_ID")}
+}
+-- new/internal/herdr/client.go --
+package herdr
+
+func newFromEnv() *Client {
+	if os.Getenv("HERDR_ENV") != "1" {
+		return nil
+	}
+	// A test binary inherits the launching shell's HERDR_* env, so
+	// without this it would attach to the developer's live pane and
+	// release its agent on teardown. Skip herdr entirely under test.
+	if flag.Lookup("test.v") != nil {
+		slog.Debug("Herdr integration disabled: running under go test")
+		return nil
+	}
+	return &Client{socket: os.Getenv("HERDR_SOCKET_PATH"), pane: os.Getenv("HERDR_PANE_ID")}
+}

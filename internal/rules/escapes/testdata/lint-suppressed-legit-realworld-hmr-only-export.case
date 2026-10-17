@@ -1,0 +1,25 @@
+# A provider moved into a package with a stricter lint config keeps its hooks next to it; react-refresh/only-export-components only concerns dev hot reloading, and the reason is written down.
+expect: lint-suppressed@info
+-- old/packages/playground/src/domains/agents/context/activated-skills-context.tsx --
+import { createContext, useContext, useState, type ReactNode } from 'react';
+
+const ActivatedSkillsContext = createContext<string[]>([]);
+
+export function ActivatedSkillsProvider({ children }: { children: ReactNode }) {
+  const [skills] = useState<string[]>([]);
+  return <ActivatedSkillsContext.Provider value={skills}>{children}</ActivatedSkillsContext.Provider>;
+}
+
+export const useActivatedSkills = () => useContext(ActivatedSkillsContext);
+-- new/packages/playground-ui/src/domains/agents/context/activated-skills-context.tsx --
+/* eslint-disable react-refresh/only-export-components -- provider and its hooks intentionally share this module */
+import { createContext, useContext, useState, type ReactNode } from 'react';
+
+const ActivatedSkillsContext = createContext<string[]>([]);
+
+export function ActivatedSkillsProvider({ children }: { children: ReactNode }) {
+  const [skills] = useState<string[]>([]);
+  return <ActivatedSkillsContext.Provider value={skills}>{children}</ActivatedSkillsContext.Provider>;
+}
+
+export const useActivatedSkills = () => useContext(ActivatedSkillsContext);

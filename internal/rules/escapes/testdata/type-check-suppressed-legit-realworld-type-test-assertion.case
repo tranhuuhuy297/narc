@@ -1,0 +1,16 @@
+# In a type-level test suite, @ts-expect-error is the assertion: the file must fail to compile if the reserved field ever becomes accepted.
+expect: clean
+-- old/packages/connect/type-tests/channels.test-d.ts --
+import { defineChannel } from '../src';
+
+defineChannel({ id: 'slack', name: 'Slack' });
+-- new/packages/connect/type-tests/channels.test-d.ts --
+import { defineChannel } from '../src';
+
+defineChannel({ id: 'slack', name: 'Slack' });
+
+defineChannel({
+  id: 'gmail',
+  // @ts-expect-error refreshToken is credential-managed and cannot be passed here.
+  refreshToken: 'secret',
+});

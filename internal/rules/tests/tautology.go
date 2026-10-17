@@ -27,6 +27,10 @@ var tautology = &core.Rule{
 		"`Assert.True(true)`, `Assert.Pass()`, `assert.True(t, true)`, `$this->assertTrue(true)`, `XCTAssertTrue(true)`, " +
 		"`expect(true).to eq(true)` and the like. Comparing a call with itself (`expect(hash(a)).toBe(hash(a))`) is a " +
 		"legitimate determinism check and is not flagged.\n\n" +
+		"A tautology in an existing test is an error; in a test that the change adds it is a warning (false " +
+		"coverage, but no check that used to run is lost). Placeholder tests that say so (named `TODO ...`, or " +
+		"marked `// Placeholder`) get one note per file, and the runtime no-op of a compile-time test " +
+		"(`expect([a, b]).toBeDefined()` next to `@ts-expect-error`) is not reported.\n\n" +
 		"```py\n# bad\ndef test_refund():\n    refund(order)\n    assert True\n\n# good\ndef test_refund():\n    refund(order)\n    assert order.status == \"refunded\"\n```",
 }
 
@@ -40,16 +44,134 @@ type tautologyHit struct {
 	why string
 }
 
+const (
+	freshTautologyHint = "This test is new, and this assertion verifies nothing: the test passes whatever the code " +
+		"does. Assert on the real result of the code under test, or remove the test until it can check something."
+	placeholderHint = "A placeholder test that asserts nothing reports as passed. Mark it as pending instead " +
+		"(it.todo / test.todo, @pytest.mark.skip(reason=...), t.Skip(\"TODO\")) so it shows up as not done."
+)
+
 func checkTautology(a *core.Analysis) []core.Finding {
+	files := testFiles(a)
 	var out []core.Finding
-	for _, o := range introduced(testFiles(a), detectTautologies, cancelling[tautologyHit]{}) {
+	placeholders := map[*core.FileInfo]int{} // index in out of the file's placeholder finding
+	for _, o := range introduced(files, detectTautologies, cancelling[tautologyHit]{}) {
+		f := o.File
+		get := newVersion.getter(f)
+		name, decl := testAboveLine(get, o.Line.No, false)
+		if typeLevelTest(f, o, name, decl) {
+			continue // expect([a, b]).toBeDefined() only keeps the values of a compile-time test referenced
+		}
 		msg := fmt.Sprintf("%s can never fail: %s", o.Val.a, o.Val.why)
-		if name := testAround(o.File, o.Line.No); name.ok() {
+		if name.ok() {
 			msg += fmt.Sprintf(" (in %s)", name)
 		}
-		out = append(out, tautology.Finding(o.File, o.Line.No, msg))
+		fd := tautology.Finding(f, o.Line.No, msg)
+		switch {
+		case placeholderTest(f, o.Line, name):
+			// A stub that says it is one: a note, once per file.
+			if i, seen := placeholders[f]; seen {
+				out[i].Message = placeholderMessage(out[i].Message)
+				continue
+			}
+			fd.Severity, fd.Hint = core.Info, placeholderHint
+			fd.Message = "placeholder test: " + msg + " — use it.todo / test.todo for a test that is not written yet"
+			placeholders[f] = len(out)
+		case name.ok() && freshTest(files, f, name, decl), !name.ok() && f.OldPath == "":
+			// A new test that checks nothing gives false coverage, but takes
+			// away no check that used to run.
+			fd.Severity, fd.Hint = core.Warning, freshTautologyHint
+		}
+		out = append(out, fd)
 	}
 	return out
+}
+
+// placeholderCountRe matches the count of placeholder findings folded into
+// one.
+var placeholderCountRe = regexp.MustCompile(`\((\d+) placeholder tests in this file\)$`)
+
+// placeholderMessage counts one more placeholder test in msg.
+func placeholderMessage(msg string) string {
+	n := 1
+	if m := placeholderCountRe.FindStringSubmatch(msg); m != nil {
+		fmt.Sscan(m[1], &n)
+		msg = strings.TrimSuffix(msg[:len(msg)-len(m[0])], " ")
+	}
+	return fmt.Sprintf("%s (%d placeholder tests in this file)", msg, n+1)
+}
+
+// placeholderRe matches what marks a test as a stub: a name that starts
+// with TODO, or a "placeholder" comment.
+var placeholderRe = regexp.MustCompile(`(?i)^\W*(?:todo|fixme|tbd|wip)\b|\bplaceholder\b`)
+
+// placeholderTest reports whether the tautology on line l sits in a test
+// that says it is a placeholder: named "TODO ...", or the assertion carries
+// a placeholder comment.
+func placeholderTest(f *core.FileInfo, l core.Line, name testName) bool {
+	if name.ok() && placeholderRe.MatchString(name.name) && !strings.Contains(strings.ToLower(name.name), "placeholder") {
+		return true
+	}
+	if name.ok() && strings.Contains(strings.ToLower(name.name), "placeholder") {
+		return false // a test about placeholders (e.g. input placeholder text)
+	}
+	if strings.Contains(strings.ToLower(l.Comment), "placeholder") {
+		return true
+	}
+	if prev, ok := f.NewLine(l.No - 1); ok && strings.TrimSpace(prev.Code) == "" && strings.Contains(strings.ToLower(prev.Comment), "placeholder") {
+		return true
+	}
+	return false
+}
+
+var (
+	// typeLevelNameRe matches names of compile-time (type-level) tests.
+	typeLevelNameRe = regexp.MustCompile(`(?i)compile[- ]?time|type[- ]?level|\btype[- ]?(?:check|test|safety|error)s?\b|\btypes?\b.*\b(?:reject|accept|infer)`)
+	// typeAssertRe matches compile-time assertions in a test body.
+	typeAssertRe = regexp.MustCompile(`\bexpectTypeOf\b|\bassertType\s*<|\bexpectType\s*<|\btsd\b`)
+)
+
+// typeLevelTest reports whether the tautology o is the runtime no-op of a
+// compile-time test: `expect([bad, ok]).toBeDefined()` in a test whose real
+// assertions are @ts-expect-error directives (or expectTypeOf), there only
+// so that the declared values count as used.
+func typeLevelTest(f *core.FileInfo, o occurrence[tautologyHit], name testName, decl int) bool {
+	if !f.Lang.IsJSLike() || decl == 0 {
+		return false
+	}
+	a := o.Val.a
+	if a.pass != passDefined && a.pass != passNotNull && a.pass != passTruthy || len(a.values) == 0 {
+		return false
+	}
+	if l := lit(a.values[0], f.Lang); l.kind != litCollection && !isIdent(a.values[0].raw) {
+		return false
+	}
+	get := newVersion.getter(f)
+	names := []string{name.name}
+	names = append(names, suitesAround(get, decl)...)
+	for _, n := range names {
+		if typeLevelNameRe.MatchString(n) {
+			return true
+		}
+	}
+	head, ok := get(decl)
+	if !ok {
+		return false
+	}
+	ind := indent(head.Raw)
+	for k := decl + 1; k <= decl+300; k++ {
+		l, ok := get(k)
+		if !ok {
+			break
+		}
+		if strings.TrimSpace(l.Raw) != "" && indent(l.Raw) <= ind {
+			break // the end of the test
+		}
+		if strings.Contains(l.Comment, "@ts-expect-error") || typeAssertRe.MatchString(l.Code) {
+			return true
+		}
+	}
+	return false
 }
 
 func detectTautologies(f *core.FileInfo, l core.Line, v version) []occurrence[tautologyHit] {
@@ -133,6 +255,9 @@ func cannotFail(a assertion, lg lang.Lang, litOK bool) string {
 	case passAlways:
 		return "it passes unconditionally"
 	case passTruthy:
+		if throwingMembers(a.values[0], lg) {
+			return ""
+		}
 		return alwaysTrue(a.values[0], lg)
 	case passFalsy:
 		return alwaysFalse(a.values[0], lg)
@@ -155,13 +280,16 @@ func cannotFail(a assertion, lg lang.Lang, litOK bool) string {
 		}
 	case passNotNull, passDefined:
 		v := a.values[0]
+		if throwingMembers(v, lg) {
+			return ""
+		}
 		if l := lit(v, lg); l.kind != notLiteral && l.kind != litNull {
 			return fmt.Sprintf("the literal %s is never null", v)
 		}
 		if a.pass == passDefined && v.raw == "null" {
 			return "null is defined (only undefined fails toBeDefined)"
 		}
-		if strings.HasPrefix(v.raw, "new ") && strings.HasSuffix(v.raw, ")") && lg != lang.Unknown {
+		if newExpression(v.raw) && lg != lang.Unknown {
 			return fmt.Sprintf("a newly constructed object (%s) is never null", v)
 		}
 	case passNull:
@@ -183,6 +311,52 @@ func cannotFail(a assertion, lg lang.Lang, litOK bool) string {
 		return fmt.Sprintf("it checks that %s is %s", v, v)
 	}
 	return ""
+}
+
+// newExpression reports whether s is a constructor call as a whole,
+// `new PairingStore(name, cwd)`, rather than a member access or call on the
+// constructed object (`new PairingStore(name, cwd).approve(code)`), which
+// can return null.
+func newExpression(s string) bool {
+	rest, ok := strings.CutPrefix(s, "new ")
+	if !ok {
+		return false
+	}
+	i := 0
+	for i < len(rest) && (isWordByte(rest[i]) || rest[i] == '.' || rest[i] == '$' || rest[i] == ' ') {
+		i++
+	}
+	if i < len(rest) && rest[i] == '<' {
+		depth := 0
+		for ; i < len(rest); i++ {
+			if rest[i] == '<' {
+				depth++
+			} else if rest[i] == '>' {
+				depth--
+				if depth == 0 {
+					i++
+					break
+				}
+			}
+		}
+	}
+	if i >= len(rest) || rest[i] != '(' {
+		return false
+	}
+	end, closed := closing(rest, i)
+	return closed && end == len(rest)-1
+}
+
+// throwingMembers reports whether a JavaScript object or array literal
+// computes its members with calls or awaits: expect({ title: await
+// screen.findByText("x") }).toBeTruthy() fails when a query throws, so the
+// queries are the assertions even though the literal itself is truthy.
+func throwingMembers(e expr, lg lang.Lang) bool {
+	if !lg.IsJSLike() {
+		return false
+	}
+	l := lit(e, lg)
+	return l.kind == litCollection && !l.constant && (strings.Contains(e.raw, "(") || strings.Contains(e.raw, "await "))
 }
 
 func equalWhy(x, y expr, lg lang.Lang) string {

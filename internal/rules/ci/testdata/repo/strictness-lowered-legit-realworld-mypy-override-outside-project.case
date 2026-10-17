@@ -1,0 +1,64 @@
+# The enterprise sub-project's mypy config gains overrides for modules of the core `openhands` package, which it only reaches through imports (the core package has its own mypy config); this project's own code keeps every check (info).
+expect: strictness-lowered@info
+-- old/enterprise/dev_config/python/mypy.ini --
+[mypy]
+warn_unused_configs = True
+ignore_missing_imports = True
+check_untyped_defs = True
+warn_unreachable = True
+warn_redundant_casts = True
+no_implicit_optional = True
+strict_optional = True
+disable_error_code = type-abstract
+exclude = (^enterprise/migrations/.*)
+
+[mypy-enterprise.sync.install_gitlab_webhooks.*]
+disable_error_code = redundant-cast
+-- new/enterprise/dev_config/python/mypy.ini --
+[mypy]
+warn_unused_configs = True
+ignore_missing_imports = True
+check_untyped_defs = True
+warn_unreachable = True
+warn_redundant_casts = True
+no_implicit_optional = True
+strict_optional = True
+disable_error_code = type-abstract
+exclude = (^enterprise/migrations/.*)
+
+[mypy-enterprise.sync.install_gitlab_webhooks.*]
+disable_error_code = redundant-cast
+
+[mypy-openhands.memory.condenser.impl.*]
+disable_error_code = override
+
+[mypy-openhands.controller.agent]
+disable_error_code = typeddict-item
+
+[mypy-openhands.llm.*]
+# Deprecated V0 folder
+disable_error_code = unreachable,assignment,arg-type
+-- both/enterprise/pyproject.toml --
+[tool.poetry]
+name = "enterprise-server"
+version = "0.0.1"
+packages = [{ include = "server" }, { include = "integrations" }, { include = "storage" }]
+
+[tool.poetry.dependencies]
+python = "^3.12"
+openhands-ai = { path = "../", develop = true }
+-- both/enterprise/server/routes/billing.py --
+from openhands.llm.llm import LLM
+
+
+def credits_for(llm: LLM, tokens: int) -> float:
+    return llm.cost_per_token * tokens
+-- both/openhands/llm/llm.py --
+class LLM:
+    cost_per_token: float = 0.0
+-- both/dev_config/python/mypy.ini --
+[mypy]
+warn_unused_configs = True
+ignore_missing_imports = True
+check_untyped_defs = True
+warn_unreachable = True

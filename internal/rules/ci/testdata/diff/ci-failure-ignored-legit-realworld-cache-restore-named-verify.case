@@ -1,0 +1,38 @@
+# A cache restore step for the "verify" job's Maven repository may fail (a cache miss); "verify" names the job's cache, not a check.
+expect: clean
+-- old/.github/workflows/qwen-triage.yml --
+name: triage
+on:
+  pull_request:
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - name: Verify sdk-java
+        run: mvn -B -ntp verify -f packages/sdk-java/pom.xml
+-- new/.github/workflows/qwen-triage.yml --
+name: triage
+on:
+  pull_request:
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - name: Restore verify Maven repo
+        continue-on-error: true
+        uses: actions/cache/restore@v4
+        with:
+          path: ~/.m2/repository
+          key: verify-maven-${{ hashFiles('packages/sdk-java/**/pom.xml') }}
+      - name: Verify sdk-java
+        run: mvn -B -ntp verify -f packages/sdk-java/pom.xml

@@ -1,0 +1,50 @@
+# The change turns react/todo on in the oxlint config and records the existing violations with suppressions, so only new bailouts fail: a baseline makes linting stricter.
+expect: clean
+-- old/oxlint.config.ts --
+import {defineConfig} from 'oxlint';
+
+export default defineConfig({
+  rules: {
+    'react/static-components': 'error',
+    'react/todo': 'off',
+    'react/use-memo': 'error',
+  },
+});
+-- new/oxlint.config.ts --
+import {defineConfig} from 'oxlint';
+
+export default defineConfig({
+  rules: {
+    'react/static-components': 'error',
+    'react/todo': 'error',
+    'react/use-memo': 'error',
+  },
+});
+-- old/static/app/components/searchQueryBuilder.tsx --
+export function SpanSearchQueryBuilder(props: Props) {
+  const filterKeys = useMemo(() => buildKeys(props.attributes), [props.attributes]);
+  const handleSearch = useCallback((query: string) => props.onSearch?.(query), [props]);
+  return <SearchQueryBuilder filterKeys={filterKeys} onSearch={handleSearch} />;
+}
+-- new/static/app/components/searchQueryBuilder.tsx --
+export function SpanSearchQueryBuilder(props: Props) {
+  const filterKeys = useMemo(() => buildKeys(props.attributes), [props.attributes]);
+  // oxlint-disable-next-line react/todo
+  const handleSearch = useCallback((query: string) => props.onSearch?.(query), [props]);
+  return <SearchQueryBuilder filterKeys={filterKeys} onSearch={handleSearch} />;
+}
+-- old/static/app/utils/useReplayInit.tsx --
+export function useReplayInit() {
+  const user = useUser();
+  useEffect(() => {
+    initReplay({sessionSampleRate: user.isStaff ? 1 : 0.1});
+  }, [user]);
+}
+-- new/static/app/utils/useReplayInit.tsx --
+export function useReplayInit() {
+  const user = useUser();
+  // oxlint-disable-next-line react/todo
+  useEffect(() => {
+    initReplay({sessionSampleRate: user.isStaff ? 1 : 0.1});
+  }, [user]);
+}

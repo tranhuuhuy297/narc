@@ -1,0 +1,33 @@
+# The config line that names the rule lowers it from error to warn, and new code silences it anyway: no baseline, both weaken linting.
+expect: lint-suppressed, strictness-lowered
+-- old/eslint.config.js --
+export default [
+  {
+    rules: {
+      "react-hooks/exhaustive-deps": "error",
+    },
+  },
+];
+-- new/eslint.config.js --
+export default [
+  {
+    rules: {
+      "react-hooks/exhaustive-deps": "warn",
+    },
+  },
+];
+-- old/src/orders/OrderStatus.tsx --
+export function OrderStatus({ orderId }: { orderId: string }) {
+  const [status, setStatus] = useState<Status>("pending");
+  return <Badge>{status}</Badge>;
+}
+-- new/src/orders/OrderStatus.tsx --
+export function OrderStatus({ orderId, pollMs }: { orderId: string; pollMs: number }) {
+  const [status, setStatus] = useState<Status>("pending");
+  useEffect(() => {
+    const timer = setInterval(async () => setStatus(await fetchStatus(orderId)), pollMs);
+    return () => clearInterval(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  return <Badge>{status}</Badge>;
+}

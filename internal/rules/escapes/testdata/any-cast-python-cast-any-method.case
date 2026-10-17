@@ -1,0 +1,15 @@
+# Production integration code calls a method through cast(Any, client): the checker no longer verifies that the typed client even has it, nor its signature.
+expect: any-cast@warning
+-- old/homeassistant/components/motioneye/camera.py --
+class MotionEyeMjpegCamera(MotionEyeEntity, MjpegCamera):
+    async def async_camera_image(self, width=None, height=None) -> bytes | None:
+        return await super().async_camera_image(width, height)
+-- new/homeassistant/components/motioneye/camera.py --
+from typing import Any, cast
+
+
+class MotionEyeMjpegCamera(MotionEyeEntity, MjpegCamera):
+    async def async_camera_image(self, width=None, height=None) -> bytes | None:
+        return await cast(Any, self._client).async_get_camera_snapshot(
+            self._camera_id, width=width, height=height
+        )

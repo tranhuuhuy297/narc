@@ -1,0 +1,50 @@
+# `-- -D warnings` dropped from the Clippy steps because the job now sets Cargo's warning policy (CARGO_BUILD_WARNINGS=deny), which keeps warnings fatal without changing RUSTFLAGS.
+expect: clean
+-- old/.github/workflows/ci.yaml --
+name: CI
+on:
+  pull_request:
+  push:
+    branches: [main]
+jobs:
+  cargo-clippy:
+    name: "cargo clippy"
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: "Install Rust toolchain"
+        run: |
+          rustup component add clippy
+          rustup target add wasm32-unknown-unknown
+      - name: "Clippy"
+        run: cargo clippy --workspace --all-targets --all-features --locked -- -D warnings
+      - name: "Clippy (wasm)"
+        run: cargo clippy -p ruff_wasm -p ty_wasm --target wasm32-unknown-unknown --all-features --locked -- -D warnings
+-- new/.github/workflows/ci.yaml --
+name: CI
+on:
+  pull_request:
+  push:
+    branches: [main]
+jobs:
+  cargo-clippy:
+    name: "cargo clippy"
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      CARGO_BUILD_WARNINGS: deny
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: "Install Rust toolchain"
+        run: |
+          rustup component add clippy
+          rustup target add wasm32-unknown-unknown
+      - name: "Clippy"
+        run: cargo clippy --workspace --all-targets --all-features --locked
+      - name: "Clippy (wasm)"
+        run: cargo clippy -p ruff_wasm -p ty_wasm --target wasm32-unknown-unknown --all-features --locked

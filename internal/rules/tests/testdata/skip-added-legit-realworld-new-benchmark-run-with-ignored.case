@@ -1,0 +1,50 @@
+# Real-world (goose): a new timing benchmark is #[ignore]d by design, and its
+# doc comment says how to run it (cargo test --release -- --ignored).
+# Nothing that used to run was disabled.
+expect: clean
+-- old/crates/goose-cli/src/session/streaming_buffer.rs --
+pub struct MarkdownBuffer { pending: String }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn reassembles_any_chunking() {
+        let corpus = "```rust\nfn main() {}\n```\n";
+        for chunk_size in [1, 2, 3, 7] {
+            assert_eq!(stream(corpus, chunk_size), corpus, "chunk_size={chunk_size}");
+        }
+    }
+}
+-- new/crates/goose-cli/src/session/streaming_buffer.rs --
+pub struct MarkdownBuffer { pending: String }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn reassembles_any_chunking() {
+        let corpus = "```rust\nfn main() {}\n```\n";
+        for chunk_size in [1, 2, 3, 7] {
+            assert_eq!(stream(corpus, chunk_size), corpus, "chunk_size={chunk_size}");
+        }
+    }
+
+    /// Per-push scanning must not degrade with accumulated block size.
+    /// Run manually for perf evidence:
+    ///   cargo test -p goose-cli --release -- --ignored large_code_block --nocapture
+    #[test]
+    #[ignore]
+    fn large_code_block_streams_in_linear_time() {
+        let line = "let x = compute_something_interesting(1234);\n";
+        let start = std::time::Instant::now();
+        let mut buf = MarkdownBuffer::new();
+        for _ in 0..4000 {
+            buf.push(line);
+        }
+        let elapsed = start.elapsed();
+        assert!(elapsed.as_millis() < 500, "took {elapsed:?}");
+    }
+}

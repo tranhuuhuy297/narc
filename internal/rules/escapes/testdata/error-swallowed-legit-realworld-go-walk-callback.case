@@ -1,0 +1,38 @@
+# Go: in an fs.WalkDir callback, returning nil skips the entry and keeps walking; the enclosing function returns no error at all.
+expect: clean
+-- old/internal/skills/embed.go --
+package skills
+
+import "embed"
+
+//go:embed builtin
+var builtinFS embed.FS
+-- new/internal/skills/embed.go --
+package skills
+
+import (
+	"embed"
+	"io/fs"
+	"strings"
+)
+
+//go:embed builtin
+var builtinFS embed.FS
+
+// Builtin returns the skills shipped with the binary.
+func Builtin() []*Skill {
+	var out []*Skill
+	_ = fs.WalkDir(builtinFS, "builtin", func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return nil
+		}
+		if d.IsDir() || !strings.HasSuffix(path, "SKILL.md") {
+			return nil
+		}
+		if s, perr := parseSkill(builtinFS, path); perr == nil {
+			out = append(out, s)
+		}
+		return nil
+	})
+	return out
+}

@@ -1,0 +1,28 @@
+# The companion app moves to its own repository: its husky hook is deleted together with the whole subproject whose code it linted.
+expect: clean
+-- old/companion/.husky/pre-commit --
+cd companion && npx lint-staged
+-- old/companion/package.json --
+{
+  "name": "@calcom/companion",
+  "private": true,
+  "scripts": {
+    "build": "vite build",
+    "prepare": "cd .. && husky companion/.husky"
+  },
+  "lint-staged": {
+    "*.{ts,tsx}": ["biome check --write"]
+  }
+}
+-- old/companion/src/background.ts --
+chrome.runtime.onInstalled.addListener(() => {
+  chrome.storage.local.set({ enabled: true });
+});
+-- old/companion/src/popup.tsx --
+export function Popup() {
+  return <button onClick={() => chrome.tabs.create({ url: 'https://app.cal.com' })}>Open Cal.com</button>;
+}
+-- old/companion/README.md --
+# Cal.com companion
+
+Moved to https://github.com/calcom/companion.

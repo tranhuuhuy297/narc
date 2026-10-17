@@ -1,0 +1,43 @@
+# The patch coverage status was off (`patch: false`); the change turns it on as an informational trial, which adds a report and removes no gate.
+expect: clean
+-- old/codecov.yml --
+codecov:
+  max_report_age: off
+  require_ci_to_pass: false
+
+comment:
+  layout: 'header, diff, flags, components'
+  require_changes: 'coverage_drop OR uncovered_patch'
+
+coverage:
+  status:
+    patch: false
+    project:
+      default:
+        threshold: 0.5
+-- new/codecov.yml --
+codecov:
+  max_report_age: off
+  require_ci_to_pass: false
+
+comment:
+  layout: 'header, diff, flags, components'
+  require_changes: 'coverage_drop OR uncovered_patch'
+  # PR runs measure only the changed files, so a PR has no full project figure.
+  hide_project_coverage: true
+
+coverage:
+  status:
+    # Coverage of the changed lines. Informational during the trial: it reports
+    # but does not fail.
+    patch:
+      default:
+        target: 80%
+        informational: true
+        only_pulls: true
+        flags:
+          - backend-unit
+          - frontend
+    project:
+      default:
+        threshold: 0.5

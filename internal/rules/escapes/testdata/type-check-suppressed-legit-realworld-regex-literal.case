@@ -1,0 +1,14 @@
+# mypy cannot tie a regex group name to the Literal of token kinds; the narrow arg-type ignore is routine. A note at most.
+expect: type-check-suppressed@info
+-- new/products/metrics/backend/dashboard_import/promql_text.py --
+TokenKind = Literal["ident", "number", "string", "op"]
+TOKEN_RE = re.compile(r"(?P<ident>[a-zA-Z_]\w*)|(?P<number>\d+)|(?P<string>\"[^\"]*\")|(?P<op>[(){}=,])")
+
+
+def tokenize(text: str) -> list[Token]:
+    tokens = []
+    for match in TOKEN_RE.finditer(text):
+        kind = match.lastgroup
+        assert kind is not None
+        tokens.append(Token(kind=kind, text=match.group(), start=match.start()))  # type: ignore[arg-type]
+    return tokens

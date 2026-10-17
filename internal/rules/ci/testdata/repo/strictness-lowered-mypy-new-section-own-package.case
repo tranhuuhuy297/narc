@@ -1,0 +1,29 @@
+# Evasive: a new per-module mypy section silences arg-type errors in the project's own `server.routes` package, which this config checks.
+expect: strictness-lowered
+-- old/enterprise/dev_config/python/mypy.ini --
+[mypy]
+check_untyped_defs = True
+warn_unreachable = True
+disable_error_code = type-abstract
+
+[mypy-enterprise.sync.install_gitlab_webhooks.*]
+disable_error_code = redundant-cast
+-- new/enterprise/dev_config/python/mypy.ini --
+[mypy]
+check_untyped_defs = True
+warn_unreachable = True
+disable_error_code = type-abstract
+
+[mypy-enterprise.sync.install_gitlab_webhooks.*]
+disable_error_code = redundant-cast
+
+[mypy-server.routes.*]
+disable_error_code = arg-type,union-attr
+-- both/enterprise/pyproject.toml --
+[tool.poetry]
+name = "enterprise-server"
+version = "0.0.1"
+packages = [{ include = "server" }]
+-- both/enterprise/server/routes/billing.py --
+def credits_for(tokens: int) -> float:
+    return tokens * 0.002

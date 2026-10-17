@@ -1,0 +1,40 @@
+# A computed position needs an inline style; react/forbid-dom-props is a styling policy rule, not a correctness check.
+expect: lint-suppressed@info
+-- old/frontend/src/tracing/TraceDialogSpanRow.tsx --
+export function TraceDialogSpanRow({ span, barColor, offsetPct, widthPct }: SpanRowProps): JSX.Element {
+    return (
+        <div className="flex items-center gap-2">
+            <span className="relative h-2 flex-1">
+                <span
+                    className="absolute inset-y-0"
+                    // eslint-disable-next-line react/forbid-dom-props
+                    style={{ left: `${offsetPct}%`, width: `${widthPct}%`, backgroundColor: barColor }}
+                />
+            </span>
+            <span className="w-20 text-right font-mono">{span.duration}ms</span>
+        </div>
+    )
+}
+-- new/frontend/src/tracing/TraceDialogSpanRow.tsx --
+export function TraceDialogSpanRow({ span, barColor, offsetPct, widthPct, openedAtPct }: SpanRowProps): JSX.Element {
+    return (
+        <div className="flex items-center gap-2">
+            <span className="relative h-2 flex-1">
+                <span
+                    className="absolute inset-y-0"
+                    // eslint-disable-next-line react/forbid-dom-props
+                    style={{ left: `${offsetPct}%`, width: `${widthPct}%`, backgroundColor: barColor }}
+                />
+                {openedAtPct != null && (
+                    <span
+                        className="absolute -inset-y-1 w-0.5 bg-accent"
+                        // eslint-disable-next-line react/forbid-dom-props
+                        style={{ left: `${openedAtPct}%` }}
+                        data-attr="trace-dialog-opened-at-marker"
+                    />
+                )}
+            </span>
+            <span className="w-20 text-right font-mono">{span.duration}ms</span>
+        </div>
+    )
+}

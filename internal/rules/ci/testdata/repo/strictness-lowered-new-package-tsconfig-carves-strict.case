@@ -1,0 +1,20 @@
+# A new package's tsconfig turns strictNullChecks off under "strict": true while no other package does (info: nothing was checked by it before).
+expect: strictness-lowered@info
+-- new/packages/billing/tsconfig.json --
+{
+	"compilerOptions": {
+		"target": "es2022",
+		"strict": true,
+		"strictNullChecks": false
+	},
+	"include": ["src"]
+}
+-- new/packages/billing/src/invoice.ts --
+export function total(lines: { amount: number }[]) {
+	return lines.reduce((sum, l) => sum + l.amount, 0);
+}
+-- both/packages/payments/tsconfig.json --
+{
+	"compilerOptions": { "target": "es2022", "strict": true },
+	"include": ["src"]
+}

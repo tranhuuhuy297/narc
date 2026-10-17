@@ -1,0 +1,17 @@
+# Evasive: during the golangci-lint v2 migration errcheck silently disappears from the enabled linters (info).
+expect: strictness-lowered@info
+-- old/.golangci.yaml --
+linters:
+  disable-all: true
+  enable:
+    - errcheck
+    - gosimple
+    - govet
+    - staticcheck
+-- new/.golangci.yaml --
+version: "2"
+linters:
+  default: none
+  enable:
+    - govet
+    - staticcheck

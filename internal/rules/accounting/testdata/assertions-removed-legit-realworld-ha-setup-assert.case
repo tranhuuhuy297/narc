@@ -1,0 +1,62 @@
+# Real world (home-assistant): the test switched from a TTS media source to
+# a patched one, so the `assert await async_setup_component(...)` setup step
+# went away. A setup guard is not a check of the code under test; the
+# behavioral assertions are all kept.
+expect: clean
+-- old/tests/components/mastodon/test_services.py --
+"""Tests for the Mastodon services."""
+
+import pytest
+
+from homeassistant.components.mastodon.const import DOMAIN
+from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import ServiceValidationError
+from homeassistant.setup import async_setup_component
+
+from . import setup_integration
+
+
+async def test_service_update_profile_media_source_not_supported(
+    hass: HomeAssistant, mock_mastodon_client, mock_config_entry
+) -> None:
+    """Test updating the avatar from a media source that cannot be resolved."""
+    await setup_integration(hass, mock_config_entry)
+    assert await async_setup_component(hass, "tts", {})
+
+    with pytest.raises(ServiceValidationError) as err:
+        await hass.services.async_call(
+            DOMAIN,
+            "update_profile",
+            {"config_entry_id": mock_config_entry.entry_id, "avatar": "media-source://tts/demo"},
+            blocking=True,
+        )
+    assert err.value.translation_key == "media_source_not_supported"
+    mock_mastodon_client.account_update_credentials.assert_not_called()
+-- new/tests/components/mastodon/test_services.py --
+"""Tests for the Mastodon services."""
+
+import pytest
+
+from homeassistant.components.mastodon.const import DOMAIN
+from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import ServiceValidationError
+
+from . import setup_integration
+
+
+@pytest.mark.usefixtures("mock_xbox_media_source")
+async def test_service_update_profile_media_source_not_supported(
+    hass: HomeAssistant, mock_mastodon_client, mock_config_entry
+) -> None:
+    """Test updating the avatar from a media source that cannot be resolved."""
+    await setup_integration(hass, mock_config_entry)
+
+    with pytest.raises(ServiceValidationError) as err:
+        await hass.services.async_call(
+            DOMAIN,
+            "update_profile",
+            {"config_entry_id": mock_config_entry.entry_id, "avatar": "media-source://xbox/game"},
+            blocking=True,
+        )
+    assert err.value.translation_key == "media_source_not_supported"
+    mock_mastodon_client.account_update_credentials.assert_not_called()

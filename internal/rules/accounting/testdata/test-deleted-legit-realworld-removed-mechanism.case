@@ -1,0 +1,113 @@
+# Real world (crush): subscribers now publish through a pubsub broker, so
+# the per-subscriber send timer is gone and so is the regression test that
+# guarded it against leaking.
+expect: clean
+-- old/internal/app/app.go --
+package app
+
+import (
+	"context"
+	"time"
+)
+
+const subscriberSendTimeout = 2 * time.Second
+
+func setupSubscriber[T any](ctx context.Context, sub <-chan T, out chan<- T) {
+	go func() {
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case ev, ok := <-sub:
+				if !ok {
+					return
+				}
+				sendTimer := time.NewTimer(subscriberSendTimeout)
+				select {
+				case out <- ev:
+					sendTimer.Stop()
+				case <-sendTimer.C:
+				case <-ctx.Done():
+					sendTimer.Stop()
+					return
+				}
+			}
+		}
+	}()
+}
+-- new/internal/app/app.go --
+package app
+
+import (
+	"context"
+
+	"github.com/charmbracelet/crush/internal/pubsub"
+)
+
+func setupSubscriber[T any](ctx context.Context, sub <-chan T, broker *pubsub.Broker[T]) {
+	go func() {
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case ev, ok := <-sub:
+				if !ok {
+					return
+				}
+				broker.Publish(pubsub.UpdatedEvent, ev)
+			}
+		}
+	}()
+}
+-- old/internal/app/app_test.go --
+package app
+
+import (
+	"context"
+	"testing"
+	"time"
+
+	"go.uber.org/goleak"
+)
+
+func TestSetupSubscriber_ContextCancellation(t *testing.T) {
+	ctx, cancel := context.WithCancel(t.Context())
+	sub := make(chan int)
+	out := make(chan int)
+	setupSubscriber(ctx, sub, out)
+	cancel()
+	time.Sleep(10 * time.Millisecond)
+}
+
+func TestSetupSubscriber_NoTimerLeak(t *testing.T) {
+	defer goleak.VerifyNone(t)
+	ctx, cancel := context.WithCancel(t.Context())
+	sub := make(chan int, 1)
+	out := make(chan int)
+	setupSubscriber(ctx, sub, out)
+	sub <- 1
+	time.Sleep(subscriberSendTimeout / 10)
+	cancel()
+	if len(out) != 0 {
+		t.Fatalf("unexpected delivery after cancel")
+	}
+}
+-- new/internal/app/app_test.go --
+package app
+
+import (
+	"context"
+	"testing"
+	"time"
+
+	"github.com/charmbracelet/crush/internal/pubsub"
+)
+
+func TestSetupSubscriber_ContextCancellation(t *testing.T) {
+	ctx, cancel := context.WithCancel(t.Context())
+	sub := make(chan int)
+	broker := pubsub.NewBroker[int]()
+	setupSubscriber(ctx, sub, broker)
+	cancel()
+	time.Sleep(10 * time.Millisecond)
+}

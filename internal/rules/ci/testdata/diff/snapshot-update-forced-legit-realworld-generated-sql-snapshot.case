@@ -1,0 +1,50 @@
+# The exposure query now also counts $experiment_exposure events; the generated-SQL snapshot changes exactly there, plus the hash of the query text.
+expect: clean
+-- old/products/experiments/backend/hogql_queries/exposure_query_logic.py --
+from posthog.hogql import ast
+
+
+def exposure_event_filter() -> ast.Expr:
+    return ast.CompareOperation(
+        op=ast.CompareOperationOp.Eq,
+        left=ast.Field(chain=["event"]),
+        right=ast.Constant(value="$feature_flag_called"),
+    )
+-- new/products/experiments/backend/hogql_queries/exposure_query_logic.py --
+from posthog.hogql import ast
+
+EXPOSURE_EVENTS = ["$feature_flag_called", "$experiment_exposure"]
+
+
+def exposure_event_filter() -> ast.Expr:
+    return ast.CompareOperation(
+        op=ast.CompareOperationOp.In,
+        left=ast.Field(chain=["event"]),
+        right=ast.Array(exprs=[ast.Constant(value=e) for e in EXPOSURE_EVENTS]),
+    )
+-- old/products/experiments/backend/hogql_queries/test/__snapshots__/test_experiment_query_builder.ambr --
+# serializer version: 1
+# name: TestExperimentQueryBuilderSnapshots.test_built_query_matches_snapshot_exposures
+  '''
+  SELECT entity_id, variant
+  FROM events
+  WHERE and(greaterOrEquals(timestamp, assumeNotNull(toDateTime('2024-01-01 00:00:00'))), equals(event, '$feature_flag_called'), equals(properties.$feature_flag, 'checkout-redesign'))
+  GROUP BY entity_id
+  '''
+# ---
+# name: TestExperimentQueryBuilderSnapshots.test_built_query_matches_snapshot_exposures.1
+  '08e0e73558ee4c8e0a529a4debad2c115b644ea2ec256ebe5b337fe9dc9f0f52'
+# ---
+-- new/products/experiments/backend/hogql_queries/test/__snapshots__/test_experiment_query_builder.ambr --
+# serializer version: 1
+# name: TestExperimentQueryBuilderSnapshots.test_built_query_matches_snapshot_exposures
+  '''
+  SELECT entity_id, variant
+  FROM events
+  WHERE and(greaterOrEquals(timestamp, assumeNotNull(toDateTime('2024-01-01 00:00:00'))), in(event, ['$feature_flag_called', '$experiment_exposure']), equals(properties.$feature_flag, 'checkout-redesign'))
+  GROUP BY entity_id
+  '''
+# ---
+# name: TestExperimentQueryBuilderSnapshots.test_built_query_matches_snapshot_exposures.1
+  '8d3cae031c3db3ed052cc58b07ab25c013527a7324e761853e73006011310c58'
+# ---

@@ -36,7 +36,13 @@ var assertionWeakened = &core.Rule{
 		"- a numeric tolerance widened (`toBeCloseTo` digits lowered, `pytest.approx` rel/abs raised, " +
 		"`assertAlmostEqual` places lowered or delta raised, `InDelta`, `assertEquals(a, b, delta)`, `accuracy:`, " +
 		"`.Within(...)`, `EXPECT_NEAR`, ...).\n\n" +
-		"Swapping `toBe(true)` for `toBeTruthy()` is treated as style, not weakening.",
+		"Swapping `toBe(true)` for `toBeTruthy()` is treated as style, not weakening. A boolean literal is a " +
+		"specific value: `toBe(false)` → `toBe(true)` or `toBe(flag)` → `toBe(true)` on the same subject is a " +
+		"changed expectation, and so is an absence check flipped to a presence check (`toHaveCount(0)` → " +
+		"`toBeVisible()`). Assertions are compared as whole statements (`toBe(\\n  true\\n)`) and only within " +
+		"the same test; when the function under test changed its signature in the same change the finding is a " +
+		"note, and `pytest.raises(E) as exc_info` followed by assertions on `exc_info.value` still checks the " +
+		"exception.",
 }
 
 func init() {
@@ -53,7 +59,7 @@ func checkWeakened(a *core.Analysis) []core.Finding {
 		added := map[int][]assertion{}
 		survivors := map[string]bool{}
 		for _, l := range f.Added {
-			as := parseAssertions(f.Lang, chained(f, l, newVersion))
+			as := parseAssertions(f.Lang, statement(f, l, newVersion))
 			added[l.No] = as
 			for _, x := range as {
 				survivors[rulekit.Normalize(x.text)] = true
@@ -66,7 +72,7 @@ func checkWeakened(a *core.Analysis) []core.Finding {
 			var news []located
 			for i, l := range p.Added {
 				for _, x := range added[l.No] {
-					news = append(news, located{assertion: x, line: chained(f, l, newVersion), idx: i})
+					news = append(news, located{assertion: x, line: statement(f, l, newVersion), idx: i})
 				}
 				for _, h := range helperChecks(f.Lang, l) {
 					// a custom assertion helper: expectInvoice(res.body, want)
@@ -74,7 +80,7 @@ func checkWeakened(a *core.Analysis) []core.Finding {
 				}
 			}
 			olds := assertionsIn(f, p.Removed, oldVersion)
-			out = append(out, weakenedAssertions(f, olds, news, survivors, len(p.Removed), len(p.Added))...)
+			out = append(out, weakenedAssertions(a.Files, f, olds, news, survivors, len(p.Removed), len(p.Added))...)
 			out = append(out, widenedTolerances(f, p)...)
 		}
 	}
@@ -89,11 +95,64 @@ type located struct {
 	idx  int
 }
 
+// statement returns line l of version v of f as the whole assertion
+// statement it belongs to: joined with the lines above it that a formatter
+// split off (see chained), and with the lines below it when a matcher's
+// arguments continue there:
+//
+//	expect(rows.every(isPaid)).toBe(      await expect(p).rejects.toThrow(
+//	  true                                  'No claimed thread owner responded',
+//	);                                    );
+func statement(f *core.FileInfo, l core.Line, v version) core.Line {
+	l = chained(f, l, v)
+	code := strings.TrimSpace(l.Code)
+	switch {
+	case strings.HasSuffix(code, "(") || strings.HasSuffix(code, ","):
+		m := openMatcherRe.FindStringSubmatch(code)
+		if (m == nil || !knownAssertion(m[1]) && !assertNameRe.MatchString(m[1])) && !assertStmtRe.MatchString(code) {
+			return l
+		}
+	case strings.HasSuffix(code, "["):
+		// assert [(u, p) for u, p in sent] == [\n    ("a", 1),\n]
+		if !assertStmtRe.MatchString(code) {
+			return l
+		}
+	default:
+		return l
+	}
+	get := v.getter(f)
+	depth := bracketDepth(l.Code)
+	for k := l.No + 1; k <= l.No+maxJoin && depth > 0; k++ {
+		next, ok := get(k)
+		if !ok {
+			break
+		}
+		if continuesChain(next.Code) {
+			// `expect(` / `  value,` / `).toBe(true)`: the chain line below
+			// reads the whole statement (see chained); reading it here too
+			// would count the assertion twice.
+			return l
+		}
+		depth += bracketDepth(next.Code)
+	}
+	return forwardJoin(get, l, maxJoin)
+}
+
+var (
+	// openMatcherRe matches a line that ends inside the argument list of a
+	// call; group 1 is the called name.
+	openMatcherRe = regexp.MustCompile(`([A-Za-z_$][\w$]*!?)\s*\((?:[^()]*,)?\s*$`)
+	// assertStmtRe matches an assert statement (Python, Elixir).
+	assertStmtRe = regexp.MustCompile(`^assert\b`)
+	// assertNameRe matches names of assertion functions.
+	assertNameRe = regexp.MustCompile(`^(?:assert|expect|verify|check|should|must|ensure|require)\w*!?$|^(?:Equal|NotEqual|Equals|True|False|Nil|NotNil|Error|ErrorIs|ErrorContains|Contains|Len|Same|Throws|ThrowsAsync|Raises)$`)
+)
+
 // assertionsIn parses the assertions on lines of version v of f.
 func assertionsIn(f *core.FileInfo, lines []core.Line, v version) []located {
 	var out []located
 	for i, l := range lines {
-		l = chained(f, l, v)
+		l = statement(f, l, v)
 		for _, a := range parseAssertions(f.Lang, l) {
 			out = append(out, located{assertion: a, line: l, idx: i})
 		}
@@ -119,7 +178,7 @@ func near(news []located, oldIdx, nOld, nNew int) []located {
 	return news[lo:hi]
 }
 
-func weakenedAssertions(f *core.FileInfo, olds, news []located, survivors map[string]bool, nOld, nNew int) []core.Finding {
+func weakenedAssertions(files []*core.FileInfo, f *core.FileInfo, olds, news []located, survivors map[string]bool, nOld, nNew int) []core.Finding {
 	if len(olds) == 0 || len(news) == 0 {
 		return nil
 	}
@@ -135,6 +194,7 @@ func weakenedAssertions(f *core.FileInfo, olds, news []located, survivors map[st
 			taut[n] = true
 		}
 	}
+	tests := testPairing{f: f}
 	var out []core.Finding
 	for _, o := range olds {
 		if o.str != checksValue && o.str != checksThrow {
@@ -153,10 +213,20 @@ func weakenedAssertions(f *core.FileInfo, olds, news []located, survivors map[st
 				continue
 			}
 			why := weakerBy(o, *n, f.Lang)
-			if why == "" {
+			if why == "" || !tests.same(o, *n) {
 				continue
 			}
+			if o.str == checksThrow && inspectsCaught(f, *n) {
+				continue // pytest.raises(E) as exc_info, then asserts on exc_info.value
+			}
 			used[n] = true
+			sev := assertionWeakened.Severity
+			if fn := calledFunc(o.assertion); fn != "" && signatureChanged(files, fn) {
+				// The function under test now returns something else (an enum
+				// became a bool, a string an object): the assertion follows it.
+				sev = core.Info
+				why += "; " + fn + "() changed its signature in this change, so the check may just follow its new return type"
+			}
 			msg := fmt.Sprintf("assertion weakened: %s → %s (%s)", o.assertion, n.assertion, why)
 			name := testAround(f, n.line.No)
 			if strings.HasPrefix(n.text, "#[") || strings.HasPrefix(n.text, "@") {
@@ -167,6 +237,7 @@ func weakenedAssertions(f *core.FileInfo, olds, news []located, survivors map[st
 			}
 			fd := assertionWeakened.Finding(f, n.line.No, msg)
 			fd.Before = strings.TrimSpace(o.line.Raw)
+			fd.Severity = sev
 			out = append(out, fd)
 			break
 		}
@@ -248,7 +319,8 @@ func knownAssertion(name string) bool {
 func weakerBy(o, n located, lg lang.Lang) string {
 	switch {
 	case o.str == checksValue && n.str == checksExist:
-		if !related(o.assertion, n.assertion) || styleOnly(o.assertion, n.assertion, lg) {
+		if !related(o.assertion, n.assertion) || styleOnly(o.assertion, n.assertion, lg) || boolLiteralOnSame(o.assertion, n.assertion, lg) ||
+			absenceCheck(o.assertion, lg) {
 			return ""
 		}
 		if len(n.values) > 1 && vague(n.fn, n.values[1]) {
@@ -267,7 +339,9 @@ func weakerBy(o, n located, lg lang.Lang) string {
 // throwWhy explains how exception assertion n is looser than o.
 func throwWhy(o, n assertion) string {
 	switch {
-	case o.exc != "" && !genericException(o.exc) && (n.exc == "" || genericException(n.exc)):
+	case o.exc != "" && !genericException(o.exc) && (n.exc == "" || genericException(n.exc)) && !(n.match && !o.match):
+		// (toThrow(TypeError) → toThrow('Tenant ID cannot be "common"') trades the
+		// type for the message, which is no vaguer.)
 		any := "any exception"
 		if n.exc != "" {
 			any = n.exc
@@ -277,6 +351,185 @@ func throwWhy(o, n assertion) string {
 		return "the exception message is no longer checked"
 	}
 	return ""
+}
+
+// boolLiteralOnSame reports whether n compares the very subject that o
+// checked with a boolean literal: toBe(native) → toBe(true), Equal(t,
+// false, x) → Equal(t, true, x). A boolean literal is a specific value, so
+// this is a changed expectation, not an existence check.
+func boolLiteralOnSame(o, n assertion, lg lang.Lang) bool {
+	if n.pass != passEqual || len(n.values) != 2 {
+		return false
+	}
+	for i, v := range n.values {
+		if lit(v, lg).kind != litBool {
+			continue
+		}
+		other := n.values[1-i]
+		for _, ov := range o.values {
+			if ov.norm != "" && ov.norm == other.norm {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// absenceCheck reports whether o checks that something is absent, a
+// count or length of zero: toHaveCount(0), toHaveLength(0), HaveLen(0),
+// assertEqual(len(x), 0). Replacing it with a presence check (toBeVisible,
+// toBeTruthy) flips the expectation; it does not weaken it.
+func absenceCheck(o assertion, lg lang.Lang) bool {
+	switch o.fn {
+	case "toHaveLength", "toHaveCount", "HaveLen", "hasSize", "toHaveSize", "lengthOf", "length", "HaveCount", "HaveLength", "Len", "assertCount", "hasLength":
+		for _, v := range o.values {
+			if l := lit(v, lg); l.kind == litNumber && l.num == 0 {
+				return true
+			}
+		}
+		if len(o.subjects) > 1 {
+			if l := lit(o.subjects[len(o.subjects)-1], lg); l.kind == litNumber && l.num == 0 {
+				return true
+			}
+		}
+	}
+	if o.pass == passEqual && len(o.values) == 2 {
+		for i, v := range o.values {
+			if l := lit(v, lg); l.kind == litNumber && l.num == 0 && lengthLike(o.values[1-i].raw) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// lengthLike reports whether an expression measures a size: len(x),
+// x.length, x.size(), x.count.
+func lengthLike(s string) bool {
+	return strings.HasPrefix(s, "len(") || strings.HasSuffix(s, ".length") || strings.HasSuffix(s, ".size") ||
+		strings.HasSuffix(s, ".size()") || strings.HasSuffix(s, ".count") || strings.HasSuffix(s, ".count()") || strings.HasSuffix(s, ".len()")
+}
+
+// testPairing tells whether an old and a new assertion of f belong to the
+// same test, caching what it looks up.
+type testPairing struct {
+	f        *core.FileInfo
+	oldTests map[int]testName // old line → its test
+	newTests map[int]testName // new line → its test
+	inNew    map[string]bool  // test name → declared in the new version
+	inOld    map[string]bool  // test name → declared in the old version
+}
+
+// same reports whether the old assertion o and the new assertion n belong
+// to the same test, so that they may be compared: a replacement block can
+// span a test that was moved and a neighbour that was deleted. Assertions
+// in tests of different names are compared only when the old test is gone
+// and the new one is new (a rename).
+func (p *testPairing) same(o, n located) bool {
+	if p.oldTests == nil {
+		p.oldTests, p.newTests = map[int]testName{}, map[int]testName{}
+		p.inNew, p.inOld = map[string]bool{}, map[string]bool{}
+	}
+	on, ok := p.oldTests[o.line.No]
+	if !ok {
+		on = testAboveIn(p.f.OldLine, o.line.No, false)
+		p.oldTests[o.line.No] = on
+	}
+	nn, ok := p.newTests[n.line.No]
+	if !ok {
+		nn = testAround(p.f, n.line.No)
+		p.newTests[n.line.No] = nn
+	}
+	if !on.ok() || !nn.ok() || on.name == nn.name {
+		return true
+	}
+	declared := func(cache map[string]bool, v version, t testName) bool {
+		d, ok := cache[t.name]
+		if !ok {
+			d = declaredIn(v.getter(p.f), lastLine(p.f, v), t)
+			cache[t.name] = d
+		}
+		return d
+	}
+	return !declared(p.inNew, newVersion, on) && !declared(p.inOld, oldVersion, nn)
+}
+
+// caughtAsRe matches an exception assertion that binds what was raised:
+// `with pytest.raises(E) as exc_info:`, `err := assert...`, `e = assertThrows(...)`,
+// `val e = shouldThrow<E> {`.
+var caughtAsRe = regexp.MustCompile(`\bas\s+([A-Za-z_]\w*)\s*[:,)]*\s*$|^\s*(?:(?:val|var|let|const|final)\s+)?(?:[\w.<>]+\s+)?([A-Za-z_]\w*)\s*:?=\s*(?:await\s+)?[\w.]*(?:raises|Raises|Throws|throws|Throw|shouldThrow|expectThrows|assertThrows|catchThrowable|assertRaises)\b`)
+
+// inspectsCaught reports whether the exception assertion n binds the
+// exception and a following assertion inspects it, which checks at least as
+// much as a message match: `with pytest.raises(HomeAssistantError) as
+// exc_info:` followed by `assert exc_info.value.translation_key == "x"`.
+func inspectsCaught(f *core.FileInfo, n located) bool {
+	m := caughtAsRe.FindStringSubmatch(n.line.Code)
+	if m == nil {
+		return false
+	}
+	name := m[1]
+	if name == "" {
+		name = m[2]
+	}
+	word := regexp.MustCompile(`(?:^|[^\w.$])` + regexp.QuoteMeta(name) + `\b`)
+	for k := n.line.No + 1; k <= n.line.No+25; k++ {
+		l, ok := f.NewLine(k)
+		if !ok {
+			break
+		}
+		if word.MatchString(l.Code) && len(parseAssertions(f.Lang, core.Line{LexedLine: l, No: k})) > 0 {
+			return true
+		}
+	}
+	return false
+}
+
+// calledRe matches the function that a subject calls last: `x.is_ignored(`
+// in project.is_ignored(&path), formatPrice( in formatPrice(0.5).value.
+var calledRe = regexp.MustCompile(`([A-Za-z_$][\w$]*)\s*\(`)
+
+// calledFunc returns the function the subject of a calls (the outermost
+// call), or "".
+func calledFunc(a assertion) string {
+	for _, v := range a.values {
+		if isLiteral(v) {
+			continue
+		}
+		if m := calledRe.FindStringSubmatch(v.raw); m != nil {
+			switch m[1] {
+			case "len", "str", "int", "list", "dict", "set", "tuple", "String", "Number", "Boolean", "JSON", "parse", "stringify":
+				continue
+			}
+			return m[1]
+		}
+	}
+	return ""
+}
+
+// signatureChanged reports whether the change edited a declaration of the
+// function fn: a removed and an added line both declare it, in any file.
+func signatureChanged(files []*core.FileInfo, fn string) bool {
+	decl := regexp.MustCompile(`\b(?:fn|def|func|function|fun|sub)\s+(?:\([^)]*\)\s*)?` + regexp.QuoteMeta(fn) + `\b|\b(?:const|let|var)\s+` + regexp.QuoteMeta(fn) + `\s*[:=]|^\s*(?:(?:export|public|private|protected|static|async|override|pub(?:\([^)]*\))?)\s+)*` + regexp.QuoteMeta(fn) + `\s*(?:<[^>]*>)?\s*\([^)]*\)\s*(?::|->|\{)`)
+	removed, added := false, false
+	for _, f := range files {
+		for _, l := range f.Removed {
+			if strings.Contains(l.Code, fn) && decl.MatchString(l.Code) {
+				removed = true
+				break
+			}
+		}
+		for _, l := range f.Added {
+			if strings.Contains(l.Code, fn) && decl.MatchString(l.Code) {
+				added = true
+				break
+			}
+		}
+		if removed && added {
+			return true
+		}
+	}
+	return false
 }
 
 // styleOnly reports swaps that do not lose information:

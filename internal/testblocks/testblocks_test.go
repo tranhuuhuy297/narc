@@ -757,6 +757,10 @@ func TestCountAssertions(t *testing.T) {
 		{lang.JavaScript, `await expect(page).toHaveURL(/done/)`, 1},
 		{lang.JavaScript, `expect.assertions(2)`, 1},
 		{lang.JavaScript, `await expect.soft(page.getByRole('status')).toHaveText('Saved')`, 1},
+		// `await expect` broken across lines before .poll(fn).toBe(x).
+		{lang.TypeScript, `      .poll(async () => {`, 1},
+		{lang.TypeScript, `await expect`, 0},
+		{lang.TypeScript, `const p = queue.poll()`, 0},
 		// Asymmetric matchers are arguments, not assertions of their own.
 		{lang.JavaScript, `expect(send).toHaveBeenCalledWith('a@b.c', expect.stringContaining('inv-1'))`, 1},
 		{lang.JavaScript, `expect(user).toEqual(expect.objectContaining({ id: expect.any(String) }))`, 1},
@@ -771,6 +775,13 @@ func TestCountAssertions(t *testing.T) {
 		{lang.Python, `with pytest.raises(ValueError):`, 1},
 		{lang.Python, `assertion = build()`, 0},
 		{lang.Python, `def assert_valid(x):`, 0},
+		// Home Assistant: snapshot_platform compares every entity with a
+		// stored snapshot; asserting a setup step checks nothing under test.
+		{lang.Python, `await snapshot_platform(hass, entity_registry, snapshot, entry.entry_id)`, 1},
+		{lang.Python, `assert await async_setup_component(hass, "tts", {})`, 0},
+		{lang.Python, `assert await hass.config_entries.async_setup(entry.entry_id)`, 0},
+		{lang.Python, `assert await setup.async_setup_component(hass, DOMAIN, config)`, 0},
+		{lang.Python, `assert setup_ok`, 1},
 		{lang.Go, `if got != want { t.Errorf("got %v", got) }`, 1},
 		{lang.Go, `require.NoError(t, err)`, 1},
 		{lang.Go, `require.Equal(t, []any{"bash"}, allowedTools(t, cfg))`, 1},
@@ -783,6 +794,13 @@ func TestCountAssertions(t *testing.T) {
 		{lang.Go, `ok := auth.CheckPassword(pw)`, 0},
 		{lang.Rust, `assert_eq!(a, b); assert!(c);`, 2},
 		{lang.Rust, `let v = parse(s).expect("valid");`, 0},
+		// A statement that only unwraps a result fails the test on error.
+		{lang.Rust, `parse_module(&src).unwrap();`, 1},
+		{lang.Rust, `stacker::grow(32 * 1024, || parse_module(&src)).unwrap();`, 1},
+		{lang.Rust, `Config::load(path).expect("config loads");`, 1},
+		{lang.Rust, `let parsed = parse_module(&src).unwrap();`, 0},
+		{lang.Rust, `x = foo().unwrap();`, 0},
+		{lang.Rust, `    .unwrap();`, 0},
 		{lang.Java, `assertThat(list).hasSize(2).contains("a");`, 1},
 		{lang.Java, `verify(repo, times(1)).save(user);`, 1},
 		{lang.Java, `Assertions.assertTimeout(ofSeconds(1), () -> run());`, 1},

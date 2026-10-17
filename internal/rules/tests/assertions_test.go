@@ -86,6 +86,11 @@ func TestParseAssertions(t *testing.T) {
 		{lang.Cpp, `EXPECT_EQ(total, 42);`, "EXPECT_EQ", passEqual, checksValue},
 		{lang.JavaScript, `assert.throws(() => parse(""), SyntaxError);`, "throws", passUnknown, checksThrow},
 		{lang.Python, `with pytest.raises(expected_exception=KeyError):`, "raises", passUnknown, checksThrow},
+		// a prefix or suffix check compares part of a value; one nested in a callback does not
+		{lang.Python, `assert message.startswith("Unknown Sim table")`, "assert", passTruthy, checksValue},
+		{lang.Go, `assert.True(t, strings.HasPrefix(url, base))`, "True", passTruthy, checksValue},
+		{lang.TypeScript, "expect(lines.some((l) => l.startsWith(`oss/${file}`))).toBe(true);", "toBe", passEqual, checksExist},
+		{lang.Python, `assert message.startswith("")`, "assert", passTruthy, checksExist},
 	}
 	for _, c := range cases {
 		as := parseAssertions(c.lg, lexed(c.lg, c.src))

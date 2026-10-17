@@ -1,0 +1,13 @@
+# One fallback construct carries the pragma on its `try:` and on its `except`: it is one exclusion, reported once (as a note, since it gives a reason).
+expect: coverage-ignored@info
+-- old/homeassistant/components/pool/select.py --
+def _option_to_raw(desc: PoolSelectDescription, option: str) -> int | None:
+    return desc.reverse_map.get(option)
+-- new/homeassistant/components/pool/select.py --
+def _option_to_raw(desc: PoolSelectDescription, option: str) -> int | None:
+    if option in desc.reverse_map:
+        return desc.reverse_map[option]
+    try:  # pragma: no cover - options list mirrors the reverse map
+        return int(option.rstrip("ms"))
+    except ValueError:  # pragma: no cover - option list is numeric
+        return None

@@ -1,0 +1,19 @@
+# Real-world (qwen-code): the channels page now shows the allow-list field,
+# so the e2e test flips from "not rendered" (toHaveCount(0)) to "rendered"
+# (toBeVisible()). An expectation that flipped, not one that got vaguer.
+expect: clean
+-- old/packages/web-shell/client/e2e/web-shell.channels.spec.ts --
+import { expect, test } from '@playwright/test';
+
+test('a DingTalk channel hides the allow-list until access is restricted', async ({ page }) => {
+  await openChannelSettings(page, 'dingtalk');
+  await expect(page.getByLabel('Allowed user IDs')).toHaveCount(0);
+});
+-- new/packages/web-shell/client/e2e/web-shell.channels.spec.ts --
+import { expect, test } from '@playwright/test';
+
+test('a DingTalk channel shows the allow-list once access is restricted', async ({ page }) => {
+  await openChannelSettings(page, 'dingtalk');
+  await page.getByRole('radio', { name: 'Only listed users' }).check();
+  await expect(page.getByLabel('Allowed user IDs')).toBeVisible();
+});

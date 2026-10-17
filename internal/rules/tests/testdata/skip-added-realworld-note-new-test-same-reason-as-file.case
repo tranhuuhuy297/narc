@@ -1,0 +1,83 @@
+# Real-world (OpenHands): new tests for a new cascade-delete feature are
+# added already skipped, with the very skip (and reason) that the file uses
+# for its other PostgreSQL-only tests. Nothing that ran before stops
+# running: a note, not an error.
+expect: skip-added@info
+-- old/enterprise/tests/unit/test_org_store.py --
+import uuid
+
+import pytest
+
+from storage.org_store import OrgStore
+
+
+@pytest.mark.asyncio
+@pytest.mark.skip(
+    reason='Uses PostgreSQL-specific ::uuid cast syntax not supported by SQLite'
+)
+async def test_get_user_orgs_paginated_ordering(async_session_maker):
+    orgs = await OrgStore.get_user_orgs_paginated(uuid.uuid4(), page=1)
+    assert [o.name for o in orgs] == ['a', 'b']
+
+
+def test_orphaned_user_error_contains_user_ids():
+    from server.routes.org_models import OrphanedUserError
+
+    user_ids = [str(uuid.uuid4()), str(uuid.uuid4())]
+    error = OrphanedUserError(user_ids)
+    assert error.user_ids == user_ids
+    assert '2 user(s)' in str(error)
+-- new/enterprise/tests/unit/test_org_store.py --
+import uuid
+
+import pytest
+
+from storage.org_store import OrgStore
+
+
+@pytest.mark.asyncio
+@pytest.mark.skip(
+    reason='Uses PostgreSQL-specific ::uuid cast syntax not supported by SQLite'
+)
+async def test_get_user_orgs_paginated_ordering(async_session_maker):
+    orgs = await OrgStore.get_user_orgs_paginated(uuid.uuid4(), page=1)
+    assert [o.name for o in orgs] == ['a', 'b']
+
+
+def test_orphaned_user_error_contains_user_ids():
+    from server.routes.org_models import OrphanedUserError
+
+    user_ids = [str(uuid.uuid4()), str(uuid.uuid4())]
+    error = OrphanedUserError(user_ids)
+    assert error.user_ids == user_ids
+    assert '2 other user(s)' in str(error)
+
+
+@pytest.mark.asyncio
+@pytest.mark.skip(
+    reason='Uses PostgreSQL-specific ::uuid cast syntax not supported by SQLite'
+)
+async def test_delete_org_cascade_sole_org_requester_is_deleted(async_session_maker):
+    user_id = uuid.uuid4()
+    await seed_personal_org(async_session_maker, user_id)
+
+    result = await OrgStore.delete_org_cascade(user_id, requester_user_id=str(user_id))
+
+    assert result.id == user_id
+    async with async_session_maker() as session:
+        assert await session.get(User, user_id) is None
+
+
+@pytest.mark.asyncio
+@pytest.mark.skip(
+    reason='Uses PostgreSQL-specific ::uuid cast syntax not supported by SQLite'
+)
+async def test_delete_org_cascade_keeps_user_with_alternative_org(async_session_maker):
+    user_id, other_org = uuid.uuid4(), uuid.uuid4()
+    await seed_two_orgs(async_session_maker, user_id, other_org)
+
+    await OrgStore.delete_org_cascade(user_id, requester_user_id=str(user_id))
+
+    async with async_session_maker() as session:
+        user = await session.get(User, user_id)
+        assert user.current_org_id == other_org

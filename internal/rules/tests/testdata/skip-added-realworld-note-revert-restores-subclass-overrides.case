@@ -1,0 +1,52 @@
+# Real-world (sentry): a revert restores a base-class test and the empty,
+# skipped overrides that opt two subclasses out of it. The base test runs;
+# the overrides only opt out of a test that is itself new. A note.
+expect: skip-added@info
+-- old/tests/sentry/tasks/test_post_process.py --
+import pytest
+
+
+class BasePostProcessGroupMixin:
+    def call_post_process_group(self, is_new, is_regression, is_new_group_environment, event):
+        post_process_group(is_new=is_new, is_regression=is_regression, event=event)
+
+    def test_no_cache_abort(self) -> None:
+        event = self.create_event(data={}, project_id=self.project.id)
+        self.call_post_process_group(True, False, True, event)
+        assert self.mock_workflows.apply_async.call_count == 1
+
+
+class PostProcessGroupGenericTest(BasePostProcessGroupMixin, TestCase):
+    @pytest.mark.skip(reason="escalation detection is disabled for generic issues")
+    def test_invalidates_snooze(self) -> None:
+        pass
+-- new/tests/sentry/tasks/test_post_process.py --
+import pytest
+
+
+class BasePostProcessGroupMixin:
+    def call_post_process_group(self, is_new, is_regression, is_new_group_environment, event, cache_key=None):
+        if cache_key is None:
+            cache_key = write_event_to_cache(event)
+        post_process_group(is_new=is_new, is_regression=is_regression, event=event, cache_key=cache_key)
+        return cache_key
+
+    def test_no_cache_abort(self) -> None:
+        event = self.create_event(data={}, project_id=self.project.id)
+        self.call_post_process_group(True, False, True, event)
+        assert self.mock_workflows.apply_async.call_count == 1
+
+    def test_processing_cache_cleared(self) -> None:
+        event = self.create_event(data={}, project_id=self.project.id)
+        cache_key = self.call_post_process_group(True, False, True, event)
+        assert event_processing_store.get(cache_key) is None
+
+
+class PostProcessGroupGenericTest(BasePostProcessGroupMixin, TestCase):
+    @pytest.mark.skip(reason="those tests do not work with the given call_post_process_group impl")
+    def test_processing_cache_cleared(self) -> None:
+        pass
+
+    @pytest.mark.skip(reason="escalation detection is disabled for generic issues")
+    def test_invalidates_snooze(self) -> None:
+        pass

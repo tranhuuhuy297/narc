@@ -1,0 +1,23 @@
+# revive's early-return style check is silenced with a stated preference: a style rule that cannot hide a bug.
+expect: lint-suppressed@info
+-- old/coderd/provisionerdserver/acquire.go --
+package provisionerdserver
+
+func (s *server) jobInput(job database.ProvisionerJob) (*proto.Input, error) {
+	input, err := s.parseInput(job.Input)
+	if err != nil {
+		return nil, xerrors.Errorf("parse input: %w", err)
+	}
+	return input, nil
+}
+-- new/coderd/provisionerdserver/acquire.go --
+package provisionerdserver
+
+func (s *server) jobInput(job database.ProvisionerJob) (*proto.Input, error) {
+	if input, err := s.parseInput(job.Input); err != nil {
+		return nil, xerrors.Errorf("parse input: %w", err)
+	} else { //nolint:revive // author preference: keep the scoped input
+		input.Prebuild = job.Prebuild
+		return input, nil
+	}
+}

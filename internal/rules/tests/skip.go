@@ -24,6 +24,8 @@ const (
 		"skip it with a reason that links an issue."
 	skipFlagHint = "The skip is driven by a flag in the test data. Make sure no case sets that flag to hide a " +
 		"failure, and give every case that sets it a reason that links an issue."
+	freshSkipHint = "This test is new and has never run. Make it pass and remove the skip; if it cannot run here, " +
+		"say why in the skip's reason and link an issue, so the gap is tracked rather than hidden."
 )
 
 var skipAdded = &core.Rule{
@@ -43,10 +45,15 @@ var skipAdded = &core.Rule{
 		"(`@pt.mark.skip`) or a differently named test handle (`st.Skip()`) — and a Go `TestMain` that no " +
 		"longer calls `m.Run()`.\n\n" +
 		"Skips that only apply in some environments (`if testing.Short()`, `skipif(sys.platform == ...)`, " +
-		"`@DisabledOnOs`) or that link an issue are reported as warnings; a constant condition " +
-		"(`skipif(True)`, `cfg_attr(all(), ignore)`) is an error. Skips that are merely moved, reformatted, " +
-		"or narrowed (a `describe.skip` replaced by an `it.skip` inside it) are not reported, but a gated skip " +
-		"that loses its condition is.\n\n" +
+		"`@DisabledOnOs`) or that link an issue are reported as warnings, and a gate that only excludes Windows " +
+		"or macOS as a note; a constant condition (`skipif(True)`, `cfg_attr(all(), ignore)`) is an error. Skips " +
+		"that are merely moved, reformatted, or narrowed (a `describe.skip` replaced by an `it.skip` inside it) are " +
+		"not reported, but a gated skip that loses its condition is.\n\n" +
+		"A skip on a test that the change adds switches off nothing that ran before. A new test that is skipped " +
+		"from the start is a warning (a note when the skip is deliberate: an opt-in benchmark, a strict xfail that " +
+		"links an issue, the reason the file already gives for its other skips); a conditional skip of a new test " +
+		"(an environment check, a capability probe, `assumeTrue(...)`) is not reported when it gives a reason. A " +
+		"renamed test is not a new one.\n\n" +
 		"```ts\n// bad: the failing test is silenced\nit.skip('rejects expired tokens', () => { ... })\n\n" +
 		"// good: fix verifyToken() so the test passes, and keep it running\nit('rejects expired tokens', () => { ... })\n```",
 }
@@ -110,7 +117,10 @@ func checkSkip(a *core.Analysis) []core.Finding {
 			}
 			continue
 		}
-		fd := skipFinding(o)
+		fd, ok := skipFinding(files, o)
+		if !ok {
+			continue
+		}
 		if gate, ok := was[at{o.File, o.Line.No}]; ok {
 			fd.Message += fmt.Sprintf(" — it used to skip only when %s, now it always does", display(gate))
 		}
@@ -278,10 +288,52 @@ func skipScope(o occurrence[skipHit], v version) []string {
 	return markerScope(get, o.Line.No, own)
 }
 
-func skipFinding(o occurrence[skipHit]) core.Finding {
+// skipFinding reports the skip o; ok is false when it is not worth
+// reporting (an environment gate on a test the change added).
+func skipFinding(files []*core.FileInfo, o occurrence[skipHit]) (fd core.Finding, ok bool) {
 	f, h := o.File, o.Val
 	vt, _ := scanText(f, o.Line, newVersion)
 	sev, why, hint := assessSkip(f, o.Line, vt, h)
+
+	// A skip on a test that the change added disables nothing that ran
+	// before (see freshSkip).
+	fresh := false
+	var target testName
+	switch {
+	case h.programmatic:
+	case h.module:
+		fresh = f.OldPath == ""
+		if fresh {
+			if sev == core.Warning && hint == skipEnvHint {
+				return core.Finding{}, false
+			}
+			sev, hint = core.Warning, freshSkipHint
+		}
+	default:
+		var decl int
+		target, decl = markerTarget(o)
+		switch {
+		case target.ok():
+			fresh = freshTest(files, f, target, decl)
+		case f.OldPath == "":
+			fresh = true // a brand-new file: whatever the marker skips is new
+		default:
+			fresh, _ = aliasFresh(files, o)
+		}
+		if fresh {
+			s, w, report := freshSkip(o, target, decl, hint)
+			if !report {
+				return core.Finding{}, false
+			}
+			sev, hint = s, freshSkipHint
+			if w != "" {
+				if why != "" {
+					why += "; "
+				}
+				why += w
+			}
+		}
+	}
 
 	name := h.name
 	switch {
@@ -298,6 +350,9 @@ func skipFinding(o occurrence[skipHit]) core.Finding {
 	if !name.ok() && f.Lang.IsJSLike() {
 		name = jsLayoutName(f, o.Line.No)
 	}
+	if !name.ok() {
+		name = target
+	}
 
 	var msg strings.Builder
 	switch {
@@ -311,6 +366,12 @@ func skipFinding(o occurrence[skipHit]) core.Finding {
 		} else {
 			fmt.Fprintf(&msg, "new %s marker object", h.label)
 		}
+	case fresh && h.module:
+		fmt.Fprintf(&msg, "every test in the new file %s is skipped with %s", f.Path, h.label)
+	case fresh && h.form == formCall && name.ok():
+		fmt.Fprintf(&msg, "new %s skips itself with %s", named(unitNoun(h.label, o.Line), name), h.label)
+	case fresh && name.ok():
+		fmt.Fprintf(&msg, "new %s is added already skipped with %s", named(unitNoun(h.label, o.Line), name), h.label)
 	case h.form == formCall && name.ok():
 		fmt.Fprintf(&msg, "%s now skips itself with %s", named(unitNoun(h.label, o.Line), name), h.label)
 	case h.form == formCall:
@@ -326,9 +387,9 @@ func skipFinding(o occurrence[skipHit]) core.Finding {
 	if why != "" {
 		msg.WriteString(" — " + why)
 	}
-	fd := skipAdded.Finding(f, o.Line.No, msg.String())
+	fd = skipAdded.Finding(f, o.Line.No, msg.String())
 	fd.Severity, fd.Hint = sev, hint
-	return fd
+	return fd, true
 }
 
 // assessSkip decides how serious a new skip is. Unconditional skips and
@@ -350,6 +411,9 @@ func assessSkip(f *core.FileInfo, l core.Line, vt string, h skipHit) (core.Sever
 		}
 		return core.Error, "the condition " + display(h.cond) + " always skips", skipHint
 	case h.cond != "" && isEnvCondition(h.cond):
+		if offPlatformGate(h.cond, h.inverse) && !brokenRe.MatchString(h.reason) {
+			return core.Info, when + display(h.cond) + offPlatformNote, skipEnvHint
+		}
 		return core.Warning, when + display(h.cond) + " (environment-gated)", skipEnvHint
 	case h.cond != "" && h.form != formCall:
 		// A declarative gate (skipif, @DisabledIf, skip: cond) is evaluated
@@ -361,6 +425,9 @@ func assessSkip(f *core.FileInfo, l core.Line, vt string, h skipHit) (core.Sever
 		if g, ok := guard(f, l, vt, h.pos, h.end); ok {
 			cond = g
 			if isEnvCondition(g) {
+				if offPlatformGate(g, false) && !brokenRe.MatchString(h.reason) {
+					return core.Info, "only when " + display(g) + offPlatformNote, skipEnvHint
+				}
 				return core.Warning, "only when " + display(g) + " (environment-gated)", skipEnvHint
 			}
 			if isSkipFlag(g) {
@@ -384,6 +451,53 @@ func assessSkip(f *core.FileInfo, l core.Line, vt string, h skipHit) (core.Sever
 		return core.Warning, why + "references an issue", skipIssueHint
 	}
 	return core.Error, why, skipHint
+}
+
+const offPlatformNote = " (a platform gate: the test still runs on Linux, where CI usually runs)"
+
+var (
+	// platformCheckRe matches a check of the operating system against
+	// Windows or macOS: process.platform === 'win32', runtime.GOOS ==
+	// "windows", sys.platform == "darwin", os.name == "nt". Group 1 is the
+	// operator.
+	platformCheckRe = regexp.MustCompile(`^(?:process\.platform|runtime\.GOOS|sys\.platform|os\.name|platform\.system\(\)|os\.platform\(\)|Deno\.build\.os)\s*(===|==|!==|!=)\s*["'](?:win32|windows|Windows|darwin|Darwin|nt|cygwin|msys)["']$|^sys\.platform\.startswith\(\s*["'](?:win|darwin|cygwin)["']\s*\)$`)
+	// platformFlagRe matches a flag that says the tests run on Windows or
+	// macOS: isWindows, onWindows, IS_WINDOWS, isMac, isDarwin.
+	platformFlagRe = regexp.MustCompile(`^(?:is|on|IS_|ON_)_?(?:Windows|WINDOWS|Win32|WIN32|Mac|MAC|MacOS|MACOS|Darwin|DARWIN|windows|win32|macos|darwin)(?:\(\))?$`)
+	// rootCheckRe matches a check that the tests run as root, where
+	// permission bits are not enforced.
+	rootCheckRe = regexp.MustCompile(`^(?:process\.(?:getuid|geteuid)\??\.?\(\)|os\.(?:Getuid|Geteuid|getuid|geteuid)\(\))\s*===?\s*0$`)
+)
+
+// offPlatformGate reports whether a skip condition only excludes Windows or
+// macOS (possibly together with running as root): the test still runs on
+// Linux, where CI usually runs, so the gate hides nothing there. Porting a
+// suite to Windows adds many such gates to POSIX-only tests. inverse says
+// that cond enables the test (runIf, skipUnless).
+func offPlatformGate(cond string, inverse bool) bool {
+	c := trimParens(strings.TrimSpace(display(cond)))
+	if inverse {
+		// runIf(process.platform !== 'win32'), runIf(!isWindows)
+		if m := platformCheckRe.FindStringSubmatch(c); m != nil {
+			return m[1] == "!==" || m[1] == "!="
+		}
+		rest, neg := strings.CutPrefix(c, "!")
+		return neg && platformFlagRe.MatchString(strings.TrimSpace(rest))
+	}
+	platform := false
+	for _, part := range splitOp(c, "||") {
+		part = trimParens(strings.TrimSpace(part))
+		switch m := platformCheckRe.FindStringSubmatch(part); {
+		case m != nil && (m[1] == "===" || m[1] == "==" || m[1] == ""):
+			platform = true
+		case m == nil && platformFlagRe.MatchString(part):
+			platform = true
+		case m == nil && rootCheckRe.MatchString(part):
+		default:
+			return false
+		}
+	}
+	return platform
 }
 
 // alwaysSkips reports whether a skip condition is a constant that always
@@ -619,6 +733,44 @@ func (s lineScan) call(i int) (as []expr, end int, ok bool) {
 	return as, len(s.vt), true
 }
 
+// continuedArgs returns the arguments of a marker call that opens at
+// vt[open:] (after the marker that re matches) and continues on the lines
+// below: they are read from the statement joined over those lines. It
+// returns nil when the call is not open at the end of the line.
+func (s lineScan) continuedArgs(re *regexp.Regexp, open int) []expr {
+	rest := strings.TrimSpace(s.vt[open:])
+	if !strings.HasPrefix(rest, "(") {
+		return nil
+	}
+	if _, closed := closing(rest, 0); closed {
+		return nil
+	}
+	joined := forwardJoin(s.v.getter(s.f), s.l, maxJoin)
+	if joined.Raw == s.l.Raw {
+		return nil
+	}
+	js := lineScan{f: s.f, l: joined, v: s.v}
+	js.vt, js.ok = scanText(s.f, joined, s.v)
+	m := re.FindStringIndex(js.vt)
+	if m == nil {
+		return nil
+	}
+	as, _, ok := js.call(m[1])
+	if !ok {
+		return nil
+	}
+	if !js.ok {
+		// Literal values in the joined text cannot be trusted: keep the
+		// arguments' shape but not their contents.
+		for i := range as {
+			if isStr(as[i]) {
+				as[i] = newExpr(`""`)
+			}
+		}
+	}
+	return as
+}
+
 // str returns the contents of a string literal argument.
 func (s lineScan) str(e expr) (string, bool) {
 	if !s.ok {
@@ -741,6 +893,11 @@ func (s lineScan) skipsJS() []skipHit {
 				}
 			}
 		case "skip", "fixme":
+			if called && len(as) == 0 {
+				// test.skip(\n  cond,\n  'reason',\n): Prettier put the
+				// arguments on their own lines.
+				as = s.continuedArgs(jsSkipDotRe, m[1])
+			}
 			switch {
 			case !called:
 				// A reference rather than a call: `cond ? it : it.skip` or an
@@ -807,7 +964,11 @@ func (s lineScan) skipsJS() []skipHit {
 		hs = append(hs, h)
 	}
 	if m := jsPendingRe.FindStringIndex(s.vt); m != nil {
-		if as, end, ok := s.call(m[1] - 1); ok && (len(as) == 0 || isStr(as[0])) {
+		// Jasmine's pending() is a statement of its own in a test body; an
+		// array element `pending('id', 1),` or `pending()[0].id` calls a
+		// fixture helper of the same name.
+		if as, end, ok := s.call(m[1] - 1); ok && (len(as) == 0 || isStr(as[0])) &&
+			strings.Trim(s.vt[end:], " \t;") == "" && !s.declaresJS("pending") {
 			hs = append(hs, skipHit{label: "pending()", form: formCall, pos: m[0], end: end, reason: s.reasonOf(as)})
 		}
 	}
@@ -829,6 +990,24 @@ func (s lineScan) skipsJS() []skipHit {
 		hs = append(hs, skipHit{label: "Deno.test.ignore", form: formDecl, pos: m[0], end: m[1]})
 	}
 	return hs
+}
+
+// declaresJS reports whether the scanned version of the file declares or
+// imports name itself, shadowing the test framework's global of that name.
+func (s lineScan) declaresJS(name string) bool {
+	var b []byte
+	var ok bool
+	if s.v == oldVersion {
+		b, ok = s.f.OldContent()
+	} else {
+		b, ok = s.f.NewContent()
+	}
+	if !ok {
+		return false
+	}
+	q := regexp.QuoteMeta(name)
+	re := regexp.MustCompile(`\b(?:const|let|var|function\*?)\s+` + q + `\b|\bimport\b[^;]*?[{,\s]` + q + `\s*[,}]|[(,]\s*` + q + `\s*(?::[^,)]*)?[,)]\s*(?:=>|\{)`)
+	return re.Match(b)
 }
 
 func (s lineScan) mentionsDenoTest() bool {
@@ -904,6 +1083,10 @@ func (s lineScan) skipsPython() []skipHit {
 		switch kind {
 		case "skip":
 		case "skipif":
+			if called && len(as) == 0 {
+				as = s.continuedArgs(pyMarkRe, m[1]) // @pytest.mark.skipif(\n    cond,\n    reason=...\n)
+				pos = positional(as)
+			}
 			if c, ok := kwarg(as, "condition"); ok {
 				h.cond = c.raw
 			} else if len(pos) > 0 {

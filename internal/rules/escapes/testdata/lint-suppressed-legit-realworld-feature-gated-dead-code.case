@@ -1,0 +1,23 @@
+# The request struct's fields are only read by the MLX backend; the dead_code allow applies only to builds without that cargo feature.
+expect: clean
+-- old/crates/providers/src/local_inference/backend.rs --
+use super::{ResolvedModelPaths, StreamSender};
+
+pub(super) trait BackendLoadedModel: Send {
+    fn as_any_mut(&mut self) -> &mut dyn Any;
+}
+-- new/crates/providers/src/local_inference/backend.rs --
+use super::{ResolvedModelPaths, StreamSender};
+
+pub(super) trait BackendLoadedModel: Send {
+    fn as_any_mut(&mut self) -> &mut dyn Any;
+}
+
+#[cfg_attr(not(feature = "mlx"), allow(dead_code))]
+pub(super) struct LocalGenerationRequest<'a> {
+    pub model_name: String,
+    pub system: &'a str,
+    pub messages: &'a [Message],
+    pub temperature: Option<f32>,
+    pub max_tokens: Option<i32>,
+}

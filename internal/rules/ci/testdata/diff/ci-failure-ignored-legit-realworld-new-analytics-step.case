@@ -1,0 +1,53 @@
+# A telemetry step added to a Bazel lane extracts a timing/cache summary from the build event log; it is allowed to fail because it checks nothing.
+expect: clean
+-- old/.github/workflows/bazel.yml --
+name: bazel
+on:
+  pull_request:
+jobs:
+  bazel-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Bazel
+        uses: ./.github/actions/setup-bazel
+      - name: bazel test //...
+        run: bazel test //... --config=ci --build_event_json_file=bep.json
+      - name: Upload test logs
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: bazel-testlogs
+          path: bazel-testlogs/**/test.log
+-- new/.github/workflows/bazel.yml --
+name: bazel
+on:
+  pull_request:
+jobs:
+  bazel-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Bazel
+        uses: ./.github/actions/setup-bazel
+      - name: bazel test //...
+        run: bazel test //... --config=ci --build_event_json_file=bep.json
+      - name: CI analytics summary
+        if: always()
+        continue-on-error: true
+        run: python3 tools/bazel/ci_analytics_extract.py --bep bep.json --lane bazel-test --out ci-analytics.json
+      - name: Upload CI analytics
+        if: always()
+        continue-on-error: true
+        uses: actions/upload-artifact@v4
+        with:
+          name: ci-analytics-bazel-test
+          path: ci-analytics.json
+      - name: Upload test logs
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: bazel-testlogs
+          path: bazel-testlogs/**/test.log

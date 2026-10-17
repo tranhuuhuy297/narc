@@ -1,0 +1,91 @@
+# Real world (sentry): the auto-release-creation flag went GA, so the
+# settings page dropped its feature gate and the "without the feature flag"
+# test went with it. Reported as info: the test covered a branch the change
+# removed on purpose.
+expect: test-deleted@info
+-- old/static/app/views/settings/projectGeneralSettings/index.tsx --
+import {FieldGroup} from 'sentry/components/forms/fieldGroup';
+import {AutoSaveForm} from 'sentry/components/forms/autoSaveForm';
+import useOrganization from 'sentry/utils/useOrganization';
+import {t} from 'sentry/locale';
+
+export function ProjectGeneralSettings({project}: Props) {
+  const organization = useOrganization();
+  return (
+    <FieldGroup title={t('Event Settings')}>
+      {organization.features.includes('auto-release-creation') && (
+        <AutoSaveForm
+          name="enableAutoReleaseCreation"
+          initialValue={project.enableAutoReleaseCreation}
+          label={t('Enable release auto-creation from telemetry')}
+        />
+      )}
+    </FieldGroup>
+  );
+}
+-- new/static/app/views/settings/projectGeneralSettings/index.tsx --
+import {FieldGroup} from 'sentry/components/forms/fieldGroup';
+import {AutoSaveForm} from 'sentry/components/forms/autoSaveForm';
+import {t} from 'sentry/locale';
+
+export function ProjectGeneralSettings({project}: Props) {
+  return (
+    <FieldGroup title={t('Event Settings')}>
+      <AutoSaveForm
+        name="enableAutoReleaseCreation"
+        initialValue={project.enableAutoReleaseCreation}
+        label={t('Enable release auto-creation from telemetry')}
+      />
+    </FieldGroup>
+  );
+}
+-- old/static/app/views/settings/projectGeneralSettings/index.spec.tsx --
+import {OrganizationFixture} from 'sentry-fixture/organization';
+import {ProjectFixture} from 'sentry-fixture/project';
+
+import {render, screen} from 'sentry-test/reactTestingLibrary';
+
+import {ProjectGeneralSettings} from 'sentry/views/settings/projectGeneralSettings';
+
+describe('projectGeneralSettings', () => {
+  const organization = OrganizationFixture();
+  const project = ProjectFixture();
+
+  it('hides the release auto-creation toggle without the feature flag', async () => {
+    render(<ProjectGeneralSettings project={project} />, {organization});
+
+    expect(await screen.findByRole('textbox', {name: 'Slug'})).toBeInTheDocument();
+    expect(
+      screen.queryByRole('checkbox', {name: 'Enable release auto-creation from telemetry'})
+    ).not.toBeInTheDocument();
+  });
+
+  it('shows the release auto-creation toggle', async () => {
+    const orgWithFeature = OrganizationFixture({features: ['auto-release-creation']});
+    render(<ProjectGeneralSettings project={project} />, {organization: orgWithFeature});
+
+    expect(
+      await screen.findByRole('checkbox', {name: 'Enable release auto-creation from telemetry'})
+    ).toBeInTheDocument();
+  });
+});
+-- new/static/app/views/settings/projectGeneralSettings/index.spec.tsx --
+import {OrganizationFixture} from 'sentry-fixture/organization';
+import {ProjectFixture} from 'sentry-fixture/project';
+
+import {render, screen} from 'sentry-test/reactTestingLibrary';
+
+import {ProjectGeneralSettings} from 'sentry/views/settings/projectGeneralSettings';
+
+describe('projectGeneralSettings', () => {
+  const organization = OrganizationFixture();
+  const project = ProjectFixture();
+
+  it('shows the release auto-creation toggle', async () => {
+    render(<ProjectGeneralSettings project={project} />, {organization});
+
+    expect(
+      await screen.findByRole('checkbox', {name: 'Enable release auto-creation from telemetry'})
+    ).toBeInTheDocument();
+  });
+});

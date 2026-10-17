@@ -1,4 +1,5 @@
-# A platform-gated skip on a new test: reported as a warning.
+# A platform gate added to an existing test that skips it on Linux, where
+# CI runs: reported as a warning.
 expect: skip-added
 -- old/tests/test_paths.py --
 from tool.paths import normalize
@@ -6,6 +7,13 @@ from tool.paths import normalize
 
 def test_normalize_collapses_dots():
     assert normalize("a/./b/../c") == "a/c"
+
+
+def test_normalize_keeps_executable_bit(tmp_path):
+    script = tmp_path / "run.sh"
+    script.write_text("#!/bin/sh\n")
+    script.chmod(0o755)
+    assert normalize(str(script)).endswith("run.sh")
 -- new/tests/test_paths.py --
 import sys
 
@@ -18,7 +26,7 @@ def test_normalize_collapses_dots():
     assert normalize("a/./b/../c") == "a/c"
 
 
-@pytest.mark.skipif(sys.platform == "win32", reason="POSIX permissions only")
+@pytest.mark.skipif(sys.platform.startswith("linux"), reason="chmod is ignored in the CI container")
 def test_normalize_keeps_executable_bit(tmp_path):
     script = tmp_path / "run.sh"
     script.write_text("#!/bin/sh\n")

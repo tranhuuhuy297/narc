@@ -1,0 +1,13 @@
+# A dynamic translation key is passed to the typed t() with `as any`: the argument is untyped, nothing is dereferenced. A note at most.
+expect: any-cast@info
+-- old/src/features/AgentGoals/GoalDecision/index.tsx --
+export function GoalDecision({ rawReason }: Props) {
+  const { t } = useTranslation('goal');
+  return <Text>{rawReason}</Text>;
+}
+-- new/src/features/AgentGoals/GoalDecision/index.tsx --
+export function GoalDecision({ rawReason, reasonCopy }: Props) {
+  const { t } = useTranslation('goal');
+  const questionText = reasonCopy ? t(reasonCopy.key as any, reasonCopy.params) : rawReason;
+  return <Text>{questionText}</Text>;
+}

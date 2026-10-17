@@ -3,6 +3,7 @@ package escapes
 import (
 	"fmt"
 	"regexp"
+	"strconv"
 	"strings"
 
 	"github.com/tranhuuhuy297/narc/internal/core"
@@ -24,7 +25,11 @@ var coverageIgnored = &core.Rule{
 		"Idiomatic exclusions are not reported: `if __name__ == \"__main__\":`, `if TYPE_CHECKING:`, " +
 		"`raise NotImplementedError`, abstract methods, exhaustiveness checks, and branches for another platform " +
 		"or language version (`if sys.platform == \"win32\":`). Exclusions in test code are " +
-		"not reported, and an exclusion with a concrete reason is lowered to a note.\n\n" +
+		"not reported, and an exclusion with a concrete reason is lowered to a note (unless the reason admits the " +
+		"code is untested: \"out of scope\", \"TODO\"). Also not reported: exclusions inside an " +
+		"`if __name__ == \"__main__\":` block, a function's trailing `return None` after a loop that always returns, " +
+		"and vendored code; the clauses of one try/except are one exclusion. A file that gains five or more " +
+		"exclusions is reported once, as a warning, whatever their reasons.\n\n" +
 		"JaCoCo leaves out every class and method annotated with an annotation named `Generated`, so `@Generated` " +
 		"on hand-written code counts as an exclusion.",
 }
@@ -91,11 +96,14 @@ var coverageIdiomRe = regexp.MustCompile(`__name__\s*==\s*["']__main__["']|\bTYP
 
 func checkCoverageIgnored(a *core.Analysis) []core.Finding {
 	files := rulekit.Files(a, func(f *core.FileInfo) bool {
-		return (f.Lang.IsProgramming() || f.Lang == lang.Shell) && (!f.IsTest || f.Lang == lang.Rust) && !isTestSupport(f.Path)
+		return (f.Lang.IsProgramming() || f.Lang == lang.Shell) && (!f.IsTest || f.Lang == lang.Rust) &&
+			!isTestSupport(f.Path) && !isVendored(f.Path) && !isFixtureData(f.Path)
 	})
 	found := newDirectives(files, coverageSpecs, dirKeys)
 	var out []core.Finding
 	sides := map[*core.FileInfo]*side{}
+	perFile := map[*core.FileInfo][]int{} // indexes into out
+	reported := map[*core.FileInfo]map[int]bool{}
 	for _, df := range found {
 		f := df.file
 		if sides[f] == nil {
@@ -111,16 +119,163 @@ func checkCoverageIgnored(a *core.Analysis) []core.Finding {
 		if covered := coveredCode(s, df); covered != "" && coverageIdiomRe.MatchString(covered) {
 			continue
 		}
+		if inMainGuard(s, df.line.No) || trailingFallthrough(s, df) {
+			continue
+		}
+		// `try:  # pragma: no cover` and its `except ...:  # pragma: no cover`
+		// exclude one construct: report it once.
+		if f.Lang == lang.Python && sameConstruct(s, df.line.No, reported[f]) {
+			continue
+		}
 		sev := coverageIgnored.Severity
-		if df.d.scope != scopeFile && explained(directiveNote(f, s, df)) {
+		if note := directiveNote(f, s, df); df.d.scope != scopeFile && explained(note) && !untestedRe.MatchString(note) {
 			sev = downgrade(sev)
 		}
 		fd := newFinding(coverageIgnored, f, df.line.No, coverageMessage(f.Lang, df))
 		fd.Severity = sev
+		if reported[f] == nil {
+			reported[f] = map[int]bool{}
+		}
+		reported[f][df.line.No] = true
+		perFile[f] = append(perFile[f], len(out))
 		out = append(out, fd)
 	}
-	return out
+	return densest(out, perFile)
 }
+
+// manyExclusions is how many new exclusions in one file make the file's
+// coverage meaningless, whatever each one's reason.
+const manyExclusions = 5
+
+// densest folds the findings of a file that gained many exclusions into
+// one warning: each pragma may look defensive on its own, but together
+// they take most of the new code out of the coverage gate.
+func densest(out []core.Finding, perFile map[*core.FileInfo][]int) []core.Finding {
+	drop := map[int]bool{}
+	for _, idx := range perFile {
+		if len(idx) < manyExclusions {
+			continue
+		}
+		var lines []string
+		for _, i := range idx {
+			lines = append(lines, strconv.Itoa(out[i].Line))
+			drop[i] = true
+		}
+		first := out[idx[0]]
+		shown := lines
+		if len(shown) > 8 {
+			shown = append(shown[:8:8], "…")
+		}
+		first.Message = fmt.Sprintf("%d coverage exclusions added in this file (lines %s): most of its new branches are "+
+			"invisible to the coverage gate", len(idx), strings.Join(shown, ", "))
+		first.Severity = core.Warning
+		drop[idx[0]] = false
+		out[idx[0]] = first
+	}
+	if len(drop) == 0 {
+		return out
+	}
+	kept := out[:0]
+	for i, fd := range out {
+		if !drop[i] {
+			kept = append(kept, fd)
+		}
+	}
+	return kept
+}
+
+// untestedRe matches reasons that admit the code is simply not tested.
+var untestedRe = regexp.MustCompile(`(?i)\bout of scope\b|\bnot (?:yet )?tested\b|\buntested\b|\btodo\b|\bfixme\b|\bhard to test\b|\bcan'?t (?:be )?test|\bno time\b`)
+
+// inMainGuard reports whether Python line n sits inside an
+// `if __name__ == "__main__":` block, the CLI entry point.
+func inMainGuard(s *side, n int) bool {
+	if s.lg != lang.Python {
+		return false
+	}
+	l, ok := s.at(n)
+	if !ok {
+		return false
+	}
+	ind := indent(l.Raw)
+	for m := n - 1; m >= 1 && ind > 0; m-- {
+		ml, ok := s.at(m)
+		if !ok {
+			return false
+		}
+		if strings.TrimSpace(ml.Code) == "" || indent(ml.Raw) >= ind {
+			continue
+		}
+		ind = indent(ml.Raw)
+		if mainGuardRe.MatchString(newView(s.lg, ml).canon) {
+			return true
+		}
+	}
+	return false
+}
+
+var mainGuardRe = regexp.MustCompile(`^\s*if\s+__name__\s*==\s*["']__main__["']\s*:`)
+
+// trailingFallthrough reports whether df is a single-line exclusion of a
+// function's trailing `return None` / `return {}` / `raise ...` after a
+// loop or an if-chain that always returns: unreachable code kept for the
+// type checker.
+func trailingFallthrough(s *side, df dirFinding) bool {
+	if df.d.ownLine || df.d.scope != scopeLine {
+		return false
+	}
+	l, ok := s.at(df.line.No)
+	if !ok || !fallthroughRe.MatchString(strings.TrimSpace(l.Code)) {
+		return false
+	}
+	ind := indent(l.Raw)
+	if p := prevCode(s, df.line.No); p == 0 || indent(rawAt(s, p)) <= ind {
+		return false // not right after a nested block
+	}
+	if nx := s.nextCode(df.line.No); nx != 0 && indent(rawAt(s, nx)) >= ind {
+		return false // more code follows in the same block
+	}
+	return true
+}
+
+var fallthroughRe = regexp.MustCompile(`^(?:return(?:\s+(?:None|\{\}|\[\]|False|nil|null|undefined))?|raise\s+\w+(?:\(.*\))?|throw\s+.*|unreachable!\(.*\)|panic\(.*\))\s*;?$`)
+
+func rawAt(s *side, n int) string {
+	l, _ := s.at(n)
+	return l.Raw
+}
+
+// sameConstruct reports whether Python line n is a later clause (except,
+// else, elif, finally) of a try or if statement whose head already carries
+// a reported exclusion.
+func sameConstruct(s *side, n int, reported map[int]bool) bool {
+	l, ok := s.at(n)
+	if !ok || !laterClauseRe.MatchString(l.Code) {
+		return false
+	}
+	ind := indent(l.Raw)
+	for m := n - 1; m >= 1 && m > n-40; m-- {
+		ml, ok := s.at(m)
+		if !ok {
+			return false
+		}
+		if strings.TrimSpace(ml.Code) == "" || indent(ml.Raw) > ind {
+			continue
+		}
+		if indent(ml.Raw) < ind {
+			return false
+		}
+		if reported[m] {
+			return true
+		}
+		if !laterClauseRe.MatchString(ml.Code) {
+			return false // the head of the construct, not excluded
+		}
+	}
+	return false
+}
+
+var laterClauseRe = regexp.MustCompile(`^\s*(?:except\b|else\s*:|elif\b|finally\s*:)`)
 
 // coveredCode returns the start of the code a directive excludes: its own
 // line, or the next line of code for a marker on a line of its own, plus

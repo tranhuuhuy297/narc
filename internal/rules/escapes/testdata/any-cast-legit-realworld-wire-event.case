@@ -1,0 +1,19 @@
+# An `unknown` wire event passes isRecord() and is cast to the protocol type before conversion: a parse-boundary cast, a note at most.
+expect: any-cast@info
+-- old/packages/agent/src/pi/acp-wire.ts --
+export function toNotifications(events: unknown[]): AcpConversationNotification[] {
+  return [];
+}
+-- new/packages/agent/src/pi/acp-wire.ts --
+export function toNotifications(events: unknown[]): AcpConversationNotification[] {
+  return events.map(conversationNotification).filter((n) => n !== null);
+}
+
+function conversationNotification(event: unknown): AcpConversationNotification | null {
+  if (!isRecord(event)) {
+    return null;
+  }
+  return agentConversationEventToAcpNotification(
+    event as unknown as AgentConversationEvent,
+  );
+}

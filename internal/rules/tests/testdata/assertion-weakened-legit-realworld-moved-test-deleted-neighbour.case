@@ -1,0 +1,71 @@
+# Real-world (goose): one test moves up unchanged while the provider-specific
+# test that used to sit there moves to its own file. The diff pairs an
+# assertion of the moved-away test with one of the moved test; they belong
+# to different tests and must not be compared.
+expect: clean
+-- old/crates/goose/src/config/declarative_providers.rs --
+pub struct DeclarativeProviderConfig {
+    pub name: String,
+    pub env_vars: Option<Vec<EnvVar>>,
+    pub dynamic_models: Option<bool>,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_tanzu_json_deserializes() {
+        let config = parse_bundled("tanzu.json");
+        assert_eq!(config.name, "tanzu_ai");
+        assert_eq!(config.dynamic_models, Some(true));
+    }
+
+    #[test]
+    fn test_all_bundled_providers_deserialize() {
+        for file in FIXED_PROVIDERS.files() {
+            assert!(deserialize_provider_config(file.contents_utf8().unwrap()).is_ok());
+        }
+    }
+
+    #[test]
+    fn test_existing_json_files_still_deserialize_without_new_fields() {
+        let config = parse_bundled("groq.json");
+        assert!(config.env_vars.is_none());
+        assert!(config.dynamic_models.is_none());
+    }
+}
+-- new/crates/goose/src/config/declarative_providers.rs --
+pub struct DeclarativeProviderConfig {
+    pub name: String,
+    pub env_vars: Option<Vec<EnvVar>>,
+    pub dynamic_models: Option<bool>,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_existing_json_files_still_deserialize_without_new_fields() {
+        let config = parse_bundled("groq.json");
+        assert!(config.env_vars.is_none());
+        assert!(config.dynamic_models.is_none());
+    }
+
+    #[test]
+    fn test_all_bundled_providers_deserialize() {
+        for file in FIXED_PROVIDERS.files() {
+            assert!(deserialize_provider_config(file.contents_utf8().unwrap()).is_ok());
+        }
+    }
+}
+-- new/crates/goose/tests/tanzu_provider.rs --
+use goose::config::declarative_providers::parse_bundled;
+
+#[test]
+fn test_tanzu_json_deserializes() {
+    let config = parse_bundled("tanzu.json");
+    assert_eq!(config.name, "tanzu_ai");
+    assert_eq!(config.dynamic_models, Some(true));
+}

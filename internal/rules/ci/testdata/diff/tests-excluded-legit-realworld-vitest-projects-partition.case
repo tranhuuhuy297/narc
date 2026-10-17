@@ -1,0 +1,51 @@
+# Engine-dependent tests are excluded from the default vitest project only because three engine projects of the same config include them; they now run once per engine instead of in every project.
+expect: clean
+-- old/packages/workflow/vitest.config.ts --
+import { createVitestConfig } from '@n8n/vitest-config/node';
+
+export default createVitestConfig({
+	include: ['test/**/*.test.ts'],
+	setupFiles: ['./test/setup-vm-evaluator.ts'],
+});
+-- new/packages/workflow/vitest.config.ts --
+import { defineConfig } from 'vitest/config';
+import { createBaseInlineConfig } from '@n8n/vitest-config/node';
+
+// Tests that evaluate expressions, so their outcome depends on the engine.
+const ENGINE_TESTS = [
+	'test/expression.test.ts',
+	'test/expression-extensions/*.test.ts',
+	'test/workflow-data-proxy.test.ts',
+];
+
+const { reporters, outputFile, ...sharedTestConfig } = createBaseInlineConfig({
+	include: ['test/**/*.test.ts'],
+	setupFiles: ['./test/setup-vm-evaluator.ts'],
+});
+
+const engineProject = (engine: 'vm' | 'legacy') => ({
+	test: {
+		...sharedTestConfig,
+		include: ENGINE_TESTS,
+		name: `${engine}-engine`,
+		env: { N8N_EXPRESSION_ENGINE: engine },
+	},
+});
+
+export default defineConfig({
+	test: {
+		reporters,
+		outputFile,
+		projects: [
+			{
+				test: {
+					...sharedTestConfig,
+					exclude: [...(sharedTestConfig.exclude ?? []), ...ENGINE_TESTS],
+					name: 'default',
+				},
+			},
+			engineProject('vm'),
+			engineProject('legacy'),
+		],
+	},
+});

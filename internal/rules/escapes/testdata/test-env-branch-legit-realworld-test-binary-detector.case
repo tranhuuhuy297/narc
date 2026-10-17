@@ -1,0 +1,38 @@
+# A helper whose job is to recognize a Go test binary (to stop a test from re-executing itself) adds the authoritative testing.Testing() signal to its name check: a note at most.
+expect: test-env-branch@info
+-- old/cmd/bd/doctor/fix/common.go --
+package fix
+
+func getBdBinary() (string, error) {
+	exe, err := os.Executable()
+	if err == nil {
+		baseName := filepath.Base(exe)
+		if !strings.HasSuffix(baseName, ".test") && !strings.Contains(baseName, ".test.") {
+			return exe, nil
+		}
+	}
+	return exec.LookPath("bd")
+}
+-- new/cmd/bd/doctor/fix/common.go --
+package fix
+
+import "testing"
+
+func getBdBinary() (string, error) {
+	exe, err := os.Executable()
+	if err == nil && !isTestBinary(exe) {
+		return exe, nil
+	}
+	return exec.LookPath("bd")
+}
+
+// isTestBinary reports whether exe is a Go test binary. testing.Testing() is
+// the authoritative signal; the name check is kept for binaries built by
+// other means.
+func isTestBinary(exe string) bool {
+	if testing.Testing() {
+		return true
+	}
+	baseName := filepath.Base(exe)
+	return strings.HasSuffix(baseName, ".test") || strings.Contains(baseName, ".test.")
+}

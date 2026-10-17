@@ -1,0 +1,31 @@
+# golangci-lint v2 migration: goimports moves to the formatters section, gosimple is part of staticcheck, and typecheck is no longer a linter to enable.
+expect: clean
+-- old/.golangci.yaml --
+linters-settings:
+  goconst:
+    min-len: 4
+linters:
+  disable-all: true
+  enable:
+    - errcheck
+    - goimports
+    - gosimple
+    - govet
+    - staticcheck
+    - typecheck
+    - unused
+-- new/.golangci.yaml --
+version: "2"
+linters:
+  default: none
+  enable:
+    - errcheck
+    - govet
+    - staticcheck
+    - unused
+  settings:
+    goconst:
+      min-len: 4
+formatters:
+  enable:
+    - goimports

@@ -1,0 +1,47 @@
+# Real world (cal.com): a flaky count check became a polled one. Prettier
+# breaks `await expect.poll(...)` across lines, with `expect` alone on its
+# line; the .poll(...).toBe(1) chain is still the test's assertion.
+expect: clean
+-- old/apps/web/playwright/bookings-list.e2e.ts --
+import { expect } from "@playwright/test";
+
+import { test } from "./lib/fixtures";
+
+test.describe("Bookings", () => {
+  test.describe("Team filter", () => {
+    test("Team filter excludes bookings from other teams", async ({ page, users }) => {
+      const owner = await users.create({ hasTeam: true });
+      await owner.apiLogin();
+      await page.goto(`/bookings/upcoming?teamIds=${owner.teamId}`);
+
+      const upcomingBookingsTable = page.locator('[data-testid="upcoming-bookings"]');
+      const bookingListItems = upcomingBookingsTable.locator('[data-testid="booking-item"]');
+      const bookingListCount = await bookingListItems.count();
+
+      expect(bookingListCount).toBe(1);
+    });
+  });
+});
+-- new/apps/web/playwright/bookings-list.e2e.ts --
+import { expect } from "@playwright/test";
+
+import { test } from "./lib/fixtures";
+
+test.describe("Bookings", () => {
+  test.describe("Team filter", () => {
+    test("Team filter excludes bookings from other teams", async ({ page, users }) => {
+      const owner = await users.create({ hasTeam: true });
+      await owner.apiLogin();
+      await page.goto(`/bookings/upcoming?teamIds=${owner.teamId}`);
+
+      const upcomingBookingsTable = page.locator('[data-testid="upcoming-bookings"]');
+      const bookingListItems = upcomingBookingsTable.locator('[data-testid="booking-item"]');
+
+      await expect
+        .poll(async () => {
+          return await bookingListItems.count();
+        })
+        .toBe(1);
+    });
+  });
+});

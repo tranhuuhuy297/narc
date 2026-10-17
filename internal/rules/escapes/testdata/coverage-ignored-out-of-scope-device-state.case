@@ -1,0 +1,14 @@
+# A real device state is handled but excluded from coverage as "out of scope" instead of being tested: the reason admits the branch is untested.
+expect: coverage-ignored@warning
+-- old/homeassistant/components/pool/select.py --
+def _relay_mode(int_value: int) -> str:
+    if int_value == 1:
+        return "auto"
+    return "manual"
+-- new/homeassistant/components/pool/select.py --
+def _relay_mode(int_value: int) -> str:
+    if int_value == 1:
+        return "auto"
+    if int_value == 2:  # pragma: no cover - auto_linked out of scope
+        return "auto_linked"
+    return "manual"

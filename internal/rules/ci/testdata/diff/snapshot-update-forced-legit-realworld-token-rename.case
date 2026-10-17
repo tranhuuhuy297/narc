@@ -1,0 +1,87 @@
+# TokenKind::Name is renamed to Identifier; the lexer snapshots change only by that rename (and insta's assertion_line header).
+expect: clean
+-- old/crates/ruff_python_parser/src/token.rs --
+#[derive(Copy, Clone, PartialEq, Eq, Hash, Debug)]
+pub enum TokenKind {
+    /// Token kind for a name, commonly known as an identifier.
+    Name,
+    /// Token kind for an integer.
+    Int,
+    /// Token kind for a newline.
+    Newline,
+}
+
+impl TokenKind {
+    pub const fn is_name(self) -> bool {
+        matches!(self, TokenKind::Name)
+    }
+}
+-- new/crates/ruff_python_parser/src/token.rs --
+#[derive(Copy, Clone, PartialEq, Eq, Hash, Debug)]
+pub enum TokenKind {
+    /// Token kind for an identifier.
+    Identifier,
+    /// Token kind for an integer.
+    Int,
+    /// Token kind for a newline.
+    Newline,
+}
+
+impl TokenKind {
+    pub const fn is_name(self) -> bool {
+        matches!(self, TokenKind::Identifier)
+    }
+}
+-- old/crates/ruff_python_parser/src/snapshots/ruff_python_parser__lexer__tests__bom_with_offset.snap --
+---
+source: crates/ruff_python_parser/src/lexer.rs
+assertion_line: 1512
+expression: "lex_source_with_offset(source, TextSize::from(7))"
+---
+## Tokens
+```
+[
+    (
+        Name,
+        7..8,
+    ),
+    (
+        Equal,
+        9..10,
+    ),
+    (
+        Int,
+        11..12,
+    ),
+    (
+        Newline,
+        12..12,
+    ),
+]
+```
+-- new/crates/ruff_python_parser/src/snapshots/ruff_python_parser__lexer__tests__bom_with_offset.snap --
+---
+source: crates/ruff_python_parser/src/lexer.rs
+expression: "lex_source_with_offset(source, TextSize::from(7))"
+---
+## Tokens
+```
+[
+    (
+        Identifier,
+        7..8,
+    ),
+    (
+        Equal,
+        9..10,
+    ),
+    (
+        Int,
+        11..12,
+    ),
+    (
+        Newline,
+        12..12,
+    ),
+]
+```

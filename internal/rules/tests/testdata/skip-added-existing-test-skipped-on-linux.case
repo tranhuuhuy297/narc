@@ -1,0 +1,34 @@
+# An existing test is now skipped exactly where CI runs (Linux), with a
+# reason that admits it fails there: an environment gate, but one that hides
+# a failure from CI. Reported as a warning, not a note.
+expect: skip-added@warning
+-- old/internal/watch/watch_test.go --
+package watch
+
+import "testing"
+
+func TestWatcherReportsRename(t *testing.T) {
+	w := newTestWatcher(t)
+	rename(t, w.Dir, "a.txt", "b.txt")
+	if ev := w.Next(t); ev.Op != OpRename {
+		t.Fatalf("op = %v, want rename", ev.Op)
+	}
+}
+-- new/internal/watch/watch_test.go --
+package watch
+
+import (
+	"runtime"
+	"testing"
+)
+
+func TestWatcherReportsRename(t *testing.T) {
+	if runtime.GOOS == "linux" {
+		t.Skip("fails on the linux runners, investigate later")
+	}
+	w := newTestWatcher(t)
+	rename(t, w.Dir, "a.txt", "b.txt")
+	if ev := w.Next(t); ev.Op != OpRename {
+		t.Fatalf("op = %v, want rename", ev.Op)
+	}
+}

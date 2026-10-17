@@ -1,0 +1,19 @@
+# A generic field-by-field validator returns Record<string, unknown> after checking every key against the defaults; its result is cast to the config type. A note at most.
+expect: any-cast@info
+-- old/packages/live/src/memory/config.ts --
+export function resolveMemoryConfig(raw: unknown, configPath: string): MemoryConfig {
+  return { ...DEFAULT_MEMORY_CONFIG };
+}
+-- new/packages/live/src/memory/config.ts --
+export function resolveMemoryConfig(raw: unknown, configPath: string): MemoryConfig {
+  const config = mergeMemoryConfig(
+    DEFAULT_MEMORY_CONFIG as unknown as Record<string, unknown>,
+    raw,
+    '',
+    configPath,
+  ) as unknown as MemoryConfig;
+  if (!/^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$/u.test(config.defaultId)) {
+    throw new Error('memory.defaultId must be a safe library id');
+  }
+  return config;
+}

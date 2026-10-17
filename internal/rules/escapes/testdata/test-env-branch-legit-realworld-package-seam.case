@@ -1,0 +1,22 @@
+# A documented package-level seam: off inside test binaries so in-process tests do not weaken the fairness assertions of tests that spawn subprocesses; the marker's own tests switch it back on. A note at most.
+expect: test-env-branch@info
+-- old/cmd/bd/workspace_gate.go --
+package main
+
+func advertiseSharedHold(env []string) []string {
+	return append(env, sharedHoldMarker+"="+strconv.Itoa(os.Getpid()))
+}
+-- new/cmd/bd/workspace_gate.go --
+package main
+
+// advertiseSharedHoldEnabled is off inside test binaries: a marker naming the
+// (live) test process would let spawned children skip the queue and weaken
+// their fairness assertions. Tests of the marker itself turn it on.
+var advertiseSharedHoldEnabled = !testing.Testing()
+
+func advertiseSharedHold(env []string) []string {
+	if !advertiseSharedHoldEnabled {
+		return env
+	}
+	return append(env, sharedHoldMarker+"="+strconv.Itoa(os.Getpid()))
+}

@@ -1,0 +1,45 @@
+# Real-world (coder): a new SSRF regression test needs a second loopback
+# address and skips, with a reason, when the platform cannot bind it.
+expect: clean
+-- old/coderd/mcp_test.go --
+package coderd_test
+
+import "testing"
+
+func TestMCPServerConfigsOAuth2AutoDiscovery(t *testing.T) {
+	t.Parallel()
+	srv := newAuthServer(t)
+	cfg := createMCPConfig(t, srv.URL)
+	if cfg.OAuth2AuthURL == "" {
+		t.Fatal("expected discovered auth URL")
+	}
+}
+-- new/coderd/mcp_test.go --
+package coderd_test
+
+import (
+	"net"
+	"testing"
+)
+
+func TestMCPServerConfigsOAuth2AutoDiscovery(t *testing.T) {
+	t.Parallel()
+	srv := newAuthServer(t)
+	cfg := createMCPConfig(t, srv.URL)
+	if cfg.OAuth2AuthURL == "" {
+		t.Fatal("expected discovered auth URL")
+	}
+}
+
+func TestMCPServerConfigsOAuth2AutoDiscoverySSRF(t *testing.T) {
+	t.Parallel()
+	ln, err := net.Listen("tcp", "127.0.0.2:0")
+	if err != nil {
+		t.Skipf("cannot bind 127.0.0.2 (loopback aliasing unsupported?): %v", err)
+	}
+	internal := serveMetadata(t, ln)
+	_, err = createMCPConfigErr(t, "http://"+internal.Addr().String())
+	if err == nil || !strings.Contains(err.Error(), "private address") {
+		t.Fatalf("want SSRF rejection, got %v", err)
+	}
+}

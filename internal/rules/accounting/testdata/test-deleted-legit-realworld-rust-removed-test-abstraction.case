@@ -1,0 +1,87 @@
+# Real world (ruff): the PathFold trait and the ReconstructPathFold visitor
+# that only the unit tests used were replaced by a solution walker; the
+# tests of the removed machinery went with it.
+expect: clean
+-- old/crates/ty_python_semantic/src/types/constraints/paths.rs --
+use std::ops::ControlFlow;
+
+pub(crate) trait PathFold {
+    type Break;
+    fn satisfied(&mut self, node: NodeId) -> ControlFlow<Self::Break, NodeId>;
+}
+
+pub(crate) struct PathAssignments {
+    nodes: Vec<NodeId>,
+}
+
+impl PathAssignments {
+    pub(crate) fn visit<F: PathFold>(&mut self, fold: &mut F) -> ControlFlow<F::Break, NodeId> {
+        let mut last = ALWAYS_TRUE;
+        for node in &self.nodes {
+            last = fold.satisfied(*node)?;
+        }
+        ControlFlow::Continue(last)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[derive(Debug, Clone, Copy, PartialEq)]
+    enum PathFoldBreak {
+        Satisfied,
+    }
+
+    struct ReconstructPathFold {
+        break_at: Option<PathFoldBreak>,
+    }
+
+    impl PathFold for ReconstructPathFold {
+        type Break = PathFoldBreak;
+        fn satisfied(&mut self, node: NodeId) -> ControlFlow<PathFoldBreak, NodeId> {
+            match self.break_at {
+                Some(at) => ControlFlow::Break(at),
+                None => ControlFlow::Continue(node),
+            }
+        }
+    }
+
+    #[test]
+    fn path_fold_break_restores_path_assignments() {
+        let mut path = PathAssignments { nodes: vec![NodeId(1), NodeId(2)] };
+        let mut aborting = ReconstructPathFold { break_at: Some(PathFoldBreak::Satisfied) };
+        assert_eq!(path.visit(&mut aborting), ControlFlow::Break(PathFoldBreak::Satisfied));
+        let mut completing = ReconstructPathFold { break_at: None };
+        assert_eq!(path.visit(&mut completing), ControlFlow::Continue(NodeId(2)));
+    }
+
+    #[test]
+    fn path_assignments_keep_source_order() {
+        let path = PathAssignments { nodes: vec![NodeId(2), NodeId(1)] };
+        assert_eq!(path.nodes, vec![NodeId(2), NodeId(1)]);
+    }
+}
+-- new/crates/ty_python_semantic/src/types/constraints/paths.rs --
+pub(crate) struct PathAssignments {
+    nodes: Vec<NodeId>,
+}
+
+impl PathAssignments {
+    pub(crate) fn walk(&self, walker: &mut SolutionWalker) {
+        for node in &self.nodes {
+            walker.push(*node);
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn path_assignments_keep_source_order() {
+        let path = PathAssignments { nodes: vec![NodeId(2), NodeId(1)] };
+        assert_eq!(path.nodes, vec![NodeId(2), NodeId(1)]);
+    }
+}

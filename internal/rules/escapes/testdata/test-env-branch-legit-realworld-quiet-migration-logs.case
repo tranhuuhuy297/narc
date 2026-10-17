@@ -1,0 +1,36 @@
+# "Reduce amount of logs": under go test the migration library gets a no-op logger; migrations still run the same way.
+expect: clean
+-- old/internal/db/connect.go --
+package db
+
+import "github.com/pressly/goose/v3"
+
+func migrate(conn *sql.DB) error {
+	goose.SetBaseFS(FS)
+
+	if err := goose.SetDialect("sqlite3"); err != nil {
+		return err
+	}
+	return goose.Up(conn, "migrations")
+}
+-- new/internal/db/connect.go --
+package db
+
+import (
+	"testing"
+
+	"github.com/pressly/goose/v3"
+)
+
+func migrate(conn *sql.DB) error {
+	goose.SetBaseFS(FS)
+
+	if testing.Testing() {
+		goose.SetLogger(goose.NopLogger())
+	}
+
+	if err := goose.SetDialect("sqlite3"); err != nil {
+		return err
+	}
+	return goose.Up(conn, "migrations")
+}

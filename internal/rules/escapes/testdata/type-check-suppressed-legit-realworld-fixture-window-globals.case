@@ -1,0 +1,20 @@
+# A Playwright fixture reads custom window globals; the file already silences the same globals the same way.
+expect: clean
+-- old/apps/web/playwright/fixtures/embeds.ts --
+export async function waitForEmbed(page: Page) {
+  await page.evaluate(() => {
+    //@ts-ignore
+    return window.eventsFiredStoreForPlaywright;
+  });
+}
+-- new/apps/web/playwright/fixtures/embeds.ts --
+export async function waitForEmbed(page: Page) {
+  await page.evaluate(() => {
+    //@ts-ignore
+    return window.eventsFiredStoreForPlaywright;
+  });
+  await page.waitForFunction(() => {
+    //@ts-ignore
+    return window.iframeReady === true;
+  });
+}

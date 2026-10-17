@@ -25,8 +25,13 @@ var testEnvBranch = &core.Rule{
 		"also the classic way to make a failing test pass without fixing anything.\n\n" +
 		"```ts\n// bad: the test passes, production is still broken\nexport function price(cart: Cart) {\n" +
 		"  if (process.env.NODE_ENV === 'test') return 42\n  return computePrice(cart)\n}\n```\n\n" +
-		"Reported as an error in source files and as a warning in configuration, settings and entry-point files, " +
-		"where environment wiring is expected. Comparisons through a variable count too " +
+		"Reported as an error when the tests get an answer of their own (a test check whose branch returns a value, " +
+		"or picks a literal) or skip real work (`if (env !== \"test\") charge()`); as a warning when it switches off " +
+		"an enforcement or verification path (`enforce = process.env.VITEST !== \"true\"`), and in configuration, " +
+		"settings and entry-point files, where environment wiring is expected; as a note otherwise, and for checks in " +
+		"a helper whose job is detecting the test binary, package-level seams that tests flip, checks that keep the " +
+		"developer's environment (HOME, PATH, inherited variables) out of the tests, and files that already detected " +
+		"tests before the change. Comparisons through a variable count too " +
 		"(`const { NODE_ENV } = process.env; if (NODE_ENV === \"test\")`), as do a `case \"test\":` arm of a switch " +
 		"on the environment and framework flags such as Flask's `app.testing` or a `settings.TESTING` setting. " +
 		"Not reported: test files and test helpers, " +
@@ -35,8 +40,9 @@ var testEnvBranch = &core.Rule{
 		"environment name against every known environment (`[\"development\", \"test\", \"production\"]`), a " +
 		"\"test\" arm that shares its body with another environment, test hooks that refuse to run outside tests " +
 		"(`if !testing.Testing() { panic(...) }`), and checks whose every " +
-		"guarded statement only silences logging or telemetry, skips starting a server, shortens timeouts, or " +
-		"registers test-framework hooks.",
+		"guarded statement only silences logging or telemetry, disables animation (`disableAnimation`, " +
+		"`reduceMotion || MODE === \"test\"`), skips starting a server, shortens timeouts, refuses to run (throws or " +
+		"returns an error), or registers test-framework hooks.",
 }
 
 func init() {
@@ -492,13 +498,15 @@ func checkTestEnvBranch(a *core.Analysis) []core.Finding {
 		if sides[f] == nil {
 			sides[f] = newSide(f)
 		}
-		if benignTestCheck(f, sides[f], o.line.No) {
+		sev, report := judgeTestCheck(f, sides[f], o.line.No)
+		if !report {
 			continue
 		}
 		fd := newFinding(testEnvBranch, f, o.line.No, "production code now behaves differently under tests: it "+o.v.what)
-		if isBootstrap(f.Path) {
-			fd.Severity = core.Warning
+		if isBootstrap(f.Path) && sev > core.Warning {
+			sev = core.Warning
 		}
+		fd.Severity = sev
 		out = append(out, fd)
 	}
 	return out
@@ -521,6 +529,7 @@ var benignRe = regexp.MustCompile(`(?i)\b(?:console\.(?:log|info|debug|warn|erro
 	// `if (typeof afterEach === "function") afterEach(cleanup)`
 	`(?:after|before)(?:Each|All)|expect\.extend|expect\.addSnapshotSerializer|` +
 	`winston|pino|morgan|bunyan|zap|logrus|slog|silent|quiet|verbose|sentry|bugsnag|rollbar|datadog|new_?relic|telemetry|` +
+	`\w*logger\w*|\w*log_?level\w*|nop_?log\w*|` +
 	`analytics|posthog|mixpanel|opentelemetry|otel|tracing|tracer|metrics|prometheus|statsd|uvicorn|listenandserve|` +
 	`process\.exit|timeout|delay|sleep|interval|backoff|debounce|throttle)\b|\.listen\(|\bserve\(|createServer\(`)
 
@@ -540,46 +549,284 @@ var benignPathRe = regexp.MustCompile(`(?i)^(log|logs|logger|logging|telemetry|a
 var flagAssignRe = regexp.MustCompile(`^\s*(?:export\s+)?(?:(?:const|let|var|val|final|static|private|public|protected|readonly|internal)\s+)*` +
 	`(?:[\w<>\[\]?]+\s+)?([A-Za-z_$][\w$]*)\s*(?::\s*[\w<>\[\]?|]+\s*)?(?::=|=)(?:[^=]|$)`)
 
-// benignTestCheck reports whether the test check on line n only controls
-// infrastructure (see benignRe): in a logging or telemetry module, in the
-// branch it guards, or in every use of the flag it is assigned to.
-func benignTestCheck(f *core.FileInfo, s *side, n int) bool {
-	ctx := branchContext(s, n)
-	if testRunnerCallRe.MatchString(ctx) {
-		return true // `devkit test` dispatching to the test runner, not detecting it
+// judgeTestCheck decides how the test check on line n is reported. It is
+// an error when tests get an answer of their own (a positive check whose
+// branch returns a value: `if (isTest) return 4.99`) or skip real work (a
+// negated check around a business call: `if (env !== "test") charge()`),
+// a warning when it switches off an enforcement or verification path, and
+// a note otherwise. It is not reported when all it controls is
+// infrastructure (see benignRe), animation, starting the test runner, or a
+// refusal to run outside tests.
+func judgeTestCheck(f *core.FileInfo, s *side, n int) (core.Severity, bool) {
+	v := s.view(n)
+	if v == nil {
+		return 0, false
 	}
-	if cannedResultRe.MatchString(ctx) {
-		return false // `if (isTest) { log(...); return 4.99 }` returns a test-only answer
+	if testRunnerCallRe.MatchString(branchContext(s, n)) {
+		return 0, false // `devkit test` dispatching to the test runner, not detecting it
 	}
 	stem := strings.SplitN(path.Base(f.Path), ".", 2)[0]
-	if benignPathRe.MatchString(stem) || benignPathRe.MatchString(path.Base(path.Dir(f.Path))) {
-		return true
+	benignFile := benignPathRe.MatchString(stem) || benignPathRe.MatchString(path.Base(path.Dir(f.Path)))
+	sev, report := branchVerdict(f, s, n, negatedCheckRe.MatchString(v.canon), benignFile)
+	if !report {
+		return 0, false
 	}
-	if benignBranch(s, n) {
-		return true
+	if flag, at := checkFlag(s, n); flag != "" {
+		// The flag's own name may say what it controls: RETRY_DELAY_MS, logLevel.
+		if benignRe.MatchString(identWords(flag)) {
+			return 0, false
+		}
+		use := regexp.MustCompile(`(!\s*)?\b` + regexp.QuoteMeta(flag) + `\b`)
+		uses, benignUses, worst := 0, 0, core.Info
+		for _, k := range s.lineNos() {
+			c, ok := s.code(k)
+			if k == n || k == at || !ok {
+				continue
+			}
+			m := use.FindStringSubmatch(c)
+			if m == nil {
+				continue
+			}
+			uses++
+			neg := negatedCheckRe.MatchString(v.canon) != (m[1] != "")
+			us, ur := branchVerdict(f, s, k, neg, benignFile)
+			if !ur {
+				benignUses++
+				continue
+			}
+			worst = max(worst, us)
+		}
+		if uses > 0 && benignUses == uses {
+			return 0, false // every use of the flag is benign
+		}
+		sev = max(sev, worst)
+		if goSeamRe.MatchString(v.canon) || (at > 0 && goSeamRe.MatchString(codeAt(s, at))) {
+			sev = min(sev, core.Info) // a package-level seam that tests flip on purpose
+		}
 	}
-	code, _ := s.code(n)
-	m := flagAssignRe.FindStringSubmatch(code)
-	if m == nil {
+	if sev < core.Warning && enforcementRe.MatchString(branchContext(s, n)) {
+		sev = core.Warning // the guard under test is not the one that ships
+	}
+	if testDetectorFuncRe.MatchString(enclosingFunc(s, n)) {
+		sev = min(sev, core.Info) // a helper whose job is to detect the test binary
+	}
+	if sev < core.Error && oldDetectsTests(f) {
+		sev = min(sev, core.Info) // the file already handled tests this way
+	}
+	return sev, true
+}
+
+// branchVerdict judges what the test check on line k controls; negated
+// means the branch runs outside tests (`if (env !== "test")`).
+func branchVerdict(f *core.FileInfo, s *side, k int, negated, benignFile bool) (core.Severity, bool) {
+	ctx := branchContext(s, k)
+	if refusal(s, k) {
+		return 0, false // a test hook refusing to run outside tests, or a guard refusing to re-exec the test binary
+	}
+	// `if (reduceMotion || MODE === "test")`: real users who ask for
+	// reduced motion get the same branch, so it is no test-only path.
+	shared := false
+	if v := s.view(k); v != nil && !negated {
+		shared = sharedCondition(v.canon)
+	}
+	if !negated && !shared && cannedResult(f, s, k, ctx) {
+		return core.Error, true // `if (isTest) { log(...); return 4.99 }` returns a test-only answer
+	}
+	if benignFile || benignBranch(s, k) || animationNear(s, k) {
+		return 0, false
+	}
+	if ternaryLiteralRe.MatchString(ctx) {
+		return core.Error, true // `NODE_ENV === "test" ? "postgres://localhost/app_test" : url`
+	}
+	if envIsolationRe.MatchString(ctx) {
+		return core.Info, true // keeps the developer's machine (HOME, PATH, inherited env) out of the tests
+	}
+	if negated && skipsWork(s, k) {
+		return core.Error, true // the tests no longer run what production runs
+	}
+	return core.Info, true
+}
+
+// testishOperandRe matches an operand that is itself about the test or
+// CI environment.
+var testishOperandRe = regexp.MustCompile(`(?i)test|\benv\b|\.env\b|getenv|environ|\bci\b|jest|vitest|mocha|pytest|cfg!`)
+
+// sharedCondition reports whether a condition ORs the test check with an
+// operand that is not about tests (`reduceMotion || MODE === "test"`,
+// `instant || isTest`), so production users can take the branch too.
+func sharedCondition(canon string) bool {
+	parts := strings.Split(canon, "||")
+	if len(parts) < 2 {
+		parts = regexp.MustCompile(`\bor\b`).Split(canon, -1)
+	}
+	if len(parts) < 2 {
 		return false
 	}
-	// The flag's own name may say what it controls: RETRY_DELAY_MS, logLevel.
-	if benignRe.MatchString(identWords(m[1])) {
-		return true
-	}
-	use := regexp.MustCompile(`\b` + regexp.QuoteMeta(m[1]) + `\b`)
-	uses := 0
-	for _, k := range s.lineNos() {
-		c, ok := s.code(k)
-		if k == n || !ok || !use.MatchString(c) {
-			continue
+	for _, p := range parts {
+		if strings.TrimSpace(p) != "" && !testishOperandRe.MatchString(p) {
+			return true
 		}
-		if !benignBranch(s, k) {
+	}
+	return false
+}
+
+// refusalRe matches a statement that refuses to go on: it throws, panics,
+// or returns an error value.
+var refusalRe = regexp.MustCompile(`^(?:throw|raise)\b|^panic!?\(|^log\.(?:Fatal|Panic)\w*\(|` +
+	`^return\s+(?:[^,;]+,\s*)*(?:err[A-Z_]\w*|Err[A-Z]\w*|\w+Err\b|errors\.New\(|fmt\.Errorf\(|xerrors\.\w+\(|Err\(|new\s+\w*Error\()`)
+
+// refusal reports whether every statement of the branch line n opens (or
+// the rest of a one-line branch) refuses to go on.
+func refusal(s *side, n int) bool {
+	stmts, ok := branchBody(s, n)
+	if !ok {
+		return false
+	}
+	for _, st := range stmts {
+		if !refusalRe.MatchString(strings.TrimSpace(st)) && !benignRe.MatchString(st) {
 			return false
 		}
-		uses++
 	}
-	return uses > 0
+	return len(stmts) > 0
+}
+
+var (
+	// negatedCheckRe matches a check that is true outside tests.
+	negatedCheckRe = re(`!==?\s*<q>(?:test|testing)<q>|<q>(?:test|testing)<q>\s*!==?|!\s*testing\.Testing\(\)|` +
+		`!\s*cfg!\(|\bnot\s+in\s+sys\.modules\b|\bunless\b|!\s*Rails\.env\.test\?|\bflag\.Lookup\([^)]*\)\s*==\s*nil|^\s*if\s+not\b`)
+	// goSeamRe matches a package-level Go variable initialized from a test
+	// check: `var advertiseEnabled = !testing.Testing()`.
+	goSeamRe = regexp.MustCompile(`^var\s+\w+\s*(?:\w+\s*)?=`)
+	// enforcementRe matches code that enforces or verifies something.
+	enforcementRe = regexp.MustCompile(`(?i)\b\w*(?:enforc|validat|verif|assert|authori[sz]|authenticat|permission|guard|strict|csrf|signature|ratelimit|rate_limit|policy)\w*\b`)
+	// testDetectorFuncRe matches the name of a function whose job is to tell
+	// whether it runs under tests.
+	testDetectorFuncRe = regexp.MustCompile(`(?i)^(?:is|in|running|under|detect)_?\w*tests?(?:_?binary|_?run|_?mode|_?env)?$|test_?binary`)
+	// envIsolationRe matches code that reads the developer's environment:
+	// the home directory, PATH lookups, environment variables.
+	envIsolationRe = regexp.MustCompile(`\bos\.(?:Getenv|LookupEnv|UserHomeDir|Environ)\(|\bhome\.Dir\(|\bexec\.LookPath\(|` +
+		`\bos\.path\.expanduser\(|\bPath\.home\(|\bos\.homedir\(|\bhomedir\(|\bshutil\.which\(`)
+	// animationRe matches UI animation: tests turn it off to avoid timing
+	// flakes and leftover DOM nodes, never to change a result.
+	animationRe = regexp.MustCompile(`(?i)\b\w*(?:animat|transition|motion|framer|spring|keyframe)\w*\b`)
+	// workStmtRe matches a statement that does something: a call or an
+	// assignment (a bare `return`, `break` or literal return does not).
+	workStmtRe = regexp.MustCompile(`[\w$\])]\s*\(|[^=!<>]=[^=>]|\+\+|--`)
+)
+
+// animationNear reports whether the code around line n animates the UI.
+func animationNear(s *side, n int) bool {
+	for k := n - 3; k <= n+12; k++ {
+		if v := s.view(k); v != nil && animationRe.MatchString(v.canon) {
+			return true
+		}
+	}
+	return false
+}
+
+// skipsWork reports whether the branch that line n opens does work that is
+// not infrastructure: what a negated check makes the tests skip.
+func skipsWork(s *side, n int) bool {
+	stmts, ok := branchBody(s, n)
+	if !ok {
+		v := s.view(n)
+		if v == nil {
+			return false
+		}
+		rest := v.canon
+		if i := strings.IndexAny(rest, "{:"); i >= 0 {
+			rest = rest[i+1:]
+		} else if i := strings.LastIndex(rest, ")"); i >= 0 {
+			rest = rest[i+1:]
+		}
+		stmts = []string{rest}
+	}
+	for _, st := range stmts {
+		st = strings.TrimSpace(st)
+		if st == "" || benignRe.MatchString(st) || misuseGuardRe.MatchString(st) {
+			continue
+		}
+		if workStmtRe.MatchString(st) {
+			return true
+		}
+	}
+	return false
+}
+
+// cannedResult reports whether the branch of line n (code ctx) produces an
+// answer: it returns a value (other than nothing, null or false), or picks
+// a literal with a ternary. In Go, `return nil` from a function whose last
+// result is an error reports success.
+func cannedResult(f *core.FileInfo, s *side, n int, ctx string) bool {
+	for _, m := range returnValueRe.FindAllStringSubmatch(ctx, -1) {
+		val := strings.TrimSpace(m[1])
+		if emptyValueReturnRe.MatchString(val) {
+			if f.Lang == lang.Go && strings.HasPrefix(val, "nil") && !strings.Contains(val, ",") {
+				if results, _ := goResults(s, n); len(results) == 1 && results[0] == "error" {
+					return true // the error is gone: callers see success
+				}
+			}
+			continue
+		}
+		return true
+	}
+	return false
+}
+
+var (
+	returnValueRe = regexp.MustCompile(`\breturn\s+([^\s;}][^;}\n]*)`)
+	// emptyValueReturnRe matches values that only switch something off.
+	emptyValueReturnRe = regexp.MustCompile(`^(?:nil|null|None|undefined|false|False|""|''|\[\]|\{\}|0|void 0)\s*[;)]?\s*$|^(?:nil|""|0)(?:\s*,\s*(?:nil|""|0|false))*\s*$`)
+	// ternaryLiteralRe matches a test check choosing a literal value.
+	ternaryLiteralRe = re(`<q>(?:test|testing)<q>\s*\)?\s*\?\s*(?:<q>[^"'\x60]+<q>|-?\d[\d_.]*\b|true\b|\{)`)
+)
+
+// checkFlag returns the variable that line n assigns the test check to,
+// and the line of the assignment (n, or the line above for an assignment
+// whose value starts on the next line).
+func checkFlag(s *side, n int) (string, int) {
+	code, _ := s.code(n)
+	if m := flagAssignRe.FindStringSubmatch(code); m != nil {
+		return m[1], n
+	}
+	p := prevCode(s, n)
+	if p == 0 {
+		return "", 0
+	}
+	pc, _ := s.code(p)
+	if !strings.HasSuffix(strings.TrimSpace(pc), "=") {
+		return "", 0
+	}
+	if m := flagAssignRe.FindStringSubmatch(pc); m != nil {
+		return m[1], p
+	}
+	return "", 0
+}
+
+// codeAt returns the code of line n.
+func codeAt(s *side, n int) string {
+	c, _ := s.code(n)
+	return c
+}
+
+// looseTestCheckRe recognizes test detection in an old file version,
+// including forms the precise checks do not resolve (imported constants,
+// test binary names).
+var looseTestCheckRe = re(`\btesting\.Testing\(\)|\bflag\.Lookup\(\s*<q>test\.|<q>\.test<q>|\b(?:` + envNames + `|MODE)\b\s*[!=]==?\s*<q>(?:test|testing)<q>|` +
+	`\b(?:` + testVars + `)\b|<q>(?:pytest|unittest)<q>\s+(?:not\s+)?in\s+sys\.modules|\bRails\.env\.test\?`)
+
+// oldDetectsTests reports whether the old version of f (or the file it was
+// renamed from) already detected tests.
+func oldDetectsTests(f *core.FileInfo) bool {
+	if !f.HasOld() {
+		return false
+	}
+	for _, l := range f.OldLines() {
+		if looseTestCheckRe.MatchString(l.NoComment) {
+			return true
+		}
+	}
+	return false
 }
 
 // benignBranch reports whether what line n controls is only infrastructure

@@ -1,0 +1,39 @@
+# Real-world (cal.com): a new test for URL prefill of a JSON-string name is
+# added already as test.skip with "TODO: Fix this behaviour later". No
+# existing test was disabled, but the author knows the behaviour is broken
+# in the same change that touches prefill: a warning.
+expect: skip-added@warning
+-- old/packages/features/bookings/lib/getBookingResponsesSchema.test.ts --
+import { describe, expect, test } from "vitest";
+
+import getBookingResponsesSchema from "./getBookingResponsesSchema";
+
+describe("getBookingResponsesSchema", () => {
+  test("`firstAndLastName` variant to `fullName` when passed as a string", async () => {
+    const schema = getBookingResponsesSchema({ bookingFields: nameAndEmailFields, view: "ALL_VIEWS" });
+    const parsed = await schema.safeParseAsync({ name: "John Doe", email: "john@example.com" });
+    expect(parsed.success).toBe(true);
+  });
+});
+-- new/packages/features/bookings/lib/getBookingResponsesSchema.test.ts --
+import { describe, expect, test } from "vitest";
+
+import getBookingResponsesSchema from "./getBookingResponsesSchema";
+
+describe("getBookingResponsesSchema", () => {
+  test("`firstAndLastName` variant to `fullName` when passed as a string", async () => {
+    const schema = getBookingResponsesSchema({ bookingFields: nameAndEmailFields, view: "ALL_VIEWS" });
+    const parsed = await schema.safeParseAsync({ name: "John Doe", email: "john@example.com" });
+    expect(parsed.success).toBe(true);
+  });
+
+  // TODO: Fix this behaviour later
+  test.skip("`firstAndLastName` variant to `fullName` when passed as JSON string from URL prefill", async () => {
+    const schema = getBookingResponsesSchema({ bookingFields: nameAndEmailFields, view: "ALL_VIEWS" });
+    const parsed = await schema.safeParseAsync({
+      name: JSON.stringify({ firstName: "John", lastName: "Doe" }),
+      email: "john@example.com",
+    });
+    expect(parsed.data?.name).toEqual({ firstName: "John", lastName: "Doe" });
+  });
+});

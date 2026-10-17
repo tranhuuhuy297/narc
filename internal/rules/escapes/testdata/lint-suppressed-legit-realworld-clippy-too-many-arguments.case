@@ -1,0 +1,68 @@
+# A recursive helper split out of a tree walker takes the walker's state as arguments; clippy::too_many_arguments is a complexity lint, and the parent function already carries the same allow.
+expect: lint-suppressed@info
+-- old/crates/platform-macos/src/ax/tree.rs --
+use std::collections::HashSet;
+
+#[allow(clippy::too_many_arguments)]
+unsafe fn walk_element(
+    element: AXUIElementRef,
+    depth: usize,
+    parent_index: Option<usize>,
+    visited: &mut HashSet<AXIdentity>,
+    nodes: &mut Vec<AXNode>,
+    lines: &mut Vec<(usize, String)>,
+    max_elements: usize,
+    max_depth: usize,
+) {
+    if depth > max_depth || nodes.len() >= max_elements {
+        return;
+    }
+    let index = nodes.len();
+    nodes.push(AXNode::from_element(element, parent_index));
+    lines.push((depth, describe(element)));
+    for child in children(element) {
+        if visited.insert(identity(child)) {
+            walk_element(child, depth + 1, Some(index), visited, nodes, lines, max_elements, max_depth);
+        }
+    }
+}
+-- new/crates/platform-macos/src/ax/tree.rs --
+use std::collections::HashSet;
+
+#[allow(clippy::too_many_arguments)]
+unsafe fn walk_element(
+    element: AXUIElementRef,
+    depth: usize,
+    parent_index: Option<usize>,
+    visited: &mut HashSet<AXIdentity>,
+    nodes: &mut Vec<AXNode>,
+    lines: &mut Vec<(usize, String)>,
+    max_elements: usize,
+    max_depth: usize,
+) {
+    if depth > max_depth || nodes.len() >= max_elements {
+        return;
+    }
+    let index = nodes.len();
+    nodes.push(AXNode::from_element(element, parent_index));
+    lines.push((depth, describe(element)));
+    walk_element_contents(element, depth, index, visited, nodes, lines, max_elements, max_depth);
+}
+
+#[allow(clippy::too_many_arguments)]
+unsafe fn walk_element_contents(
+    element: AXUIElementRef,
+    depth: usize,
+    index: usize,
+    visited: &mut HashSet<AXIdentity>,
+    nodes: &mut Vec<AXNode>,
+    lines: &mut Vec<(usize, String)>,
+    max_elements: usize,
+    max_depth: usize,
+) {
+    for child in children(element) {
+        if visited.insert(identity(child)) {
+            walk_element(child, depth + 1, Some(index), visited, nodes, lines, max_elements, max_depth);
+        }
+    }
+}

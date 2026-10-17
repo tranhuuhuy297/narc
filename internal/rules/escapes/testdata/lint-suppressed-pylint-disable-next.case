@@ -1,0 +1,12 @@
+# A pylint disable-next silences a broad except on new code; it covers the next line only, but still hides the catch-all the checker reports.
+expect: lint-suppressed@warning
+-- old/app/sync/worker.py --
+def sync_account(account):
+    client.push(account.changes())
+-- new/app/sync/worker.py --
+def sync_account(account):
+    try:
+        client.push(account.changes())
+    # pylint: disable-next=broad-exception-caught
+    except Exception:
+        log.exception("sync failed for %s", account.id)

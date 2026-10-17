@@ -1,0 +1,21 @@
+# react-query: the mutation's onError already shows the failure, so the form's submit handler only stops mutateAsync's duplicate rejection from going unhandled.
+expect: clean
+-- new/static/admin/components/policies/policyFormModal.tsx --
+export function PolicyFormModal({policySlug, onClose}: Props) {
+  const mutation = useMutation({
+    mutationFn: (data: PolicyPayload) => fetchMutation({url: getApiUrl('/policies/'), method: 'POST', data}),
+    onSuccess: () => onClose(),
+    onError: (error: RequestError) => {
+      addErrorMessage(error.responseJSON?.detail ?? 'Unable to save the policy.');
+    },
+  });
+  const form = useScrapsForm({
+    defaultValues: {name: '', slug: ''},
+    onSubmit: ({value}) => {
+      return mutation
+        .mutateAsync({name: value.name, slug: value.slug})
+        .catch(() => {});
+    },
+  });
+  return <form.AppForm form={form} />;
+}

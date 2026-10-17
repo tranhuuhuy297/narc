@@ -1,0 +1,31 @@
+# Real-world (qwen-code): a brand-new JUnit test guards on a filesystem
+# capability with assumeTrue(). An assumption is a precondition of a new
+# test, not an existing test being switched off.
+expect: clean
+-- new/packages/sdk-java/managed-agent-server/src/test/java/com/acme/managedagent/service/ChildWorktreeGitTest.java --
+package com.acme.managedagent.service;
+
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assumptions.assumeTrue;
+
+import java.nio.file.Files;
+import java.nio.file.Path;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
+
+class ChildWorktreeGitTest {
+    @TempDir Path tmp;
+
+    @Test
+    void anFsmonitorTheRepositoryNamesNeverRuns() throws Exception {
+        Path marker = tmp.resolve("ran");
+        Path monitor = tmp.resolve("monitor.sh");
+        Files.writeString(monitor, "#!/bin/sh\ntouch " + marker + "\n");
+        assumeTrue(monitor.toFile().setExecutable(true));
+
+        ChildWorktreeGit git = ChildWorktreeGit.open(initRepo(tmp, "core.fsmonitor", monitor.toString()));
+        git.status();
+
+        assertFalse(Files.exists(marker));
+    }
+}

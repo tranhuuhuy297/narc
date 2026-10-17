@@ -39,9 +39,14 @@ var failureIgnored = &core.Rule{
 		"pipeline exits with the last command's status.\n\n" +
 		"Not reported: autofixer runs (`eslint --fix . || true`), a warm-up run that the same job repeats " +
 		"without suppression (`mypy --install-types --non-interactive || true` then `mypy src`), test-report " +
-		"steps when the test step itself still fails the job, and jobs or steps whose name says they are " +
-		"advisory, optional or non-blocking. A comment saying so only lowers the finding to a warning. A key " +
-		"set in a YAML anchor or GitLab template is judged by the jobs that use it.",
+		"steps when the test step itself still fails the job, steps that report, summarize, upload, cache or " +
+		"collect telemetry (`CI analytics summary`, `Restore verify Maven repo`), and jobs or steps whose name " +
+		"says they are advisory, optional, shadow or non-blocking. A comment saying so only lowers the finding " +
+		"to a warning. A key set in a YAML anchor or GitLab template is judged by the jobs that use it.\n\n" +
+		"Info: `continue-on-error` on a job or step that the change adds, running checks it does not remove " +
+		"elsewhere: a new non-blocking check never gated the pipeline. When a later step reads the step's " +
+		"outcome (`steps.<id>.outcome`), the finding is a warning that names that line, so a reviewer can " +
+		"judge the replacement.",
 }
 
 func init() {
@@ -1129,6 +1134,41 @@ type blockInfo struct {
 	// reporterOnly marks a step that only publishes test results while
 	// another step of the job runs the tests and still fails the job.
 	reporterOnly bool
+	// storage marks a step that uses a cache or artifact action.
+	storage bool
+	// stepID is the step's `id:`, through which later steps can read its
+	// outcome.
+	stepID string
+}
+
+// reportingWords are words in step and job names that describe producing
+// output about a run rather than checking the code: reports, summaries,
+// telemetry, uploads, restored caches.
+var reportingWords = map[string]bool{
+	"report": true, "reports": true, "summary": true, "summarize": true, "comment": true, "annotate": true,
+	"annotations": true, "analytics": true, "metrics": true, "telemetry": true, "upload": true, "notify": true,
+	"badge": true, "restore": true, "cache": true, "save": true, "stats": true, "timing": true, "timings": true,
+}
+
+// reportingName reports whether a step or job name describes reporting.
+func reportingName(name string) bool {
+	for _, w := range nameWords(name) {
+		if reportingWords[w] {
+			return true
+		}
+	}
+	return false
+}
+
+// isStorageAction reports whether uses names a cache or artifact action.
+func isStorageAction(uses string) bool {
+	u := strings.ToLower(strings.TrimSpace(uses))
+	for _, a := range storageActions {
+		if strings.HasPrefix(u, a) {
+			return true
+		}
+	}
+	return false
 }
 
 // inspectBlock looks at the job/step (lines start..end) around a YAML key.
@@ -1139,6 +1179,7 @@ func inspectBlock(f *core.FileInfo, s side, line, start, end int) blockInfo {
 			bi.checks = append(bi.checks, checksIn(c.Text)...)
 		}
 	}
+	keyIndent := indentOfLine(s, start)
 	for n := start; n <= end; n++ {
 		l, ok := s.get(n)
 		if !ok {
@@ -1149,9 +1190,16 @@ func inspectBlock(f *core.FileInfo, s side, line, start, end int) blockInfo {
 			continue
 		}
 		switch normKey(nd.Key) {
+		case "id":
+			if nd.Indent == keyIndent && bi.stepID == "" {
+				bi.stepID = strings.Trim(nd.Value, `"'`)
+			}
 		case "uses", "task":
 			if isVerificationAction(nd.Value) {
 				bi.actions = append(bi.actions, nd.Value)
+			}
+			if isStorageAction(nd.Value) {
+				bi.storage = true
 			}
 		case "image", "toolchain", "python-version", "node-version", "go-version", "java-version", "rust",
 			"python", "node-js", "rvm", "php", "jdk", "go", "version", "channel":
@@ -1186,6 +1234,19 @@ func inspectBlock(f *core.FileInfo, s side, line, start, end int) blockInfo {
 	}
 	if _, ok := verificationName(name); ok {
 		bi.namedVerify = true
+	}
+	if reportingName(name) {
+		// "Report test growth", "CI analytics summary": a script named
+		// like a check that the step runs to produce a report is not the
+		// check; real test runners and linters still count.
+		bi.namedVerify = false
+		var keep []check
+		for _, c := range bi.checks {
+			if c.Eco != ecoAny {
+				keep = append(keep, c)
+			}
+		}
+		bi.checks = keep
 	}
 	if prereleaseRe.MatchString(job) || prereleaseRe.MatchString(step) {
 		bi.prerelease = true
@@ -1288,12 +1349,19 @@ func indentOfLine(s side, n int) int {
 func yamlFailureKeys(a *core.Analysis) []core.Finding {
 	var files []*core.FileInfo
 	removed, removedAllow := multiset{}, multiset{}
+	removedTools := map[string]bool{} // checks whose commands the change removes
 	for _, f := range a.Files {
 		// CI pipelines, and Taskfiles (go-task's `ignore_error: true`)
 		if k := kindOf(f); k != kindCIYAML && !(k == kindTaskYAML && f.Config != core.CfgPreCommit) {
 			continue
 		}
 		files = append(files, f)
+		_, rem := changedCommands(f)
+		for _, c := range rem {
+			for _, ch := range checksIn(c.Text) {
+				removedTools[ch.Tool] = true
+			}
+		}
 		old := oldSide(f)
 		for _, l := range f.Removed {
 			if m := failureKeyRe.FindStringSubmatch(l.NoComment); m != nil {
@@ -1306,6 +1374,7 @@ func yamlFailureKeys(a *core.Analysis) []core.Finding {
 	var out []core.Finding
 	for _, f := range files {
 		s := newSide(f)
+		addSet := lineSet(f.Added)
 		for _, l := range f.Added {
 			if fd, ok := allowFailuresEntry(f, s, l); ok {
 				if !removedAllow.take(rulekit.Normalize(l.NoComment)) {
@@ -1340,22 +1409,50 @@ func yamlFailureKeys(a *core.Analysis) []core.Finding {
 			if key == "allow_failure" && strings.TrimSpace(m[2]) == "" {
 				setting = "allow_failure: exit_codes: [" + strings.Join(allowedExitCodes(s, l.No, ""), ", ") + "]"
 			}
-			if len(bi.checks) > 0 || len(bi.actions) > 0 {
-				what := toolNames(bi.checks)
-				if what == "" {
-					what = strings.Join(bi.actions, ", ")
+			start, end := yamlBlock(s, l.No)
+			// A job or step that the change adds, running checks the change
+			// does not remove elsewhere, was never a gate: making it
+			// non-blocking from the start relaxes nothing that ran before.
+			fresh := blockAdded(s, start, end, addSet)
+			for _, c := range bi.checks {
+				if removedTools[c.Tool] {
+					fresh = false // it replaces a removed gate
 				}
+			}
+			what := toolNames(bi.checks)
+			if what == "" {
+				what = strings.Join(bi.actions, ", ")
+			}
+			if fresh {
+				runs := ""
+				if what != "" {
+					runs = " (runs " + what + ")"
+				}
+				out = append(out, sevFinding(failureIgnored, f, l.No, core.Info,
+					fmt.Sprintf("`%s` on %s%s, which this change adds: the new check starts out non-blocking, so its failures will not fail the pipeline", setting, where, runs)))
+				continue
+			}
+			reader := outcomeReader(s, start, end, bi.stepID)
+			readNote := ""
+			if reader > 0 {
+				readNote = fmt.Sprintf(" (line %d reads its outcome: make sure that replacement still fails the pipeline, on pushes and fork pull requests too)", reader)
+			}
+			if len(bi.checks) > 0 || len(bi.actions) > 0 {
 				fd := failureIgnored.Finding(f, l.No,
 					fmt.Sprintf("`%s` on %s, which runs %s: the pipeline stays green when it fails", setting, where, what))
 				if byComment {
 					fd.Severity = core.Warning
 					fd.Message += nonBlockingNote
 				}
+				if reader > 0 {
+					fd.Severity = core.Warning
+					fd.Message += readNote
+				}
 				out = append(out, fd)
 				continue
 			}
 			out = append(out, sevFinding(failureIgnored, f, l.No, core.Warning,
-				fmt.Sprintf("`%s` on %s: its name says it verifies the code, so its failures would no longer fail the pipeline", setting, where)))
+				fmt.Sprintf("`%s` on %s: its name says it verifies the code, so its failures would no longer fail the pipeline%s", setting, where, readNote)))
 		}
 	}
 	return out
@@ -1377,7 +1474,46 @@ func failureKeyBlock(f *core.FileInfo, s side, n int) (blockInfo, bool) {
 		bi.reporterOnly = true
 	}
 	addTemplateUsers(f, s, start, &bi)
-	return bi, len(bi.checks) > 0 || len(bi.actions) > 0 || bi.namedVerify
+	return bi, len(bi.checks) > 0 || len(bi.actions) > 0 || bi.namedVerify && !bi.storage
+}
+
+// blockAdded reports whether every non-blank line from start to end is an
+// added line: the job or step is new in this change.
+func blockAdded(s side, start, end int, addSet map[int]bool) bool {
+	for n := start; n <= end; n++ {
+		l, ok := s.get(n)
+		if !ok || strings.TrimSpace(l.Raw) == "" || strings.TrimSpace(l.NoComment) == "" {
+			continue
+		}
+		if !addSet[n] {
+			return false
+		}
+	}
+	return true
+}
+
+// outcomeReader returns the first line outside start..end that reads the
+// outcome of step id (steps.<id>.outcome / .conclusion), or 0.
+func outcomeReader(s side, start, end int, id string) int {
+	if id == "" {
+		return 0
+	}
+	needles := []string{"steps." + id + ".outcome", "steps." + id + ".conclusion"}
+	for n := 1; n <= len(s.lines); n++ {
+		if n >= start && n <= end {
+			continue
+		}
+		l, ok := s.get(n)
+		if !ok {
+			continue
+		}
+		for _, nd := range needles {
+			if strings.Contains(l.NoComment, nd) {
+				return n
+			}
+		}
+	}
+	return 0
 }
 
 // ignoresFailure interprets the value of a failure key.

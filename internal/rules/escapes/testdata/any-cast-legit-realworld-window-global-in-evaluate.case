@@ -1,0 +1,25 @@
+# Inside page.evaluate, a custom global the replayer pushed onto the page is read through window: the window type has nothing to verify.
+expect: clean
+-- old/nodejs/src/session-replay/capture/player.ts --
+export class Player {
+    async readNavigation(): Promise<NavigationSample[]> {
+        return []
+    }
+}
+-- new/nodejs/src/session-replay/capture/player.ts --
+export class Player {
+    async readNavigation(): Promise<NavigationSample[]> {
+        return this.readPageArray<NavigationSample>(PLAYER_NAVIGATION_KEY)
+    }
+
+    private async readPageArray<T>(key: string): Promise<T[]> {
+        try {
+            return await this.capturePage.page.evaluate(
+                (windowKey: string) => (window as unknown as Record<string, T[]>)[windowKey] ?? [],
+                key
+            )
+        } catch {
+            return []
+        }
+    }
+}

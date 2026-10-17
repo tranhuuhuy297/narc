@@ -1,0 +1,24 @@
+# Cloud catalog JSON narrowed by isRecord() to Record<string, unknown> is cast to the domain type at the parse boundary: routine, a note at most.
+expect: any-cast@info
+-- old/src/api/settings-service/settings-service.api.ts --
+export async function patchCloudMcpServers(patch: Record<string, MCPServerPatch>) {
+  const catalog = readCloudMcpCatalog(await fetchCloudSettings());
+  return saveCloudSettings({ mcp_servers: { ...catalog, ...patch } });
+}
+-- new/src/api/settings-service/settings-service.api.ts --
+export async function patchCloudMcpServers(patch: Record<string, MCPServerPatch>) {
+  const catalog = readCloudMcpCatalog(await fetchCloudSettings());
+  const next: Record<string, unknown> = { ...catalog };
+  for (const [key, entry] of Object.entries(patch)) {
+    const stored = catalog[key];
+    if (!isRecord(stored) || !isRecord(entry)) {
+      next[key] = entry;
+      continue;
+    }
+    next[key] = applyMcpServerPatch(
+      stored as unknown as MCPServer,
+      entry as MCPServerPatch,
+    );
+  }
+  return saveCloudSettings({ mcp_servers: next });
+}

@@ -1,0 +1,23 @@
+# A write queue: each write waits for the previous one; the catch only keeps one failed write from poisoning the chain, and every caller still gets its own write's rejection.
+expect: clean
+-- old/src/background/bridge.js --
+export function createSessionStore() {
+  return {
+    write(key, value) {
+      return chrome.storage.session.set({ [key]: value });
+    },
+  };
+}
+-- new/src/background/bridge.js --
+export function createSessionStore() {
+  let persistence = Promise.resolve();
+  return {
+    write(key, value) {
+      const operation = persistence
+        .catch(() => undefined)
+        .then(() => chrome.storage.session.set({ [key]: value }));
+      persistence = operation;
+      return operation;
+    },
+  };
+}

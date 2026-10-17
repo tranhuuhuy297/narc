@@ -1,0 +1,31 @@
+# Real-world (cal.com): a new scaffolding file has a "Future Implementation
+# Tests" block of TODO-named tests that each hold expect(true).toBe(true) //
+# Placeholder. They are honest stubs (it.todo would be better): one note for
+# the file, not an error per test.
+expect: tautology@info
+-- new/packages/features/webhooks/lib/service/__tests__/WebhookTaskConsumer.test.ts --
+import { describe, expect, it, vi } from "vitest";
+
+import { WebhookTaskConsumer } from "../WebhookTaskConsumer";
+
+describe("WebhookTaskConsumer", () => {
+  it("skips tasks whose subscriber was deleted", async () => {
+    const repo = { findSubscriber: vi.fn().mockResolvedValue(null) };
+    const consumer = new WebhookTaskConsumer(repo as never);
+    await expect(consumer.processTask({ subscriberId: 7 } as never)).resolves.toEqual({ skipped: true });
+  });
+
+  describe("Future Implementation Tests", () => {
+    it("TODO [When WebhookTaskConsumer.fetchBookingData() is implemented]: Test full booking data fetching", () => {
+      expect(true).toBe(true); // Placeholder
+    });
+
+    it("TODO [When PayloadBuilders are integrated into sendWebhooksToSubscribers()]: Test payload building", () => {
+      expect(true).toBe(true); // Placeholder
+    });
+
+    it("TODO [When sendWebhooksToSubscribers() makes HTTP calls]: Test HTTP delivery", () => {
+      expect(true).toBe(true); // Placeholder
+    });
+  });
+});

@@ -107,7 +107,9 @@ func chained(f *core.FileInfo, l core.Line, v version) core.Line {
 		return l
 	}
 	parts := []lang.LexedLine{l.LexedLine}
-	depth := bracketDepth(l.Code)
+	// How many brackets opened above the line closes: `).toBe(` closes one
+	// and opens the matcher's own, whose arguments continue below.
+	depth := minDepth(l.Code)
 	for k := l.No - 1; k >= 1 && k >= l.No-maxChain; k-- {
 		prev, ok := v.line(f, k)
 		if !ok {
@@ -131,6 +133,23 @@ func continuesChain(code string) bool {
 	t := strings.TrimLeft(code, " \t")
 	t = strings.TrimLeft(t, ")]}")
 	return strings.HasPrefix(t, ".") && !strings.HasPrefix(t, "..") || strings.HasPrefix(t, "->")
+}
+
+// minDepth returns the lowest bracket depth reached while reading code
+// from its start (0 or negative): how many brackets opened before it code
+// closes.
+func minDepth(code string) int {
+	d, low := 0, 0
+	for i := 0; i < len(code); i++ {
+		switch code[i] {
+		case '(', '[', '{':
+			d++
+		case ')', ']', '}':
+			d--
+			low = min(low, d)
+		}
+	}
+	return low
 }
 
 // bracketDepth returns the number of brackets that code opens minus the
@@ -1067,6 +1086,14 @@ func boolCheck(e expr) (strength, []expr) {
 			return best, subjects
 		}
 	}
+	if parts := splitOp(e.raw, " == "); len(parts) > 2 && !strings.ContainsAny(e.raw, "<>!") && !strings.Contains(e.raw, " or ") {
+		// Python's chained comparison: first.status == second.status == 404
+		var subjects []expr
+		for _, p := range parts {
+			subjects = append(subjects, newExpr(p))
+		}
+		return checksValue, subjects
+	}
 	if lhs, op, rhs, ok := splitCompare(e.raw); ok {
 		l, r := newExpr(lhs), newExpr(rhs)
 		ll, rl := lit(l, lang.Unknown), lit(r, lang.Unknown)
@@ -1102,6 +1129,19 @@ func boolCheck(e expr) (strength, []expr) {
 	if m := equalsCallRe.FindStringSubmatch(e.raw); m != nil {
 		return checksValue, []expr{newExpr(m[1]), newExpr(m[2])}
 	}
+	// A prefix, suffix or substring check compares part of a value:
+	// msg.startswith("Unknown table"), strings.HasPrefix(url, base).
+	if recv, arg, ok := affixCall(e.raw); ok && !vague("startsWith", newExpr(arg)) {
+		return checksValue, []expr{newExpr(recv), newExpr(arg)}
+	}
+	if m := goAffixCallRe.FindStringSubmatchIndex(e.raw); m != nil {
+		if end, ok := closing(e.raw, m[1]-1); !ok || end != len(e.raw)-1 {
+			return checksExist, []expr{e}
+		}
+		if as := splitTop(e.raw[m[1]:len(e.raw)-1], ','); len(as) == 2 && !vague("startsWith", newExpr(as[1])) {
+			return checksValue, []expr{newExpr(as[0]), newExpr(as[1])}
+		}
+	}
 	if m := presenceRe.FindStringSubmatch(e.raw); m != nil {
 		return checksExist, []expr{newExpr(m[1])}
 	}
@@ -1118,10 +1158,42 @@ func boolCheck(e expr) (strength, []expr) {
 }
 
 var (
-	equalsCallRe = regexp.MustCompile(`^(.+)\.(?:equals|Equals|equalsIgnoreCase|contentEquals|isEqual)\((.+)\)$`)
-	presenceRe   = regexp.MustCompile(`^(.+)\.(?:is_ok|is_some|is_err|isPresent|isDefined|is_present|present\?|HasValue|any\?)(?:\(\))?$`)
-	notEmptyRe   = regexp.MustCompile(`^(?:!\s*|not\s+)(.+)\.(?:is_empty|isEmpty|IsEmpty|empty\?|isBlank)(?:\(\))?$`)
+	equalsCallRe  = regexp.MustCompile(`^(.+)\.(?:equals|Equals|equalsIgnoreCase|contentEquals|isEqual)\((.+)\)$`)
+	affixMethodRe = regexp.MustCompile(`\.(?:startswith|startsWith|endswith|endsWith|start_with\?|end_with\?|hasPrefix|hasSuffix)$`)
+	goAffixCallRe = regexp.MustCompile(`^strings\.(?:HasPrefix|HasSuffix)\(`)
+	presenceRe    = regexp.MustCompile(`^(.+)\.(?:is_ok|is_some|is_err|isPresent|isDefined|is_present|present\?|HasValue|any\?)(?:\(\))?$`)
+	notEmptyRe    = regexp.MustCompile(`^(?:!\s*|not\s+)(.+)\.(?:is_empty|isEmpty|IsEmpty|empty\?|isBlank)(?:\(\))?$`)
 )
+
+// affixCall splits an expression that is, as a whole, a prefix or suffix
+// check: `msg.startswith("Unknown")` → msg, "Unknown". A check nested in a
+// callback (`lines.some((l) => l.startsWith(p))`) is not one.
+func affixCall(s string) (recv, arg string, ok bool) {
+	if !strings.HasSuffix(s, ")") {
+		return "", "", false
+	}
+	// Find the "(" that the final ")" closes.
+	depth, open := 0, -1
+	for i := len(s) - 1; i >= 0 && open < 0; i-- {
+		switch s[i] {
+		case ')', ']', '}':
+			depth++
+		case '(', '[', '{':
+			depth--
+		}
+		if depth == 0 {
+			open = i
+		}
+	}
+	if open <= 0 || s[open] != '(' {
+		return "", "", false
+	}
+	m := affixMethodRe.FindStringIndex(s[:open])
+	if m == nil || m[0] == 0 {
+		return "", "", false
+	}
+	return s[:m[0]], s[open+1 : len(s)-1], true
+}
 
 // constraintCalls handles NUnit Assert.That(actual, constraint) and
 // hamcrest-style assertThat(actual, matcher) written as a static call.

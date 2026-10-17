@@ -1,0 +1,71 @@
+# Real world (mastra): the quiet shell preview became one shared box for
+# every call, so the per-command streaming test was replaced, in the same
+# hunk, by a test of the shared preview with more assertions.
+expect: clean
+-- old/mastracode/tui/src/tui/components/tool-execution-enhanced.ts --
+export class ToolExecutionComponentEnhanced {
+  private lines: string[] = [];
+
+  constructor(private readonly options: { quietPreviewLineLimit: number }) {}
+
+  appendStreamingOutput(chunk: string): void {
+    this.lines.push(...chunk.split('\n').filter(Boolean));
+  }
+
+  render(): string[] {
+    return this.lines.slice(-this.options.quietPreviewLineLimit);
+  }
+}
+-- new/mastracode/tui/src/tui/components/tool-execution-enhanced.ts --
+export class ToolExecutionComponentEnhanced {
+  private static shared: string[] = [];
+
+  constructor(private readonly options: { quietPreviewLineLimit: number }) {}
+
+  appendStreamingOutput(chunk: string): void {
+    ToolExecutionComponentEnhanced.shared.push(...chunk.split('\n').filter(Boolean));
+  }
+
+  render(): string[] {
+    const box = ToolExecutionComponentEnhanced.shared.slice(-this.options.quietPreviewLineLimit);
+    return ['┌ shell', ...box.map((line) => `│ ${line}`), '└'];
+  }
+}
+-- old/mastracode/tui/src/tui/components/__tests__/tool-execution-enhanced.test.ts --
+import { describe, expect, it } from 'vitest';
+import { ToolExecutionComponentEnhanced } from '../tool-execution-enhanced';
+
+describe('ToolExecutionComponentEnhanced quiet display', () => {
+  it('hides quiet shell output entirely when the preview limit is zero', () => {
+    const component = new ToolExecutionComponentEnhanced({ quietPreviewLineLimit: 0 });
+    component.appendStreamingOutput('one\ntwo\n');
+    expect(component.render()).toEqual([]);
+  });
+
+  it('streams the last N quiet shell output lines while the command is running', () => {
+    const component = new ToolExecutionComponentEnhanced({ quietPreviewLineLimit: 2 });
+    component.appendStreamingOutput('one\ntwo\n');
+    component.appendStreamingOutput('three\n');
+    expect(component.render()).toEqual(['two', 'three']);
+  });
+});
+-- new/mastracode/tui/src/tui/components/__tests__/tool-execution-enhanced.test.ts --
+import { describe, expect, it } from 'vitest';
+import { ToolExecutionComponentEnhanced } from '../tool-execution-enhanced';
+
+describe('ToolExecutionComponentEnhanced quiet display', () => {
+  it('hides quiet shell output entirely when the preview limit is zero', () => {
+    const component = new ToolExecutionComponentEnhanced({ quietPreviewLineLimit: 0 });
+    component.appendStreamingOutput('one\ntwo\n');
+    expect(component.render()).toEqual(['┌ shell', '└']);
+  });
+
+  it('streams the latest output of any call in the box into one shared preview', () => {
+    const first = new ToolExecutionComponentEnhanced({ quietPreviewLineLimit: 2 });
+    const second = new ToolExecutionComponentEnhanced({ quietPreviewLineLimit: 2 });
+    first.appendStreamingOutput('one\ntwo\n');
+    second.appendStreamingOutput('three\n');
+    expect(first.render()).toEqual(['┌ shell', '│ two', '│ three', '└']);
+    expect(second.render()).toEqual(first.render());
+  });
+});

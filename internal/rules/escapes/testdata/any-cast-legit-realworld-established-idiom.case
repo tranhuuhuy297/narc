@@ -1,0 +1,30 @@
+# NestJS repositories bridge the Nest Prisma service to the shared client type with the same double cast in every sibling file: an established idiom of the codebase.
+expect: clean
+-- both/apps/api/v2/src/lib/repositories/prisma-booking.repository.ts --
+@Injectable()
+export class PrismaBookingRepository extends PrismaBookingRepositoryBase {
+  constructor(private readonly dbWrite: PrismaWriteService) {
+    super(dbWrite.prisma as unknown as PrismaClient);
+  }
+}
+-- both/apps/api/v2/src/lib/repositories/prisma-team.repository.ts --
+@Injectable()
+export class PrismaTeamRepository extends PrismaTeamRepositoryBase {
+  constructor(private readonly dbWrite: PrismaWriteService) {
+    super(dbWrite.prisma as unknown as PrismaClient);
+  }
+}
+-- both/apps/api/v2/src/lib/repositories/prisma-user.repository.ts --
+@Injectable()
+export class PrismaUserRepository extends PrismaUserRepositoryBase {
+  constructor(private readonly dbRead: PrismaReadService) {
+    super(dbRead.prisma as unknown as PrismaClient);
+  }
+}
+-- new/apps/api/v2/src/lib/repositories/prisma-holiday.repository.ts --
+@Injectable()
+export class PrismaHolidayRepository extends PrismaHolidayRepositoryBase {
+  constructor(private readonly dbWrite: PrismaWriteService) {
+    super(dbWrite.prisma as unknown as PrismaClient);
+  }
+}

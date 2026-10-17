@@ -1,0 +1,28 @@
+# A new route turns a failed lookup into null and answers 404 right away: the error reaches the client.
+expect: clean
+-- old/src/cdp/cdp-api.ts --
+export class CdpApi {
+    router(): Router {
+        const router = Router()
+        router.get('/teams/:team_id/hog_functions', this.listFunctions)
+        return router
+    }
+}
+-- new/src/cdp/cdp-api.ts --
+export class CdpApi {
+    router(): Router {
+        const router = Router()
+        router.get('/teams/:team_id/hog_functions', this.listFunctions)
+        router.post('/teams/:team_id/hog_functions/:id/invocations', this.postInvocation)
+        return router
+    }
+
+    private postInvocation = async (req: Request, res: Response): Promise<void> => {
+        const team = await this.deps.teamManager.getTeam(parseInt(req.params.team_id)).catch(() => null)
+        if (!team) {
+            res.status(404).json({ error: 'Team not found' })
+            return
+        }
+        res.json(await this.invoke(team, req.body))
+    }
+}

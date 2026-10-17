@@ -1,0 +1,42 @@
+# A builtin tool package is removed entirely (replaced by a CLI command); its tsconfig.json goes with the code it governed.
+expect: clean
+-- old/packages/builtin-tool-topic-reference/package.json --
+{
+  "name": "@lobechat/builtin-tool-topic-reference",
+  "version": "1.0.0",
+  "private": true,
+  "main": "./src/index.ts",
+  "dependencies": {
+    "@lobechat/types": "workspace:*"
+  }
+}
+-- old/packages/builtin-tool-topic-reference/tsconfig.json --
+{
+  "compilerOptions": {
+    "target": "ESNext",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "jsx": "preserve",
+    "strict": true,
+    "skipLibCheck": true
+  },
+  "include": ["src"]
+}
+-- old/packages/builtin-tool-topic-reference/src/index.ts --
+export { TopicReferenceManifest } from './manifest';
+export { TopicReferenceExecutor } from './executor';
+-- old/packages/builtin-tool-topic-reference/src/manifest.ts --
+import type { BuiltinToolManifest } from '@lobechat/types';
+
+export const TopicReferenceManifest: BuiltinToolManifest = {
+  identifier: 'lobe-topic-reference',
+  api: [{ name: 'getTopicContext', description: 'Read the messages of a referenced topic' }],
+  type: 'builtin',
+};
+-- old/packages/builtin-tool-topic-reference/src/executor.ts --
+export class TopicReferenceExecutor {
+  async getTopicContext(topicId: string) {
+    const res = await fetch(`/api/topics/${topicId}/messages`);
+    return res.json();
+  }
+}

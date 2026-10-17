@@ -1,0 +1,22 @@
+# n8n: NodeApiError takes a JsonObject, and a caught error is unknown by definition; the cast at the error boundary is a note at most.
+expect: any-cast@info
+-- old/packages/nodes-base/nodes/MondayCom/V2/transport/MondayGraphQLClient.ts --
+export class MondayGraphQLClient {
+	async request(query: string) {
+		return await this.context.helpers.httpRequestWithAuthentication.call(this.context, 'mondayComApi', { body: { query } });
+	}
+}
+-- new/packages/nodes-base/nodes/MondayCom/V2/transport/MondayGraphQLClient.ts --
+export class MondayGraphQLClient {
+	async request(query: string) {
+		try {
+			return await this.context.helpers.httpRequestWithAuthentication.call(this.context, 'mondayComApi', { body: { query } });
+		} catch (error) {
+			throw new NodeApiError(
+				this.context.getNode(),
+				error as unknown as JsonObject,
+				{ message: 'HTTP request failed' },
+			);
+		}
+	}
+}

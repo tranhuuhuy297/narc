@@ -1,0 +1,24 @@
+# New prototype code: failing to load the optional server list only means no MCP, as the comment says; the outer try/catch still reports real failures. A note at most.
+expect: error-swallowed@info
+-- old/site/src/pages/board/assistants.ts --
+export async function openAssistant(id: string): Promise<void> {
+	try {
+		const assistant = await api.getAssistant(id);
+		await launch(assistant);
+	} catch (error) {
+		toast.error(getErrorMessage(error, "Failed to open assistant."));
+	}
+}
+-- new/site/src/pages/board/assistants.ts --
+export async function openAssistant(id: string): Promise<void> {
+	try {
+		const assistant = await api.getAssistant(id);
+		// Failing to load the server list only means no MCP, not a failed open.
+		const servers = await api
+			.getMCPServerConfigs()
+			.catch(() => undefined);
+		await launch(assistant, servers);
+	} catch (error) {
+		toast.error(getErrorMessage(error, "Failed to open assistant."));
+	}
+}

@@ -1,0 +1,11 @@
+# An effectively unreachable fallback is excluded with the reason written next to it: a note at most.
+expect: coverage-ignored@info
+-- new/packages/secret-channel/src/asc/redact.ts --
+export function placeholderFor(run: Run): string {
+  for (let cp = 0x200b; cp <= 0x10ffff; cp++) {
+    const ch = String.fromCodePoint(cp);
+    if (!run.variants.some((v) => v.includes(ch))) return ch;
+  }
+  /* c8 ignore next -- the union of a Run's variants never covers every code point */
+  return '·';
+}

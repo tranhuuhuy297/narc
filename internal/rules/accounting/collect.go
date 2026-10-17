@@ -215,6 +215,9 @@ type site struct {
 	key  string // normalized assertion statement
 	code string // the statement's Code text
 	toks []string
+	// stmt holds the tokens of the assertion statement alone (toks may add
+	// the condition of an if around it).
+	stmt []string
 	raw  string
 }
 
@@ -261,11 +264,12 @@ func sitesOf(seg *segment, b testblocks.Block) []site {
 		}
 		stmt, code, strs := statement(seg, i)
 		toks := tokens(code, strs)
+		own := toks
 		// `if got != 400 {` / `t.Errorf(...)`: the condition is what is checked.
 		if i > 0 && rel > b.Header && ifHeadRe.MatchString(strings.TrimSpace(seg.lines[i-1].Code)) {
 			toks = append(toks, tokens(seg.lines[i-1].Code, seg.lines[i-1].Strings)...)
 		}
-		out = append(out, site{line: seg.lineNo(i), key: rulekit.Normalize(stmt), code: code, toks: toks,
+		out = append(out, site{line: seg.lineNo(i), key: rulekit.Normalize(stmt), code: code, toks: toks, stmt: own,
 			raw: strings.TrimSpace(seg.lines[i].Raw)})
 	}
 	return out
@@ -462,15 +466,20 @@ func lastName(callee string) string {
 }
 
 // blockEnd returns the last line of the definition starting on line i: by
-// indentation for Python, Ruby and Elixir, else by braces.
+// indentation for Python, Ruby and Elixir, else by braces. A parameter
+// list may span several lines before the body opens.
 func blockEnd(l lang.Lang, lines []lang.LexedLine, i int) int {
 	if l == lang.Python || l == lang.Ruby || l == lang.Elixir {
 		ind := indent(lines[i].Raw)
 		for k := i + 1; k < len(lines); k++ {
-			if strings.TrimSpace(lines[k].Code) == "" {
+			c := strings.TrimSpace(lines[k].Code)
+			if c == "" {
 				continue
 			}
 			if indent(lines[k].Raw) <= ind {
+				if c[0] == ')' || c[0] == ']' {
+					continue // the end of a multi-line parameter list: `) -> None:`
+				}
 				if l == lang.Python {
 					return k - 1
 				}
@@ -479,7 +488,7 @@ func blockEnd(l lang.Lang, lines []lang.LexedLine, i int) int {
 		}
 		return len(lines) - 1
 	}
-	depth, opened := 0, false
+	depth, parens, opened := 0, 0, false
 	for k := i; k < len(lines) && k < i+400; k++ {
 		for _, c := range lines[k].Code {
 			switch c {
@@ -488,12 +497,16 @@ func blockEnd(l lang.Lang, lines []lang.LexedLine, i int) int {
 				opened = true
 			case '}':
 				depth--
+			case '(':
+				parens++
+			case ')':
+				parens--
 			}
 		}
 		if opened && depth <= 0 {
 			return k
 		}
-		if !opened && k >= i+2 {
+		if !opened && parens <= 0 && k >= i+2 {
 			return i // no braced body: a declaration or an expression
 		}
 	}
@@ -682,7 +695,7 @@ func stem(p string, test bool) string {
 	}
 	if test {
 		b = strings.TrimPrefix(b, "test_")
-		for _, suf := range []string{"_test", "_spec", "Tests", "Test", "Spec", "IT"} {
+		for _, suf := range []string{"_internal_test", "_test", "_spec", "Tests", "Test", "Spec", "IT"} {
 			if strings.HasSuffix(b, suf) && len(b) > len(suf) {
 				b = strings.TrimSuffix(b, suf)
 				break

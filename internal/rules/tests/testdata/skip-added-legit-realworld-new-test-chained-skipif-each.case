@@ -1,0 +1,33 @@
+# Real-world (qwen-code): Prettier lays a new parameterized test out as
+# `it` / `.skipIf(win32)` / `.each([...])(` / 'name', so the test's name is
+# three lines below the marker. The gate is on a new test.
+expect: clean
+-- old/packages/core/src/services/container-execution-environment.test.ts --
+import { describe, expect, it } from 'vitest';
+
+import { resolveMounts } from './container-execution-environment.js';
+
+describe('resolveMounts', () => {
+  it('mounts the workspace read-write', () => {
+    expect(resolveMounts(config)).toContainEqual({ source: config.workspace, readOnly: false });
+  });
+});
+-- new/packages/core/src/services/container-execution-environment.test.ts --
+import { describe, expect, it } from 'vitest';
+
+import { resolveMounts } from './container-execution-environment.js';
+
+describe('resolveMounts', () => {
+  it('mounts the workspace read-write', () => {
+    expect(resolveMounts(config)).toContainEqual({ source: config.workspace, readOnly: false });
+  });
+
+  it
+    .skipIf(process.platform === 'win32')
+    .each(['ancestor', 'equal', 'descendant'])(
+    'rejects a %s workspace of dependencies outside the bundle',
+    async (relationship) => {
+      expect(() => resolveMounts(withDependency(relationship))).toThrow('outside the bundle');
+    },
+  );
+});

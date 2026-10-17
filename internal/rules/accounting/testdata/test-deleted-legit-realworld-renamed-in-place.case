@@ -1,0 +1,125 @@
+# Real world (home-assistant): listing custom integrations by their usb
+# dependency was dropped in favor of a generated list, so the parametrized
+# test was renamed and narrowed where it stood to the behavior that remains
+# (a core integration overridden by a custom one is not listed).
+expect: clean
+-- old/homeassistant/components/usb/__init__.py --
+"""The USB integration."""
+
+from homeassistant.core import HomeAssistant
+from homeassistant.loader import async_get_custom_components
+
+from .generated import SERIAL_INTEGRATIONS
+
+
+async def async_get_serial_integrations(hass: HomeAssistant) -> list[str]:
+    """Return the integrations configurable with a serial port."""
+    domains = set(SERIAL_INTEGRATIONS)
+    custom = await async_get_custom_components(hass)
+    for domain, integration in custom.items():
+        if "usb" in integration.dependencies or "usb" in integration.after_dependencies:
+            domains.add(domain)
+        else:
+            domains.discard(domain)
+    return sorted(domains)
+-- new/homeassistant/components/usb/__init__.py --
+"""The USB integration."""
+
+from homeassistant.core import HomeAssistant
+from homeassistant.loader import async_get_custom_components
+
+from .generated import SERIAL_INTEGRATIONS
+
+
+async def async_list_serial_integrations(hass: HomeAssistant) -> list[str]:
+    """Return the integrations whose config flow uses the serial port selector."""
+    custom = await async_get_custom_components(hass)
+    return sorted(domain for domain in SERIAL_INTEGRATIONS if domain not in custom)
+-- old/tests/components/usb/test_init.py --
+"""Tests for the USB integration."""
+
+from pathlib import Path
+from unittest.mock import Mock, patch
+
+import pytest
+
+from homeassistant.core import HomeAssistant
+from homeassistant.loader import Integration
+
+from tests.common import MockModule
+from tests.typing import WebSocketGenerator
+
+
+async def _async_list_serial_integrations(
+    hass_ws_client: WebSocketGenerator, hass: HomeAssistant
+) -> list[str]:
+    """Return the result of the `usb/list_serial_integrations` command."""
+    ws_client = await hass_ws_client(hass)
+    await ws_client.send_json({"id": 1, "type": "usb/list_serial_integrations"})
+    response = await ws_client.receive_json()
+
+    assert response["success"]
+    return response["result"]
+
+
+@pytest.mark.usefixtures("setup_usb")
+@pytest.mark.parametrize(
+    ("domain", "dependencies", "listed"),
+    [
+        ("custom_serial", ["usb"], True),
+        ("custom_serial", [], False),
+        ("zha", [], False),
+    ],
+)
+async def test_list_serial_integrations_custom(
+    hass: HomeAssistant,
+    hass_ws_client: WebSocketGenerator,
+    domain: str,
+    dependencies: list[str],
+    listed: bool,
+) -> None:
+    """Test listing custom integrations configurable with a serial port."""
+    integration = Integration(
+        hass,
+        f"custom_components.{domain}",
+        Path(hass.config.config_dir) / "custom_components" / domain,
+        MockModule(domain, dependencies=dependencies).mock_manifest(),
+    )
+
+    with patch(
+        "homeassistant.components.usb.consumers.async_get_custom_components",
+        return_value={domain: integration},
+    ):
+        result = await _async_list_serial_integrations(hass_ws_client, hass)
+
+    assert (domain in result) is listed
+    assert "elkm1" in result
+-- new/tests/components/usb/test_init.py --
+"""Tests for the USB integration."""
+
+from unittest.mock import Mock, patch
+
+import pytest
+
+from homeassistant.core import HomeAssistant
+
+from tests.typing import WebSocketGenerator
+
+
+@pytest.mark.usefixtures("setup_usb")
+async def test_list_serial_integrations_custom_override(
+    hass: HomeAssistant,
+    hass_ws_client: WebSocketGenerator,
+) -> None:
+    """Test a core integration overridden by a custom integration is not listed."""
+    with patch(
+        "homeassistant.components.usb.async_get_custom_components",
+        return_value={"zha": Mock()},
+    ):
+        ws_client = await hass_ws_client(hass)
+        await ws_client.send_json({"id": 1, "type": "usb/list_serial_integrations"})
+        response = await ws_client.receive_json()
+
+    assert response["success"]
+    assert "zha" not in response["result"]
+    assert "dsmr" in response["result"]

@@ -1,0 +1,43 @@
+# Real-world (ruff): is_ignored() now returns bool instead of the Ignored
+# enum (Yes/Uncertain), in the same change, so assert_eq!(x, Ignored::Yes)
+# becomes assert!(x). The checks follow the new return type: a note.
+expect: assertion-weakened@info
+-- old/crates/ruff_db/src/system/os/ignore.rs --
+pub enum Ignored {
+    Yes,
+    Uncertain,
+}
+
+impl ProjectIgnore {
+    pub fn is_ignored(&self, path: &SystemPath) -> Ignored {
+        if self.matcher.matched(path).is_ignore() { Ignored::Yes } else { Ignored::Uncertain }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn gitignored_file() {
+        let (project, path) = project_with(".gitignore", "*.log\n", "debug.log");
+        assert_eq!(project.is_ignored(&path), Ignored::Yes);
+    }
+}
+-- new/crates/ruff_db/src/system/os/ignore.rs --
+impl ProjectIgnore {
+    pub fn is_ignored(&self, path: &SystemPath) -> bool {
+        self.matcher.matched(path).is_ignore()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn gitignored_file() {
+        let (project, path) = project_with(".gitignore", "*.log\n", "debug.log");
+        assert!(project.is_ignored(&path));
+    }
+}

@@ -1,0 +1,11 @@
+# A defensive runtime guard that the TypedDict says can never fire: `ignore[unreachable]` adds a check rather than hiding one.
+expect: clean
+-- old/src/sentry/spans/process_segments/shim.py --
+def is_sampled(attribute: SpanAttribute) -> bool:
+    return bool(attribute["value"])
+-- new/src/sentry/spans/process_segments/shim.py --
+def is_sampled(attribute: SpanAttribute) -> bool:
+    # Insurance against producers that omit the value despite the schema.
+    if "value" not in attribute:
+        return False  # type: ignore[unreachable]
+    return bool(attribute["value"])

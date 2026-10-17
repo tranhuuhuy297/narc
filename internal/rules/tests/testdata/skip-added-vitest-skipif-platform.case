@@ -1,4 +1,6 @@
-# Vitest skipIf on process.platform: an environment gate, so a warning.
+# Vitest skipIf on the CI environment added to an existing test: an
+# environment gate, so a warning, but one that switches the test off exactly
+# where it is meant to run.
 expect: skip-added
 -- old/src/fs/watch.test.ts --
 import { describe, expect, it } from 'vitest';
@@ -8,6 +10,11 @@ describe('watchDir', () => {
   it('reports created files', async () => {
     const events = await watchDir.collect(fixture('created'));
     expect(events).toEqual([{ type: 'create', path: 'a.txt' }]);
+  });
+
+  it('reports symlink targets', async () => {
+    const events = await watchDir.collect(fixture('symlink'));
+    expect(events[0].target).toBe('real.txt');
   });
 });
 -- new/src/fs/watch.test.ts --
@@ -20,7 +27,7 @@ describe('watchDir', () => {
     expect(events).toEqual([{ type: 'create', path: 'a.txt' }]);
   });
 
-  it.skipIf(process.platform === 'win32')('reports symlink targets', async () => {
+  it.skipIf(!!process.env.CI)('reports symlink targets', async () => {
     const events = await watchDir.collect(fixture('symlink'));
     expect(events[0].target).toBe('real.txt');
   });

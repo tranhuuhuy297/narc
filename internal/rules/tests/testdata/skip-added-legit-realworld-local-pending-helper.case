@@ -1,0 +1,59 @@
+# Real-world (lobe-chat): `pending(...)` is a fixture helper declared in the
+# file and used as an array element, not Jasmine's pending(). The new test
+# makes a real assertion.
+expect: clean
+-- old/src/features/Conversation/store/slices/data/pendingInterventions.test.ts --
+import { describe, expect, it } from 'vitest';
+
+import { canApproveInterventionBatch } from './pendingInterventions';
+
+describe('canApproveInterventionBatch', () => {
+  const pending = (identifier: string, apiName: string, index: number) =>
+    ({
+      apiName,
+      identifier,
+      intervention: { status: 'pending' },
+      toolCallId: `call-${index}`,
+    }) as any;
+
+  it('allows a multi-item batch only when every member is binary', () => {
+    expect(
+      canApproveInterventionBatch([
+        pending('lobe-agent', 'createPlan', 1),
+        pending('filesystem', 'writeFile', 2),
+      ]),
+    ).toBe(true);
+  });
+});
+-- new/src/features/Conversation/store/slices/data/pendingInterventions.test.ts --
+import { describe, expect, it } from 'vitest';
+
+import { canApproveInterventionBatch } from './pendingInterventions';
+
+describe('canApproveInterventionBatch', () => {
+  const pending = (identifier: string, apiName: string, index: number) =>
+    ({
+      apiName,
+      identifier,
+      intervention: { status: 'pending' },
+      toolCallId: `call-${index}`,
+    }) as any;
+
+  it('allows a multi-item batch only when every member is binary', () => {
+    expect(
+      canApproveInterventionBatch([
+        pending('lobe-agent', 'createPlan', 1),
+        pending('filesystem', 'writeFile', 2),
+      ]),
+    ).toBe(true);
+  });
+
+  it('never bulk-approves the secure credential form, which must save before approving', () => {
+    expect(
+      canApproveInterventionBatch([
+        pending('lobe-creds', 'requestCredsInput', 1),
+        pending('filesystem', 'writeFile', 2),
+      ]),
+    ).toBe(false);
+  });
+});

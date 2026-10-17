@@ -1,0 +1,40 @@
+# Real-world (OpenHands): the object literal passed to expect() is always
+# truthy, but building it awaits screen.findByText / getByText /
+# findByTestId, which throw when the element is missing. The queries are the
+# assertions.
+expect: clean
+-- old/__tests__/routes/automations-dashboard.test.tsx --
+import { render, screen } from "@testing-library/react";
+import { describe, expect, it } from "vitest";
+
+import AutomationsDashboard from "#/routes/automations-dashboard";
+
+describe("AutomationsDashboard", () => {
+  it("shows the empty state", async () => {
+    render(<AutomationsDashboard automations={[]} />);
+    expect(await screen.findByText("No automations yet")).toBeInTheDocument();
+  });
+});
+-- new/__tests__/routes/automations-dashboard.test.tsx --
+import { render, screen } from "@testing-library/react";
+import { describe, expect, it } from "vitest";
+
+import AutomationsDashboard from "#/routes/automations-dashboard";
+
+describe("AutomationsDashboard", () => {
+  it("shows the empty state", async () => {
+    render(<AutomationsDashboard automations={[]} />);
+    expect(await screen.findByText("No automations yet")).toBeInTheDocument();
+  });
+
+  it("renders the widget template picker", async () => {
+    render(<AutomationsDashboard automations={[]} showTemplates />);
+    expect({
+      title: await screen.findByText("Widget templates", {
+        selector: "h1",
+      }),
+      description: screen.getByText("Pick a provider to start from"),
+      grid: await screen.findByTestId("template-grid"),
+    }).toBeTruthy();
+  });
+});

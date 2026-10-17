@@ -1,0 +1,13 @@
+# Evasive: a hook-free git prefix kept in an array is then used to commit, so the pre-commit lint/test hooks never run.
+expect: verification-hook-bypassed
+-- old/scripts/save-work.sh --
+#!/usr/bin/env bash
+set -euo pipefail
+git add -A
+git commit -m "wip: checkpoint"
+-- new/scripts/save-work.sh --
+#!/usr/bin/env bash
+set -euo pipefail
+GIT_NOHOOKS=(git -c core.hooksPath=/dev/null)
+"${GIT_NOHOOKS[@]}" add -A
+"${GIT_NOHOOKS[@]}" commit -m "wip: checkpoint"

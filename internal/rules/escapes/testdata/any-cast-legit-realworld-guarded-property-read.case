@@ -1,0 +1,15 @@
+# A property is read through `as any` only after an `in` check proved it is there, and a value is passed to a constructor untyped: notes, not forced shapes.
+expect: any-cast@info
+-- old/src/features/AgentChannel/PlatformCard.tsx --
+export function PlatformCard({ platform }: Props) {
+  const PlatformIcon = platformIcons[platform.id];
+  return <Card icon={PlatformIcon} lastSeen={platform.lastSeen} />;
+}
+-- new/src/features/AgentChannel/PlatformCard.tsx --
+export function PlatformCard({ platform }: Props) {
+  const PlatformIcon = platformIcons[platform.id];
+  const ColorIcon =
+    PlatformIcon && 'Color' in PlatformIcon ? (PlatformIcon as any).Color : PlatformIcon;
+  const lastSeen = new Date(platform.lastSeen as any).getTime();
+  return <Card icon={ColorIcon} lastSeen={lastSeen} />;
+}

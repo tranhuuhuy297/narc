@@ -1,0 +1,86 @@
+# Real world (cal.com): findNextSubscriptionBatch no longer takes teamIds
+# (it joins team features instead), so the edge case for an empty teamIds
+# array went with the parameter; the other tests moved to featureIds.
+expect: clean
+-- old/packages/features/selectedCalendar/repositories/SelectedCalendarRepository.ts --
+import type { PrismaClient } from "@calcom/prisma";
+
+export class SelectedCalendarRepository {
+  constructor(private prismaClient: PrismaClient) {}
+
+  async findNextSubscriptionBatch({ take, teamIds }: { take: number; teamIds: number[] }) {
+    if (teamIds.length === 0) return [];
+    return this.prismaClient.selectedCalendar.findMany({
+      where: { user: { teams: { some: { teamId: { in: teamIds } } } }, syncSubscribedAt: null },
+      take,
+    });
+  }
+}
+-- new/packages/features/selectedCalendar/repositories/SelectedCalendarRepository.ts --
+import type { PrismaClient } from "@calcom/prisma";
+
+export class SelectedCalendarRepository {
+  constructor(private prismaClient: PrismaClient) {}
+
+  async findNextSubscriptionBatch({ take, featureIds }: { take: number; featureIds: string[] }) {
+    return this.prismaClient.selectedCalendar.findMany({
+      where: {
+        user: { teams: { some: { team: { features: { some: { featureId: { in: featureIds } } } } } } },
+        syncSubscribedAt: null,
+      },
+      take,
+    });
+  }
+}
+-- old/packages/features/selectedCalendar/repositories/SelectedCalendarRepository.test.ts --
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+import { SelectedCalendarRepository } from "./SelectedCalendarRepository";
+
+const prismaMock = { selectedCalendar: { findMany: vi.fn() } };
+
+describe("SelectedCalendarRepository", () => {
+  let repository: SelectedCalendarRepository;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    repository = new SelectedCalendarRepository(prismaMock as never);
+  });
+
+  describe("findNextSubscriptionBatch", () => {
+    it("should find calendars for the given teams", async () => {
+      prismaMock.selectedCalendar.findMany.mockResolvedValue([{ id: 1 }]);
+      const result = await repository.findNextSubscriptionBatch({ take: 10, teamIds: [1, 2] });
+      expect(result).toEqual([{ id: 1 }]);
+    });
+
+    it("should handle empty teamIds array", async () => {
+      const result = await repository.findNextSubscriptionBatch({ take: 10, teamIds: [] });
+      expect(result).toEqual([]);
+      expect(prismaMock.selectedCalendar.findMany).not.toHaveBeenCalled();
+    });
+  });
+});
+-- new/packages/features/selectedCalendar/repositories/SelectedCalendarRepository.test.ts --
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+import { SelectedCalendarRepository } from "./SelectedCalendarRepository";
+
+const prismaMock = { selectedCalendar: { findMany: vi.fn() } };
+
+describe("SelectedCalendarRepository", () => {
+  let repository: SelectedCalendarRepository;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    repository = new SelectedCalendarRepository(prismaMock as never);
+  });
+
+  describe("findNextSubscriptionBatch", () => {
+    it("should find calendars for the given teams", async () => {
+      prismaMock.selectedCalendar.findMany.mockResolvedValue([{ id: 1 }]);
+      const result = await repository.findNextSubscriptionBatch({ take: 10, featureIds: ["calendar-cache"] });
+      expect(result).toEqual([{ id: 1 }]);
+    });
+  });
+});

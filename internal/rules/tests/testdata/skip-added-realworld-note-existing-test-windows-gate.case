@@ -1,0 +1,52 @@
+# Real-world (gastown): while porting the suite to Windows, existing symlink
+# tests skip themselves on Windows, where creating a symlink needs elevated
+# privileges. They still run on Linux and macOS: a note.
+expect: skip-added@info
+-- old/internal/doctor/testutil_symlink_check_test.go --
+package doctor
+
+import (
+	"os"
+	"path/filepath"
+	"testing"
+)
+
+func TestTestutilSymlinkCheck_ValidSymlink(t *testing.T) {
+	town := t.TempDir()
+	target := filepath.Join(town, "testutil")
+	if err := os.MkdirAll(target, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(target, filepath.Join(town, "crew", "testutil")); err != nil {
+		t.Fatal(err)
+	}
+	if res := NewTestutilSymlinkCheck().Run(&CheckContext{TownRoot: town}); res.Status != StatusOK {
+		t.Errorf("status = %v, want OK: %s", res.Status, res.Message)
+	}
+}
+-- new/internal/doctor/testutil_symlink_check_test.go --
+package doctor
+
+import (
+	"os"
+	"path/filepath"
+	"runtime"
+	"testing"
+)
+
+func TestTestutilSymlinkCheck_ValidSymlink(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("symlink creation requires elevated privileges on Windows")
+	}
+	town := t.TempDir()
+	target := filepath.Join(town, "testutil")
+	if err := os.MkdirAll(target, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(target, filepath.Join(town, "crew", "testutil")); err != nil {
+		t.Fatal(err)
+	}
+	if res := NewTestutilSymlinkCheck().Run(&CheckContext{TownRoot: town}); res.Status != StatusOK {
+		t.Errorf("status = %v, want OK: %s", res.Status, res.Message)
+	}
+}

@@ -61,6 +61,9 @@ func matchAssertions(l lang.Lang, code string, helpers, prefilter bool) []span {
 				if set.not != nil && set.not.MatchString(code[s:e]) {
 					continue
 				}
+				if set.setup != nil && set.setup.MatchString(code[s:]) {
+					continue
+				}
 				spans = append(spans, span{s, e})
 			}
 		}
@@ -189,6 +192,11 @@ type assertSet struct {
 	// not rejects matches that look like assertions but check nothing,
 	// such as NUnit's Assert.Pass() or Assert.Inconclusive().
 	not *regexp.Regexp
+	// setup rejects matches whose statement (the text from the match on)
+	// only guards a setup step, such as Home Assistant's
+	// `assert await async_setup_component(hass, ...)`: removing it does not
+	// remove a check of the code under test.
+	setup *regexp.Regexp
 }
 
 func res(exprs ...string) []*regexp.Regexp {
@@ -220,11 +228,14 @@ var (
 	)
 )
 
-var jsAsserts = assertSet{triggers: []string{"t."}, any: res(
+var jsAsserts = assertSet{triggers: []string{"t.", "poll"}, any: res(
 	`(?:^|[^\w$.])(assert(?:\s*\.\s*\w+)+\s*\()`, // node:assert, chai assert.*
 	`\.\s*(should)\b`,               // chai should, Cypress .should(...)
 	`\.\s*(expect\s*\()`,            // supertest .expect(200)
 	`\.\s*(assert\s*\.\s*\w+\s*\()`, // sinon.assert.x, t.assert.x
+	// Playwright's `await expect` broken across lines before `.poll(fn)`:
+	// the line that starts with .poll( carries the assertion.
+	`^\s*\.\s*(poll\s*\()`,
 	`(?:^|[^\w$.])(t\s*\.\s*(?:is|not|deepEqual|notDeepEqual|like|true|false|truthy|falsy|ok|notOk|equal|equals|notEqual|same|notSame|strictSame|strictEqual|notStrictEqual|match|notMatch|regex|throws|throwsAsync|notThrows|notThrowsAsync|rejects|resolves|snapshot|error|ifError)\s*\()`, // AVA, tap
 )}
 
@@ -232,12 +243,16 @@ var assertSets = map[lang.Lang]assertSet{
 	lang.JavaScript: jsAsserts,
 	lang.TypeScript: jsAsserts,
 	lang.Python: {
-		triggers: []string{"raises", "warns", "deprecated_call"},
+		triggers: []string{"raises", "warns", "deprecated_call", "snapshot_platform"},
 		any: res(
 			`\b(pytest\s*\.\s*(?:raises|warns|deprecated_call)\s*\()`,
 			`\b(check\s*\.\s*\w+\s*\()`, // pytest-check
+			// Home Assistant's snapshot_platform compares every entity of a
+			// platform with a stored snapshot (syrupy).
+			`(?:^|[^\w.])((?:async_)?snapshot_platform\s*\()`,
 		),
 		stmt: res(`(?:^|[^\w.])(assert)\b`),
+		setup: regexp.MustCompile(`^assert\s+(?:await\s+)?(?:[\w.]+\.)?(?:async_)?setup(?:_component|_entry|_platform|_integration)?\s*\(`),
 	},
 	lang.Go: {
 		triggers: []string{"Error", "Fatal", "Fail", "require", "Require", "Assert", "Expect", "Eventually", "Consistently", "Ω", "Check", "Verify", "is.", "s."},
@@ -252,7 +267,14 @@ var assertSets = map[lang.Lang]assertSet{
 		),
 		stmt: res(`(?:^|[^\w])((?:\w+\.)?(?:Assert|Expect|Check|Verify|Require)[A-Z]\w*\s*\()`),
 	},
-	lang.Rust: {any: res(`\b((?:debug_|prop_)?assert\w*\s*!)`)},
+	lang.Rust: {triggers: []string{"unwrap", "expect"}, any: res(
+		`\b((?:debug_|prop_)?assert\w*\s*!)`,
+		// A statement that only unwraps what a call returns, discarding the
+		// value: it exists to panic, and so fail the test, unless the call
+		// succeeds (`parse_module(&src).unwrap();`). `let v = x.unwrap();`
+		// is setup, not a check.
+		`^\s*((?:[A-Za-z_]\w*\s*::\s*)*[A-Za-z_]\w*(?:\s*!)?\s*(?:\([^;=]*\))?(?:\s*\.\s*[A-Za-z_]\w*\s*(?:::\s*<[^;=]*>\s*)?(?:\([^;=]*\))?)*\s*\.\s*(?:unwrap|unwrap_err|expect|expect_err)\s*\([^;]*\)\s*;)\s*$`,
+	)},
 	lang.Java: {
 		triggers: []string{"Assert"},
 		any: res(

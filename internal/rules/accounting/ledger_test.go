@@ -142,7 +142,7 @@ func TestMatchKinds(t *testing.T) {
 			"WordWrapTest.keeps short lines intact":  moved,
 		}},
 		{"test-deleted-legit-parametrized", map[string]matchKind{
-			"test_slug_lowercases":       unmatched,
+			"test_slug_lowercases":       inPlace, // where test_slugify now stands
 			"test_slug_strips_accents":   unmatched,
 			"test_slug_collapses_dashes": unmatched,
 		}},

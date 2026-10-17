@@ -1,0 +1,32 @@
+# Real-world (PostHog): a status check becomes a chained comparison over two
+# responses (stronger, not weaker), and a list comparison is reformatted so
+# the expected list starts on the next line. Read line by line, both looked
+# like existence checks.
+expect: clean
+-- old/products/signals/backend/test/test_scout_harness_api.py --
+from rest_framework import status
+
+
+class TestScoutHarnessAPI(APIBaseTest):
+    def test_unknown_run_is_not_found(self):
+        response = self.client.get(f"/api/projects/{self.team.id}/scout_runs/missing/")
+        assert response.status_code == status.HTTP_404_NOT_FOUND
+
+    def test_pages_through_companies(self):
+        sent = self.fetch_all_pages()
+        assert [(url.rsplit("/company/", 1)[1], params["start_index"]) for url, params in sent] == [("search", 0), ("search", 100)]
+-- new/products/signals/backend/test/test_scout_harness_api.py --
+from rest_framework import status
+
+
+class TestScoutHarnessAPI(APIBaseTest):
+    def test_unknown_run_is_not_found(self):
+        first = self.client.get(f"/api/projects/{self.team.id}/scout_runs/missing/")
+        second = self.client.get(f"/api/projects/{self.team.id}/scout_runs/missing/?refresh=1")
+        assert first.status_code == second.status_code == status.HTTP_404_NOT_FOUND
+
+    def test_pages_through_companies(self):
+        sent = self.fetch_all_pages()
+        assert [
+            (url.rsplit("/company/", 1)[1], params["start_index"]) for url, params in sent
+        ] == [("search", 0), ("search", 100)]

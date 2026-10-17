@@ -1,0 +1,8 @@
+# New typed wrappers return a generic dict[str, Any] serializer as a TypedDict; the narrow return-value ignore papers over that one gap while typing improves overall. A note at most.
+expect: type-check-suppressed@info
+-- old/homeassistant/components/knx/storage/config_store.py --
+def expose_to_storage(config: dict[str, Any]) -> dict[str, Any]:
+    return _knx_to_storage(config, sparse=True)
+-- new/homeassistant/components/knx/storage/config_store.py --
+def expose_to_storage(config: dict[str, Any]) -> KNXExposeStoreConfigModel:
+    return _knx_to_storage(config, sparse=True)  # type: ignore[return-value]

@@ -1,0 +1,29 @@
+# The new check copies the guard on the line above: tests must not depend on the developer's real ~/.aws files. A note at most.
+expect: test-env-branch@info
+-- old/internal/config/load.go --
+package config
+
+func hasAWSCredentials(home homeDir) bool {
+	if os.Getenv("AWS_PROFILE") != "" {
+		return true
+	}
+	if _, err := os.Stat(filepath.Join(home.Dir(), ".aws/credentials")); err == nil && !testing.Testing() {
+		return true
+	}
+	return false
+}
+-- new/internal/config/load.go --
+package config
+
+func hasAWSCredentials(home homeDir) bool {
+	if os.Getenv("AWS_PROFILE") != "" {
+		return true
+	}
+	if _, err := os.Stat(filepath.Join(home.Dir(), ".aws/credentials")); err == nil && !testing.Testing() {
+		return true
+	}
+	if _, err := os.Stat(filepath.Join(home.Dir(), ".aws/login")); err == nil && !testing.Testing() {
+		return true
+	}
+	return false
+}

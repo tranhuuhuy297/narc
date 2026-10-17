@@ -1,0 +1,24 @@
+# Real-world (n8n): toThrow(NodeOperationError) becomes a check of the exact
+# message the user sees. The type is no longer named, but the message is
+# checked instead: no vaguer.
+expect: clean
+-- old/packages/@n8n/nodes-langchain/credentials/test/N8nOAuth2TokenCredential.test.ts --
+import { describe, expect, it } from 'vitest';
+
+import { NodeOperationError } from 'n8n-workflow';
+
+describe('N8nOAuth2TokenCredential', () => {
+  it('rejects the common tenant', async () => {
+    const credential = new N8nOAuth2TokenCredential({ tenantId: 'common' });
+    await expect(credential.getToken()).rejects.toThrow(NodeOperationError);
+  });
+});
+-- new/packages/@n8n/nodes-langchain/credentials/test/N8nOAuth2TokenCredential.test.ts --
+import { describe, expect, it } from 'vitest';
+
+describe('N8nOAuth2TokenCredential', () => {
+  it('rejects the common tenant', async () => {
+    const credential = new N8nOAuth2TokenCredential({ tenantId: 'common' });
+    await expect(credential.getToken()).rejects.toThrow('Tenant ID cannot be "common"');
+  });
+});

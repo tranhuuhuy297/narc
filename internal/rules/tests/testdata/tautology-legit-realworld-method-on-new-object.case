@@ -1,0 +1,70 @@
+# Real-world (qwen-code): the subject is new PairingStore(...).approve(code),
+# a method call on a fresh object that returns PairingRequest | null, not the
+# constructed object itself, so not.toBeNull() can fail.
+expect: clean
+-- old/packages/channels/dws/src/dws-channel.test.ts --
+import { describe, expect, it } from 'vitest';
+
+import { PairingStore } from '@qwen-code/channel-base';
+
+describe('DwsChannel pairing', () => {
+  it('issues a pairing code to an unknown sender', async () => {
+    const { channel, config } = await setup();
+    const code = await channel.requestPairing('sender-1');
+    expect(code).toMatch(/^[A-Z0-9]{6}$/);
+  });
+});
+-- new/packages/channels/dws/src/dws-channel.test.ts --
+import { describe, expect, it } from 'vitest';
+
+import { PairingStore } from '@qwen-code/channel-base';
+
+describe('DwsChannel pairing', () => {
+  it('issues a pairing code to an unknown sender', async () => {
+    const { channel, config } = await setup();
+    const code = await channel.requestPairing('sender-1');
+    expect(code).toMatch(/^[A-Z0-9]{6}$/);
+  });
+
+  it('keeps the sender pending until the code is approved', async () => {
+    const { channel, config, name } = await setup();
+    const code = await channel.requestPairing('sender-1');
+    expect(new PairingStore(name, config.cwd).approve(code!)).not.toBeNull();
+    expect(await channel.isPaired('sender-1')).toBe(true);
+  });
+});
+-- old/src/test/java/com/acme/runtime/WorkspaceRuntimeTest.java --
+package com.acme.runtime;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+import org.junit.jupiter.api.Test;
+
+class WorkspaceRuntimeTest {
+    @Test
+    void createsTheSessionRecord() {
+        var fixture = Fixture.create(dataSource);
+        assertThat(fixture.record().state()).isEqualTo(RuntimeSessionRecord.State.ACTIVE);
+    }
+}
+-- new/src/test/java/com/acme/runtime/WorkspaceRuntimeTest.java --
+package com.acme.runtime;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+import java.time.Instant;
+import org.junit.jupiter.api.Test;
+
+class WorkspaceRuntimeTest {
+    @Test
+    void createsTheSessionRecord() {
+        var fixture = Fixture.create(dataSource);
+        assertThat(fixture.record().state()).isEqualTo(RuntimeSessionRecord.State.ACTIVE);
+    }
+
+    @Test
+    void compareAndSetMovesAnActiveSessionToReleasing() {
+        var fixture = Fixture.create(dataSource);
+        assertThat(new JdbcRuntimeSessionRepository(dataSource).compareAndSet(fixture.record(), fixture.record().withState(RuntimeSessionRecord.State.RELEASING, Instant.now()))).isNotNull();
+    }
+}

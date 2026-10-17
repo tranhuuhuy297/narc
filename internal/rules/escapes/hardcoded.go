@@ -33,8 +33,11 @@ var hardcodedAnswer = &core.Rule{
 		"`_test.go` files, `src/test/java/.../XTest.java`, `spec/.../x_spec.rb`, ...). A special case documented with " +
 		"a reference (an issue or a URL) is reported as a note. " +
 		"Trivial values (0, 1, booleans, null, short or very common strings) are ignored, and so are lookup tables: " +
-		"functions made only of literal mappings, mappings added next to existing ones, and category-to-label " +
-		"mappings (`if (code === \"ENOENT\") return \"File not found\"`).",
+		"functions made only of literal mappings, mappings added next to existing ones, category-to-label " +
+		"mappings (`if (code === \"ENOENT\") return \"File not found\"`, `if (status === \"blocked\") return \"Blocked\"`), " +
+		"MIME types, command-line flags and subcommands, conditions broader than the literal (`x == \"a\" && !ok || n == 0`), " +
+		"labels the file already returned before the change, and values that other production code emits " +
+		"(a backend's reason string, a helper's wire record).",
 }
 
 func init() {
@@ -112,6 +115,11 @@ type specialCase struct {
 	// computedCond: the condition also calls something on the inputs
 	// (`m === 2 && isLeap(y)`), so it tests a property, not a test's value.
 	computedCond bool
+	// anyOf: the comparisons are alternatives (`x == "-h" || x == "--help"`);
+	// broadOr: an alternative is not a comparison with a literal on the same
+	// subject (`selected == "flow" && !available || count == 0`), so the
+	// branch is taken for other reasons too.
+	anyOf, broadOr bool
 }
 
 // condition renders the comparisons of a special case, with its literals
@@ -120,6 +128,9 @@ func (c specialCase) condition(s *side) string {
 	parts := make([]string, len(c.inputs))
 	for i, in := range c.inputs {
 		parts[i] = c.subjects[i] + " == " + c.written(s, in)
+	}
+	if c.anyOf {
+		return strings.Join(parts, " || ")
 	}
 	return strings.Join(parts, " && ")
 }
@@ -340,12 +351,22 @@ func literals(expr []token) ([]lit, bool) {
 func parseCond(cond []token) (specialCase, bool) {
 	var c specialCase
 	var subjects []string
+	hasOr, hasAnd, other := false, false, false
 	for _, part := range splitTop(cond, func(t token) bool {
-		return t.is(tPunct, "&&") || t.is(tPunct, "||") || t.is(tIdent, "and") || t.is(tIdent, "or")
+		switch {
+		case t.is(tPunct, "||") || t.is(tIdent, "or"):
+			hasOr = true
+		case t.is(tPunct, "&&") || t.is(tIdent, "and"):
+			hasAnd = true
+		default:
+			return false
+		}
+		return true
 	}) {
 		subj, l, ok := comparison(part)
 		if !ok {
 			c.computedCond = c.computedCond || hasCall(part)
+			other = true
 			continue
 		}
 		c.inputs = append(c.inputs, l)
@@ -356,6 +377,10 @@ func parseCond(cond []token) (specialCase, bool) {
 	}
 	c.subjects = subjects
 	c.subject = strings.Join(dedupe(subjects), " & ")
+	if hasOr {
+		c.broadOr = other || hasAnd || len(dedupe(subjects)) > 1
+		c.anyOf = !c.broadOr
+	}
 	return c, true
 }
 
@@ -965,6 +990,7 @@ func testDirs(dir string) []string {
 type tree struct {
 	byBase map[string][]string
 	byDir  map[string][]string
+	all    []string
 }
 
 type memoKey string
@@ -977,7 +1003,7 @@ func repoTree(a *core.Analysis) *tree {
 		if !ok || len(paths) == 0 {
 			return (*tree)(nil)
 		}
-		t := &tree{byBase: map[string][]string{}, byDir: map[string][]string{}}
+		t := &tree{byBase: map[string][]string{}, byDir: map[string][]string{}, all: paths}
 		for _, p := range paths {
 			t.byBase[path.Base(p)] = append(t.byBase[path.Base(p)], p)
 			t.byDir[path.Dir(p)] = append(t.byDir[path.Dir(p)], p)
@@ -1070,7 +1096,7 @@ func checkHardcodedAnswer(a *core.Analysis) []core.Finding {
 	}
 	var out []core.Finding
 	for _, fc := range cands {
-		if fd, ok := judge(ix, fc.file, fc.side, fc.v); ok {
+		if fd, ok := judge(a, ix, fc.file, fc.side, fc.v); ok {
 			out = append(out, fd)
 		}
 	}
@@ -1112,8 +1138,8 @@ func mayCompare(code string) bool {
 }
 
 // judge decides whether a new special case hard-codes a test's answer.
-func judge(ix *testIndex, f *core.FileInfo, s *side, c specialCase) (core.Finding, bool) {
-	if c.computedCond {
+func judge(a *core.Analysis, ix *testIndex, f *core.FileInfo, s *side, c specialCase) (core.Finding, bool) {
+	if c.computedCond || c.broadOr || cliSubject(c) {
 		return core.Finding{}, false
 	}
 	fn := enclosingFunc(s, c.start)
@@ -1134,7 +1160,7 @@ func judge(ix *testIndex, f *core.FileInfo, s *side, c specialCase) (core.Findin
 			if !ok || looksLikeMapping(c, in, out) || ix.contradicted(c, out, fn) {
 				continue
 			}
-			if isTable(s, f, c) {
+			if isTable(s, f, c) || hadOutput(f, out) || producedElsewhere(a, f, c) {
 				return core.Finding{}, false
 			}
 			test := "the test"
@@ -1162,33 +1188,140 @@ var (
 	// labelRe matches a one-word label (not an all-caps encoding such as a
 	// Roman numeral).
 	labelRe       = regexp.MustCompile(`^[A-Z]?[a-z]{2,15}$`)
-	codeSubjectRe = regexp.MustCompile(`(?i)(status|code|errno|kind|type|level|mode|month|day|weekday|unit|category|plan|tier|` +
-		`version|op|opcode|cmd|command|key|char|ch|keycode|which|port|protocol|scheme|method|lang|locale|currency|country)$`)
+	codeSubjectRe = regexp.MustCompile(`(?i)(status|state|phase|stage|code|errno|kind|type|level|mode|month|day|weekday|unit|category|plan|tier|` +
+		`version|op|opcode|cmd|command|key|char|ch|keycode|which|port|protocol|scheme|method|lang|locale|currency|country|` +
+		`source|provider|channel|platform|role|variant|format|tab|view|outcome)$`)
 )
 
 // looksLikeMapping reports whether in → out reads like a category-to-value
-// lookup (an error code to a message, a plan to a price) rather than a
-// computed answer for a data input.
+// lookup (an error code to a message, a plan to a price, a status to its
+// label, a file signature to a MIME type) rather than a computed answer for
+// a data input.
 func looksLikeMapping(c specialCase, in, out lit) bool {
+	for _, o := range c.outputs {
+		if o.str && mimeRe.MatchString(o.val) {
+			return true // magic bytes or an extension to a MIME type (and its modality)
+		}
+	}
+	if in.str && (mimeRe.MatchString(in.val) || strings.HasPrefix(in.val, "-")) {
+		return true // a MIME type or a command-line flag: well-known vocabulary
+	}
 	if len(dedupe(c.subjects)) > 1 {
 		return false // several inputs at once: a test case, not a category
 	}
 	subject := c.subject
+	last := subject
+	if i := strings.LastIndexAny(last, ".>&$ "); i >= 0 {
+		last = last[i+1:]
+	}
+	codeLike := codeSubjectRe.MatchString(strings.TrimSuffix(strings.TrimSuffix(last, "()"), "]"))
 	if in.str {
 		v := strings.ToLower(in.val)
 		if placeholderWords[v] || !identLikeRe.MatchString(in.val) {
 			return false // made-up or free-text input: data, not a category
 		}
-		return !related(in, out)
+		// A status written as its label ("blocked" → "Blocked", "shell" →
+		// "background_shell") or explained in a sentence is still a
+		// lookup when the compared value is a category; a transformer that
+		// special-cases its input ("user_account-id" → "userAccountId") is not.
+		return !related(in, out) || codeLike || (out.str && len(strings.Fields(out.val)) >= 3)
 	}
 	if out.str && labelRe.MatchString(out.val) {
 		return true // a number named by a word: 100 → "perfect", 12 → "twelve"
 	}
-	last := subject
-	if i := strings.LastIndexAny(last, ".>&$ "); i >= 0 {
-		last = last[i+1:]
+	return codeLike
+}
+
+// mimeRe matches a MIME type ("image/jpeg", "application/vnd.api+json").
+var mimeRe = regexp.MustCompile(`^(?:application|audio|font|image|message|model|multipart|text|video)/[\w.+-]+$`)
+
+// cliSubjectRe matches values that hold command-line arguments.
+var cliSubjectRe = regexp.MustCompile(`(?i)(?:^|[.\s])(?:argv|process\.argv|os\.args|sys\.argv|args?|arguments?|first_?arg\w*|sub_?command|subcmd|cmd|flag)(?:\[\d+\])?$`)
+
+// cliSubject reports whether a special case dispatches on command-line
+// arguments: matching a subcommand or flag name is the parser's job.
+func cliSubject(c specialCase) bool {
+	for _, subj := range c.subjects {
+		if cliSubjectRe.MatchString(subj) {
+			return true
+		}
 	}
-	return codeSubjectRe.MatchString(strings.TrimSuffix(last, "()"))
+	return false
+}
+
+// hadOutput reports whether the old version of f already returned the
+// literal out: the change refactored an existing mapping (a label moved
+// into a match, a file renamed), it did not invent the answer.
+func hadOutput(f *core.FileInfo, out lit) bool {
+	if !f.HasOld() || !out.str || len(out.val) < 3 {
+		return false
+	}
+	for _, l := range f.OldLines() {
+		if !strings.Contains(l.NoComment, out.val) {
+			continue
+		}
+		for _, t := range newView(f.Lang, l).toks {
+			if lv, ok := litOf(t); ok && lv == out {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// producedElsewhere reports whether a string the special case compares
+// with also appears in other production code (another source file of the
+// change or of the repository, a vendored helper, a protocol document):
+// it is a value something else emits, such as a backend's reason or a
+// helper's wire record, not one made up for a test.
+func producedElsewhere(a *core.Analysis, f *core.FileInfo, c specialCase) bool {
+	for _, in := range c.inputs {
+		if !in.str || in.trivial() {
+			continue
+		}
+		needle := distinctive(in.val)
+		if needle == "" {
+			continue
+		}
+		for _, g := range a.Files {
+			if g == f || g.IsTest || isTestSupport(g.Path) {
+				continue
+			}
+			if b, ok := g.NewContent(); ok && strings.Contains(string(b), needle) {
+				return true
+			}
+			for _, l := range g.Added { // bare patches: the hunks are all there is
+				if strings.Contains(l.Raw, needle) {
+					return true
+				}
+			}
+		}
+		if repoCount(a, f.Path, needle, scanOpts{limit: 3000, want: 1, anyLang: true, noTests: true}) > 0 {
+			return true
+		}
+	}
+	return false
+}
+
+var wordRunRe = regexp.MustCompile(`[A-Za-z0-9_.-]{6,}`)
+
+// distinctive returns the part of a literal to look for in other files: the
+// literal itself when it is plain text, else its longest word (escaping
+// differs between languages).
+func distinctive(v string) string {
+	if len([]rune(v)) < 6 {
+		return ""
+	}
+	if !strings.ContainsAny(v, "\"'`\\\n\r{}") {
+		return v
+	}
+	best := ""
+	for _, w := range wordRunRe.FindAllString(v, -1) {
+		if len(w) > len(best) {
+			best = w
+		}
+	}
+	return best
 }
 
 // related reports whether out is visibly derived from in: it contains it,

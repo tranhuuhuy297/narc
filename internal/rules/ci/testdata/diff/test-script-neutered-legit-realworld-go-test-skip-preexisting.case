@@ -1,0 +1,40 @@
+# A workflow restructure folds two test steps into one; the `-skip '^TestEmbedded'` filter was already on the job's test command.
+expect: clean
+-- old/.github/workflows/main.yml --
+name: main
+on:
+  push:
+    branches: [main]
+jobs:
+  test-pure-go:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+      - name: Compile test binaries
+        run: |
+          go test -tags gms_pure_go -c -o /tmp/bd-cmd-puregeo-test ./cmd/bd
+          go test -tags gms_pure_go -c -o /tmp/bd-tracker-puregeo-test ./internal/tracker
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        test-flags: ["-short", "-race -short"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+      - name: Test
+        run: go test -tags gms_pure_go ${{ matrix.test-flags }} -timeout=30m -skip '^TestEmbedded' ./...
+-- new/.github/workflows/main.yml --
+name: main
+on:
+  push:
+    branches: [main]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+      - name: Test
+        run: go test -tags gms_pure_go -v -race -short -timeout=30m -skip '^TestEmbedded' ./...

@@ -1,0 +1,7 @@
+# A new isort test fixture for a linter: the prose comment mentions `# noqa` in backticks, and the real `# noqa` lines are the input the linter's snapshot test checks.
+expect: clean
+-- new/crates/linter/resources/test/fixtures/isort/fit_line_length_pragma.py --
+# Imports that carry a pragma must not be re-wrapped past the line length;
+# in preview it should not be wrapped (the `# noqa` must stay effective).
+from collections import OrderedDict, defaultdict, namedtuple  # noqa: TID251
+from typing import Any, Callable, Dict, Iterable, List, Optional, Sequence  # noqa: TID251

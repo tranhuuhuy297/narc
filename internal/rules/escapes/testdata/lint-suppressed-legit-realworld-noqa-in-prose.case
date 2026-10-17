@@ -1,0 +1,18 @@
+# A comment explains why a `# noqa` marker elsewhere must be kept; the backticked mention is documentation, not a directive.
+expect: clean
+-- old/tools/release/wrap_imports.py --
+def wrap(line: str, width: int) -> list[str]:
+    if len(line) <= width:
+        return [line]
+    head, _, names = line.partition(" import ")
+    return [f"{head} import (", *[f"    {n.strip()}," for n in names.split(",")], ")"]
+-- new/tools/release/wrap_imports.py --
+def wrap(line: str, width: int) -> list[str]:
+    if len(line) <= width:
+        return [line]
+    # Lines with a pragma are left alone: re-wrapping them would move the
+    # `# noqa` marker off the line it applies to.
+    if "#" in line:
+        return [line]
+    head, _, names = line.partition(" import ")
+    return [f"{head} import (", *[f"    {n.strip()}," for n in names.split(",")], ")"]

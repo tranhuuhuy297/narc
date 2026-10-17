@@ -1,0 +1,41 @@
+# Real-world (coder): formatPricePerMillionTokens() now returns
+# { belowThreshold, value } instead of a string. One case only checks
+# .belowThreshold, which leaves .value unchecked: a small narrowing caused
+# by the refactor, a note rather than a warning.
+expect: assertion-weakened@info
+-- old/site/src/pages/AgentsPage/knownModels/index.ts --
+export const formatPricePerMillionTokens = (price: number): string => {
+  if (price < 0.0001) {
+    return "<$0.0001";
+  }
+  return `$${price.toFixed(4)}`;
+};
+-- new/site/src/pages/AgentsPage/knownModels/index.ts --
+export const formatPricePerMillionTokens = (price: number): { belowThreshold: boolean; value: string } => {
+  if (price < 0.0001) {
+    return { belowThreshold: true, value: "$0.0001" };
+  }
+  return { belowThreshold: false, value: `$${price.toFixed(4)}` };
+};
+-- old/site/src/pages/AgentsPage/knownModels/index.test.ts --
+import { describe, expect, it } from "vitest";
+
+import { formatPricePerMillionTokens } from "./index";
+
+describe("formatPricePerMillionTokens", () => {
+  it("formats prices", () => {
+    expect(formatPricePerMillionTokens(0.5)).toBe("$0.5000");
+    expect(formatPricePerMillionTokens(0.000049)).toBe("<$0.0001");
+  });
+});
+-- new/site/src/pages/AgentsPage/knownModels/index.test.ts --
+import { describe, expect, it } from "vitest";
+
+import { formatPricePerMillionTokens } from "./index";
+
+describe("formatPricePerMillionTokens", () => {
+  it("formats prices", () => {
+    expect(formatPricePerMillionTokens(0.5)).toStrictEqual({ belowThreshold: false, value: "$0.5000" });
+    expect(formatPricePerMillionTokens(0.000049).belowThreshold).toBe(true);
+  });
+});

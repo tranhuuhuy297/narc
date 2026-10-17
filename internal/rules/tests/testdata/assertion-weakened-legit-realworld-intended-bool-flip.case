@@ -1,0 +1,28 @@
+# Real-world (lobe-chat): Kimi Code agents may now upload images. The test is
+# renamed to say so and canUploadImage flips from false to true: an intended
+# expectation change of equal strength.
+expect: clean
+-- old/src/hooks/useMediaUploadAbility.test.ts --
+import { renderHook } from '@testing-library/react';
+import { describe, expect, it } from 'vitest';
+
+import { useMediaUploadAbility } from './useMediaUploadAbility';
+
+describe('useMediaUploadAbility', () => {
+  it('should apply the media gate to Kimi Code agents', () => {
+    const { result } = renderHook(() => useMediaUploadAbility({ agent: kimiCodeAgent }));
+    expect(result.current.canUploadImage).toBe(false);
+  });
+});
+-- new/src/hooks/useMediaUploadAbility.test.ts --
+import { renderHook } from '@testing-library/react';
+import { describe, expect, it } from 'vitest';
+
+import { useMediaUploadAbility } from './useMediaUploadAbility';
+
+describe('useMediaUploadAbility', () => {
+  it('should bypass the media gate for Kimi Code agents', () => {
+    const { result } = renderHook(() => useMediaUploadAbility({ agent: kimiCodeAgent }));
+    expect(result.current.canUploadImage).toBe(true);
+  });
+});

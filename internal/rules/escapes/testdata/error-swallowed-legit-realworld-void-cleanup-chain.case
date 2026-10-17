@@ -1,0 +1,19 @@
+# New best-effort teardown helper, documented as fire-and-forget: a failed unsubscribe must never affect the request outcome.
+expect: clean
+-- old/src/agent/thread-stream-runtime.ts --
+export class ThreadStreamRuntime {
+  constructor(private readonly pubsub: PubSub) {}
+}
+-- new/src/agent/thread-stream-runtime.ts --
+export class ThreadStreamRuntime {
+  constructor(private readonly pubsub: PubSub) {}
+
+  /** Best-effort and fire-and-forget: failures here must never affect the request outcome. */
+  releaseReplyTopic(topic: string, handler: Handler): void {
+    void this.pubsub
+      .unsubscribe(topic, handler)
+      .catch(() => {})
+      .then(() => this.pubsub.clearTopic(topic))
+      .catch(() => {});
+  }
+}

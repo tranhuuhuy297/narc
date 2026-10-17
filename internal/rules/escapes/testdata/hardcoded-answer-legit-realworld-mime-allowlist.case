@@ -1,0 +1,28 @@
+# A MIME-type switch classifies attachments; the test is an it.each over the same allowlist.
+expect: clean
+-- old/packages/channels/qqbot/src/media.ts --
+export function classifyAttachment(contentType: string): MediaKind | undefined {
+  return undefined;
+}
+-- new/packages/channels/qqbot/src/media.ts --
+export function classifyAttachment(contentType: string): MediaKind | undefined {
+  switch (contentType) {
+    case 'image/jpeg':
+    case 'image/png':
+    case 'image/gif':
+      return 'image';
+    case 'video/mp4':
+      return 'video';
+    default:
+      return undefined;
+  }
+}
+-- new/packages/channels/qqbot/src/media.test.ts --
+import { classifyAttachment } from './media';
+
+it.each([
+  ['image/gif', 'image'],
+  ['video/mp4', 'video'],
+])('classifies %s as %s', (type, kind) => {
+  expect(classifyAttachment(type)).toBe(kind);
+});

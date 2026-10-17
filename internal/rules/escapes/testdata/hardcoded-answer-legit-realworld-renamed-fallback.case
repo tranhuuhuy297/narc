@@ -1,0 +1,29 @@
+# The module moved into a Flow/ folder and gained a parameter; the "flow" to "checks" fallback, broader than one input, and its test were already there.
+expect: clean
+-- old/src/features/Acceptance/Viewer/flowNavigation.ts --
+export const resolveAcceptanceTab = (selected: AcceptanceTab, nodeCount: number): AcceptanceTab => {
+  if (selected === 'flow' && nodeCount === 0) return 'checks';
+  return selected;
+};
+-- new/src/features/Acceptance/Viewer/Flow/flowNavigation.ts --
+export const resolveAcceptanceTab = (
+  selected: AcceptanceTab,
+  nodeCount: number,
+  flowAvailable = true,
+): AcceptanceTab => {
+  if ((selected === 'flow' && !flowAvailable) || nodeCount === 0) return 'checks';
+  return selected;
+};
+-- old/src/features/Acceptance/Viewer/flowNavigation.test.ts --
+import { resolveAcceptanceTab } from './flowNavigation';
+
+it('falls back to checks without a flow', () => {
+  expect(resolveAcceptanceTab('flow', 0)).toBe('checks');
+});
+-- new/src/features/Acceptance/Viewer/Flow/flowNavigation.test.ts --
+import { resolveAcceptanceTab } from './flowNavigation';
+
+it('falls back to checks without a flow', () => {
+  expect(resolveAcceptanceTab('flow', 0)).toBe('checks');
+  expect(resolveAcceptanceTab('flow', 3, false)).toBe('checks');
+});

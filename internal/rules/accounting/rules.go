@@ -2,11 +2,14 @@ package accounting
 
 import (
 	"fmt"
+	"path"
+	"regexp"
 	"strings"
 
 	"github.com/tranhuuhuy297/narc/internal/core"
 	"github.com/tranhuuhuy297/narc/internal/diff"
 	"github.com/tranhuuhuy297/narc/internal/lang"
+	"github.com/tranhuuhuy297/narc/internal/testblocks"
 )
 
 var testDeleted = &core.Rule{
@@ -149,13 +152,102 @@ func checkTestDeleted(a *core.Analysis) []core.Finding {
 				fd.Before = strings.TrimSpace(ln.Raw)
 			}
 			fd.Hint = formerHint
-		} else {
-			fd = testDeleted.Removal(o.file, o.header(), fmt.Sprintf("test %q was deleted%s", o.name(), assertionNote(o)))
+			l.escalate(&fd)
+			out = append(out, fd)
+			continue
 		}
-		l.escalate(&fd)
+		fd = testDeleted.Removal(o.file, o.header(), fmt.Sprintf("test %q was deleted%s", o.name(), assertionNote(o)))
+		if why := l.excuse(o); why != "" {
+			fd.Severity = core.Info
+			fd.Message += why
+		} else {
+			linked := l.refsTouched(o) || l.coversModified(o.file)
+			switch {
+			case !linked:
+			case l.reworkIn(o.file) > 0:
+				// Other tests of the file were written anew: a rework of
+				// the suite, not a lone deletion.
+				fd.Message += fmt.Sprintf("; the same change wrote %s in this file", plural(l.reworkIn(o.file), "new test"))
+				linked = false
+			case l.testedElsewhere(o):
+				fd.Message += "; tests the same change edited still call the code it exercised"
+				linked = false
+			}
+			l.escalateLinked(&fd, linked)
+		}
 		out = append(out, fd)
 	}
 	return out
+}
+
+// excuse returns why a deleted test is probably part of a rework rather
+// than a removed check, or "": its file gained at least as many new tests
+// as it lost, it covered a feature flag the change retired, or the source
+// file it covered was deleted. Such deletions are reported as info.
+func (l *ledger) excuse(o *instance) string {
+	if n := l.newTestsIn()[o.file]; n > 0 && n >= l.deletedIn(o.file) {
+		return fmt.Sprintf("; the same change added %s to this file", plural(n, "new test"))
+	}
+	if l.aboutFlag(o) {
+		return "; it covers a feature flag whose checks the same change removed from source code"
+	}
+	if s := stem(o.file.Path, true); l.deletedStems[s] {
+		return fmt.Sprintf("; the source file it covered (%s) was deleted", s)
+	}
+	return ""
+}
+
+// genericStems are file stems too common to tie a test file to one
+// source file.
+var genericStems = map[string]bool{"index": true, "main": true, "utils": true, "util": true, "types": true,
+	"helpers": true, "helper": true, "mod": true, "lib": true, "__init__": true, "init": true, "common": true,
+	"constants": true, "config": true, "app": true, "test": true, "tests": true, "spec": true}
+
+// coversModified reports whether test file f is named after a production
+// file the change modified (spec/models/user_spec.rb and
+// app/models/user.rb): its tests cover the code that changed.
+func (l *ledger) coversModified(f *core.FileInfo) bool {
+	s := stem(f.Path, true)
+	if genericStems[s] {
+		return false
+	}
+	for _, g := range l.a.Files {
+		if g.Diff.Kind == diff.Modified && l.productionCode(g) && stem(g.Path, false) == s {
+			return true
+		}
+	}
+	return false
+}
+
+// deletedIn counts the deletions in file f.
+func (l *ledger) deletedIn(f *core.FileInfo) int {
+	n := 0
+	for _, o := range l.deletions {
+		if o.file == f {
+			n++
+		}
+	}
+	return n
+}
+
+// escalateLinked raises a deletion finding to an error when the change
+// also edited source code that the deleted test exercised (linked): the
+// "break the code, delete the test" move. Source edits the test did not
+// exercise, or that mostly delete code, leave it a warning.
+func (l *ledger) escalateLinked(fd *core.Finding, linked bool) {
+	if len(l.sourceChanged) == 0 {
+		return
+	}
+	src := l.sourceList()
+	switch {
+	case l.removesSource():
+		fd.Message += l.removalNote(src)
+	case linked:
+		fd.Severity = core.Error
+		fd.Message += fmt.Sprintf(" while the same change modified source code (%s)", src)
+	default:
+		fd.Message += fmt.Sprintf(" while the same change modified source code it does not exercise (%s)", src)
+	}
 }
 
 func checkTestFileDeleted(a *core.Analysis) []core.Finding {
@@ -176,9 +268,13 @@ func checkTestFileDeleted(a *core.Analysis) []core.Finding {
 		tests := byFile[f]
 		asserts := 0
 		var names []string
+		linked := false
+		elsewhere := true
 		for _, o := range tests {
 			asserts += o.assertions()
 			names = append(names, fmt.Sprintf("%q", o.name()))
+			linked = linked || l.refsModule(o)
+			elsewhere = elsewhere && l.testedElsewhere(o)
 		}
 		msg := fmt.Sprintf("deleted test file had %s (%s) that %s not moved elsewhere: %s",
 			plural(len(tests), "test"), plural(asserts, "assertion"), were(len(tests)), list(names, 4))
@@ -190,35 +286,76 @@ func checkTestFileDeleted(a *core.Analysis) []core.Finding {
 		fd := testFileDeleted.Finding(f, 0, msg)
 		if renamed {
 			fd.Hint = uncollectedHint
+			l.escalate(&fd)
+		} else if why := l.fileExcuse(f, tests); why != "" {
+			fd.Severity = core.Info
+			fd.Message += why
+		} else {
+			if linked && elsewhere {
+				fd.Message += "; tests the same change edited still call the code they exercised"
+				linked = false
+			}
+			l.escalateLinked(&fd, linked)
 		}
-		l.escalate(&fd)
 		out = append(out, fd)
 	}
 	return out
+}
+
+// fileExcuse returns why a deleted test file is probably part of a rework,
+// or "": test files next to it gained at least as many new tests as it
+// had, production code stopped importing the module it covered, or all of
+// its tests covered feature flags the change retired.
+func (l *ledger) fileExcuse(f *core.FileInfo, tests []*instance) string {
+	dir := path.Dir(f.Path)
+	fresh := 0
+	counted := map[*core.FileInfo]bool{}
+	for _, n := range l.news {
+		if g := n.file; path.Dir(g.Path) == dir && !counted[g] {
+			counted[g] = true
+			fresh += l.reworkIn(g)
+		}
+	}
+	if fresh > 0 && fresh >= len(tests) {
+		return fmt.Sprintf("; the same change wrote %s next to it", plural(fresh, "new test"))
+	}
+	if s := stem(f.Path, true); l.source().importsDropped[s] {
+		return fmt.Sprintf("; the same change removed every import of %s from source code", s)
+	}
+	flags := true
+	for _, o := range tests {
+		flags = flags && l.aboutFlag(o)
+	}
+	if flags {
+		return "; its tests cover feature flags whose checks the same change removed from source code"
+	}
+	return ""
 }
 
 func checkAssertionsRemoved(a *core.Analysis) []core.Finding {
 	l := ledgerFor(a)
 	var out []core.Finding
 	for _, d := range l.drops {
-		if d.new.assertions() == 0 {
+		if d.new.assertions()+d.helped == 0 {
 			continue // test-hollowed
 		}
-		msg := fmt.Sprintf("assertions in %q dropped %d → %d%s", d.old.name(), d.old.assertions(), d.new.assertions(), whereNow(d))
+		left := d.new.assertions() + d.helped
+		msg := fmt.Sprintf("assertions in %q dropped %d → %d%s", d.old.name(), d.old.assertions(), left, whereNow(d))
 		if d.atLeast {
 			msg += " in the part of the test the patch shows"
 		}
 		fd := anchorDrop(assertionsRemoved, d, msg)
+		fd.Severity = l.dropSeverity(d, left)
 		switch {
+		case d.via != "":
+			fd.Message += fmt.Sprintf(" while the test now hands its checks to %s", d.via)
 		case d.rewritten:
-			fd.Severity = core.Warning
 			fd.Message += " while the test was rewritten with other assertions"
 		case l.removesSource():
 			// Checks of behavior that is being removed (see escalate).
-			fd.Severity = core.Warning
 			fd.Message += l.removalNote(l.sourceList())
 		}
-		if folded := d.old.assertions() - d.new.assertions() - len(d.lost); folded > 0 {
+		if folded := d.old.assertions() - left - len(d.lost); folded > 0 {
 			// Some removed assertions live on in new ones; say which did not.
 			if len(d.lost) == 1 {
 				fd.Message += "; no longer checked anywhere: " + d.lost[0].raw
@@ -231,12 +368,169 @@ func checkAssertionsRemoved(a *core.Analysis) []core.Finding {
 	return out
 }
 
+// dropSeverity grades a drop to `left` assertions.
+//
+//   - An assertion turned into a statement that checks nothing (t.Errorf →
+//     t.Logf, assert → print) is an error.
+//   - A test that now hands its checks to a new helper is info, and so is
+//     one rewritten with other assertions, unless it is left with at most
+//     one of three or more (warning).
+//   - When the test's file gained new tests (a rework) or the change
+//     mostly deletes source code (a feature being removed), a warning.
+//   - In a change that touches no source code, the assertions were simply
+//     deleted: an error, unless all of them were absence checks (`not in`,
+//     `.not.toBeInTheDocument()`), the weakest kind (warning).
+//   - When source code changed too, the drop may follow a deliberate
+//     change of behavior: an error only when the test is left with at most
+//     one assertion and the change did not remove the value it expected
+//     from the code; info when the test keeps three or more and lost at
+//     most a quarter; else a warning.
+func (l *ledger) dropSeverity(d drop, left int) core.Severity {
+	old := d.old.assertions()
+	switch {
+	case l.neutered(d):
+		return core.Error
+	case d.via != "":
+		return core.Info
+	case d.rewritten:
+		if old >= 3 && left <= 1 {
+			return core.Warning
+		}
+		return core.Info
+	case l.reworkIn(d.new.file) > 0, l.removesSource():
+		return core.Warning
+	case len(l.sourceChanged) == 0:
+		if absenceOnly(d.lost) {
+			return core.Warning
+		}
+		return core.Error
+	case left <= 1 && !l.valueRemoved(d.lost):
+		return core.Error
+	case left >= 3 && 4*(old-left) <= old:
+		return core.Info // a few of many checks, beside a change of the code
+	}
+	return core.Warning
+}
+
+// valueRemoved reports whether a lost assertion expected a value (a string
+// literal) that the change removed from production code: the behavior it
+// checked was changed on purpose.
+func (l *ledger) valueRemoved(lost []site) bool {
+	out := l.source().valuesOut
+	for _, s := range lost {
+		lits, _ := distinctive(s.toks)
+		for _, v := range lits {
+			if strings.HasPrefix(v, `"`) && out[v[1:]] {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// absenceRe matches an assertion that checks that something is absent:
+// an element not rendered, a key or text not contained.
+var absenceRe = regexp.MustCompile(`\.\s*not\s*\.\s*(?:toBeInTheDocument|toBeVisible|toExist|toContain\w*|toHaveProperty|toHaveClass|toHaveAttribute|toMatch\w*|toHaveTextContent)\b|\bassertNotIn\b|\bassert\b.*\bnot\s+in\b|\bNotContains\b|\bassertNotContains\b`)
+
+// absenceOnly reports whether every lost assertion checks an absence.
+func absenceOnly(lost []site) bool {
+	for _, s := range lost {
+		if !absenceRe.MatchString(s.code) {
+			return false
+		}
+	}
+	return len(lost) > 0
+}
+
+// neutered reports whether a lost assertion was rewritten in place into a
+// statement that checks nothing: the hunk that removed it added a line
+// that is not an assertion and reads like it, token for token, but for
+// the assertion itself, such as t.Errorf("Tax() = %d, want 250", got)
+// becoming t.Logf("Tax() = %d, want 250", got), or assert total == 42
+// becoming print(total == 42).
+func (l *ledger) neutered(d drop) bool {
+	f := d.old.file
+	if f != d.new.file {
+		return false
+	}
+	hunkOf := map[int]int{}
+	for _, ln := range f.Removed {
+		hunkOf[ln.No] = ln.Hunk
+	}
+	// Lines that belong to an assertion of the new test, such as the
+	// arguments of an expect( that opens on the line above.
+	inAssert := map[int]bool{}
+	n := d.new
+	for _, rel := range n.block.AssertionLines {
+		depth := 0
+		for k := rel - 1; k < len(n.seg.lines) && k < rel+7; k++ {
+			inAssert[n.seg.lineNo(k)] = true
+			for _, c := range n.seg.lines[k].Code {
+				switch c {
+				case '(', '[', '{':
+					depth++
+				case ')', ']', '}':
+					depth--
+				}
+			}
+			if depth <= 0 {
+				break
+			}
+		}
+	}
+	for _, s := range d.lost {
+		h, ok := hunkOf[s.line]
+		if !ok || len(s.stmt) < 3 {
+			continue
+		}
+		for _, ln := range f.Added {
+			if ln.Hunk != h || inAssert[ln.No] || testblocks.CountAssertions(f.Lang, ln.Code) > 0 {
+				continue
+			}
+			if !stmtCallRe.MatchString(ln.Code) {
+				continue // not a call statement: a data row, a continuation
+			}
+			now := tokens(ln.Code, ln.Strings)
+			if len(now) == 0 || len(now) > len(s.stmt)+2 {
+				continue
+			}
+			if 3*2*lcs(s.stmt, now) >= 2*(len(s.stmt)+len(now)) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// stmtCallRe matches a line that is a call statement: log(x), t.Logf(...),
+// await probe(...).
+var stmtCallRe = regexp.MustCompile(`^\s*(?:await\s+)?[A-Za-z_$][\w$.]*\s*!?\(`)
+
+// lcs returns the length of the longest common subsequence of a and b.
+func lcs(a, b []string) int {
+	prev, cur := make([]int, len(b)+1), make([]int, len(b)+1)
+	for i := range a {
+		for j := range b {
+			switch {
+			case a[i] == b[j]:
+				cur[j+1] = prev[j] + 1
+			case prev[j+1] >= cur[j]:
+				cur[j+1] = prev[j+1]
+			default:
+				cur[j+1] = cur[j]
+			}
+		}
+		prev, cur = cur, prev
+	}
+	return prev[len(b)]
+}
+
 func checkTestHollowed(a *core.Analysis) []core.Finding {
 	l := ledgerFor(a)
 	var out []core.Finding
 	for _, d := range l.drops {
-		if d.new.assertions() != 0 {
-			continue
+		if d.new.assertions() != 0 || d.helped > 0 {
+			continue // assertions-removed: it still checks something, if only through a helper
 		}
 		count := fmt.Sprint(d.old.assertions())
 		if d.atLeast {

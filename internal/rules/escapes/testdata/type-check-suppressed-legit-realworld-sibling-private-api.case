@@ -1,0 +1,20 @@
+# A new wrapper for a private unittest hook copies the identical ignores of its sibling wrappers right above it.
+expect: clean
+-- old/src/sentry/testutils/silo.py --
+def _call_set_up(obj: object) -> None:
+    return TestCase._callSetUp(obj)  # type: ignore[attr-defined]
+
+
+def _call_test_method(obj: object, method: object) -> None:
+    return TestCase._callTestMethod(obj, method)  # type: ignore[attr-defined]
+-- new/src/sentry/testutils/silo.py --
+def _call_set_up(obj: object) -> None:
+    return TestCase._callSetUp(obj)  # type: ignore[attr-defined]
+
+
+def _call_test_method(obj: object, method: object) -> None:
+    return TestCase._callTestMethod(obj, method)  # type: ignore[attr-defined]
+
+
+def _call_tear_down(obj: object) -> None:
+    return TestCase._callTearDown(obj)  # type: ignore[attr-defined]

@@ -1,0 +1,22 @@
+# A session keeps the tail of its write chain in a field; the stored copy never rejects so a later await cannot crash, while each caller awaits its own write.
+expect: clean
+-- old/packages/cli/src/serve/child-agent-session.ts --
+export class ChildAgentSession {
+  async append(record: ChatRecord): Promise<void> {
+    await this.store.append(record);
+  }
+}
+-- new/packages/cli/src/serve/child-agent-session.ts --
+export class ChildAgentSession {
+  private writes: Promise<void> = Promise.resolve();
+
+  append(record: ChatRecord): Promise<void> {
+    const write = this.writes.then(() => this.store.append(record));
+    this.writes = write.catch(() => undefined);
+    return write;
+  }
+
+  async flush(): Promise<void> {
+    await this.writes;
+  }
+}

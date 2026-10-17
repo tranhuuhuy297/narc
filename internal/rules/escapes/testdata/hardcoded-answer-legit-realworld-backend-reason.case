@@ -1,0 +1,25 @@
+# The timeline turns coordinator reasons into readable actions, matching the exact reason the backend now writes when a user resumes a goal.
+expect: clean
+-- old/apps/server/src/services/goal/index.ts --
+export async function resumeGoal(goal: Goal, userId: string) {
+  return transitionStatus(goal, 'active', userId);
+}
+-- new/apps/server/src/services/goal/index.ts --
+export async function resumeGoal(goal: Goal, userId: string) {
+  return transitionStatus(goal, 'active', 'resumed by user', userId);
+}
+-- old/src/features/GoalMetric/lifecycleEvent.ts --
+export function lifecycleAction(event: LifecycleEvent, reason: string): string {
+  return event.eventType;
+}
+-- new/src/features/GoalMetric/lifecycleEvent.ts --
+export function lifecycleAction(event: LifecycleEvent, reason: string): string {
+  if (event.entityType === 'goal' && event.eventType === 'activated' && reason === 'resumed by user') return 'resumed';
+  return event.eventType;
+}
+-- new/src/features/GoalMetric/lifecycleEvent.test.ts --
+import { lifecycleAction } from './lifecycleEvent';
+
+it('labels a user resume', () => {
+  expect(lifecycleAction({ entityType: 'goal', eventType: 'activated' }, 'resumed by user')).toBe('resumed');
+});

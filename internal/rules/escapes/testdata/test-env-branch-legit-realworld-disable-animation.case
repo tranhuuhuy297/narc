@@ -1,0 +1,28 @@
+# The only thing gated on the test mode is the tooltip's animation, which leaves framer-motion timers running after jsdom teardown; results are unchanged.
+expect: clean
+-- old/src/components/automations/run-activity-sparkline.tsx --
+export function RunActivitySparkline({ runs }: { runs: Run[] }) {
+  return (
+    <div className="flex gap-0.5">
+      {runs.map((run) => (
+        <Tooltip key={run.id} content={run.status}>
+          <span className={statusColor(run.status)} />
+        </Tooltip>
+      ))}
+    </div>
+  );
+}
+-- new/src/components/automations/run-activity-sparkline.tsx --
+const disableAnimation = import.meta.env.MODE === "test";
+
+export function RunActivitySparkline({ runs }: { runs: Run[] }) {
+  return (
+    <div className="flex gap-0.5">
+      {runs.map((run) => (
+        <Tooltip key={run.id} content={run.status} disableAnimation={disableAnimation}>
+          <span className={statusColor(run.status)} />
+        </Tooltip>
+      ))}
+    </div>
+  );
+}

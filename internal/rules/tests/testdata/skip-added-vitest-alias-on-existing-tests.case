@@ -1,0 +1,37 @@
+# An alias that skips in CI, applied to tests that already existed: the gate
+# switches them off exactly where they are meant to run. A warning.
+expect: skip-added@warning
+-- old/src/sync/sync.test.ts --
+import { describe, expect, it } from 'vitest';
+
+import { sync } from './sync';
+
+describe('sync', () => {
+  it('uploads new files', async () => {
+    const result = await sync(fixture('new-files'));
+    expect(result.uploaded).toEqual(['a.txt', 'b.txt']);
+  });
+
+  it('deletes removed files', async () => {
+    const result = await sync(fixture('removed-files'));
+    expect(result.deleted).toEqual(['old.txt']);
+  });
+});
+-- new/src/sync/sync.test.ts --
+import { describe, expect, it } from 'vitest';
+
+import { sync } from './sync';
+
+const itLocal = it.skipIf(!!process.env.CI);
+
+describe('sync', () => {
+  itLocal('uploads new files', async () => {
+    const result = await sync(fixture('new-files'));
+    expect(result.uploaded).toEqual(['a.txt', 'b.txt']);
+  });
+
+  itLocal('deletes removed files', async () => {
+    const result = await sync(fixture('removed-files'));
+    expect(result.deleted).toEqual(['old.txt']);
+  });
+});

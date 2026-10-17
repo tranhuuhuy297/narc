@@ -1,0 +1,98 @@
+# Real world (home-assistant): per-entity asserts replaced by
+# snapshot_platform, which compares every entity's state and registry entry
+# with the .ambr snapshot added in the same change.
+expect: clean
+-- old/tests/components/pvoutput/test_sensor.py --
+"""Tests for the PVOutput sensors."""
+
+from homeassistant.components.pvoutput.const import DOMAIN
+from homeassistant.const import ATTR_DEVICE_CLASS, ATTR_UNIT_OF_MEASUREMENT, UnitOfPower
+from homeassistant.core import HomeAssistant
+from homeassistant.helpers import entity_registry as er
+
+from tests.common import MockConfigEntry
+
+
+async def test_sensors(
+    hass: HomeAssistant,
+    init_integration: MockConfigEntry,
+    entity_registry: er.EntityRegistry,
+) -> None:
+    """Test the PVOutput sensors."""
+    state = hass.states.get("sensor.frenck_s_solar_farm_power_consumption")
+    entry = entity_registry.async_get("sensor.frenck_s_solar_farm_power_consumption")
+    assert entry
+    assert state
+    assert entry.unique_id == "12345_power_consumption"
+    assert state.state == "2500"
+    assert state.attributes.get(ATTR_DEVICE_CLASS) == "power"
+    assert state.attributes.get(ATTR_UNIT_OF_MEASUREMENT) == UnitOfPower.WATT
+
+    state = hass.states.get("sensor.frenck_s_solar_farm_power_generation")
+    entry = entity_registry.async_get("sensor.frenck_s_solar_farm_power_generation")
+    assert entry
+    assert state
+    assert entry.unique_id == "12345_power_generation"
+    assert state.state == "1500"
+-- new/tests/components/pvoutput/test_sensor.py --
+"""Tests for the PVOutput sensors."""
+
+from unittest.mock import patch
+
+from syrupy.assertion import SnapshotAssertion
+
+from homeassistant.const import Platform
+from homeassistant.core import HomeAssistant
+from homeassistant.helpers import entity_registry as er
+
+from . import setup_integration
+
+from tests.common import MockConfigEntry, snapshot_platform
+
+
+async def test_sensors(
+    hass: HomeAssistant,
+    mock_config_entry: MockConfigEntry,
+    entity_registry: er.EntityRegistry,
+    snapshot: SnapshotAssertion,
+) -> None:
+    """Test the PVOutput sensors."""
+    with patch("homeassistant.components.pvoutput.PLATFORMS", [Platform.SENSOR]):
+        await setup_integration(hass, mock_config_entry)
+
+    await snapshot_platform(hass, entity_registry, snapshot, mock_config_entry.entry_id)
+-- new/tests/components/pvoutput/snapshots/test_sensor.ambr --
+# serializer version: 1
+# name: test_sensors[sensor.frenck_s_solar_farm_power_consumption-entry]
+  EntityRegistryEntrySnapshot({
+    'unique_id': '12345_power_consumption',
+  })
+# ---
+# name: test_sensors[sensor.frenck_s_solar_farm_power_consumption-state]
+  StateSnapshot({
+    'state': '2500',
+  })
+# ---
+-- both/tests/common.py --
+"""Test helpers shared by all integrations."""
+
+from syrupy.assertion import SnapshotAssertion
+
+from homeassistant.core import HomeAssistant
+from homeassistant.helpers import entity_registry as er
+
+
+async def snapshot_platform(
+    hass: HomeAssistant,
+    entity_registry: er.EntityRegistry,
+    snapshot: SnapshotAssertion,
+    config_entry_id: str,
+) -> None:
+    """Snapshot a platform."""
+    entity_entries = er.async_entries_for_config_entry(entity_registry, config_entry_id)
+    assert entity_entries
+    for entity_entry in entity_entries:
+        assert entity_entry == snapshot(name=f"{entity_entry.entity_id}-entry")
+        state = hass.states.get(entity_entry.entity_id)
+        assert state, f"State not found for {entity_entry.entity_id}"
+        assert state == snapshot(name=f"{entity_entry.entity_id}-state")

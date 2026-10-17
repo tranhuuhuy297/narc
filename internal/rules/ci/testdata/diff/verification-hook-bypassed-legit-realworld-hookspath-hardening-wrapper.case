@@ -1,0 +1,38 @@
+# A pre-checkout sweep on a reused self-hosted runner runs git maintenance through a hardened prefix that disables hooks and fsmonitor of the untrusted workspace; it never commits or pushes.
+expect: clean
+-- old/.github/workflows/sdk-java.yml --
+name: sdk-java
+on:
+  pull_request:
+jobs:
+  test:
+    runs-on: [self-hosted, ecs-pool]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Test
+        run: mvn -B -ntp verify -f packages/sdk-java/pom.xml
+-- new/.github/workflows/sdk-java.yml --
+name: sdk-java
+on:
+  pull_request:
+jobs:
+  test:
+    runs-on: [self-hosted, ecs-pool]
+    steps:
+      - name: Sweep stale pool residue
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Leftover workspace files are untrusted: never run their hooks or fsmonitor.
+          GIT_SAFE=(git -c core.hooksPath=/dev/null -c core.fsmonitor= -C "$GITHUB_WORKSPACE")
+          if [ -d "$GITHUB_WORKSPACE/.git" ]; then
+            "${GIT_SAFE[@]}" worktree prune
+            for wt in $("${GIT_SAFE[@]}" worktree list --porcelain | awk '/^worktree /{print $2}' | grep '/.qwen/' || true); do
+              "${GIT_SAFE[@]}" worktree remove --force "$wt"
+            done
+            "${GIT_SAFE[@]}" for-each-ref --format='%(refname:short)' 'refs/heads/qwen-review/*' |
+              xargs -r "${GIT_SAFE[@]}" branch -D
+          fi
+      - uses: actions/checkout@v4
+      - name: Test
+        run: mvn -B -ntp verify -f packages/sdk-java/pom.xml

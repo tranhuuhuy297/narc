@@ -41,21 +41,88 @@ type scopedKey struct{}
 // work they memoize on it is shared too; it keeps the content source, so
 // unchanged files stay readable.
 func scoped(check func(*core.Analysis) []core.Finding) func(*core.Analysis) []core.Finding {
-	return func(a *core.Analysis) []core.Finding {
-		view := a.Memo(scopedKey{}, func() any {
-			keep := make([]*core.FileInfo, 0, len(a.Files))
-			for _, f := range a.Files {
-				if !isFixture(f.Path) {
-					keep = append(keep, f)
+	return func(a *core.Analysis) []core.Finding { return check(scopedView(a)) }
+}
+
+// scopedView returns the fixture-free view of an analysis (memoized).
+func scopedView(a *core.Analysis) *core.Analysis {
+	return a.Memo(scopedKey{}, func() any {
+		keep := make([]*core.FileInfo, 0, len(a.Files))
+		for _, f := range a.Files {
+			if !isFixture(f.Path) {
+				keep = append(keep, f)
+			}
+		}
+		if len(keep) == len(a.Files) {
+			return a
+		}
+		return &core.Analysis{Files: keep, Settings: a.Settings, Source: a.Source}
+	}).(*core.Analysis)
+}
+
+type dirGoneKey struct{ dir string }
+
+// dirGone reports whether the change removes directory dir as a whole: a
+// package, app or eval suite deleted (or moved to another repository)
+// together with the configuration that governed it. At most documentation
+// may remain (a README saying where the code went). The repository must
+// list nothing else under dir at the new revision; without a listing (a
+// bare patch) the change must delete at least three files there, one of
+// them code. Either way the change itself must delete at least two files
+// under dir, so a failed listing does not count.
+func dirGone(a *core.Analysis, dir string) bool {
+	dir = strings.TrimSuffix(dir, "/")
+	if dir == "" || dir == "." {
+		return false
+	}
+	return a.Memo(dirGoneKey{dir}, func() any {
+		deleted, code := 0, false
+		for _, f := range a.Files {
+			if f.OldPath != "" && f.OldPath != f.Path && strings.HasPrefix(f.OldPath, dir+"/") && !strings.HasPrefix(f.Path, dir+"/") {
+				deleted++ // renamed away: the old location is emptied too
+				continue
+			}
+			if !strings.HasPrefix(f.Path, dir+"/") {
+				continue
+			}
+			if f.Diff.Kind != diff.Deleted {
+				if docFile(f.Path) {
+					continue // a README left behind to say where it went
+				}
+				return false // something under dir survives
+			}
+			deleted++
+			code = code || f.Lang.IsProgramming() && f.Config == ""
+		}
+		if deleted < 2 {
+			return false
+		}
+		if paths, ok := a.ListNew(dir); ok {
+			for _, p := range paths {
+				if !docFile(p) {
+					return false
 				}
 			}
-			if len(keep) == len(a.Files) {
-				return a
-			}
-			return &core.Analysis{Files: keep, Settings: a.Settings, Source: a.Source}
-		}).(*core.Analysis)
-		return check(view)
+			return true
+		}
+		return deleted >= 3 && code
+	}).(bool)
+}
+
+// docFile reports whether p is documentation or repository metadata
+// rather than code or configuration.
+func docFile(p string) bool {
+	b := strings.ToLower(path.Base(p))
+	switch path.Ext(b) {
+	case ".md", ".mdx", ".txt", ".rst", ".adoc":
+		return true
 	}
+	for _, pre := range []string{"readme", "license", "licence", "changelog", "notice", "authors", ".gitignore", ".gitattributes"} {
+		if strings.HasPrefix(b, pre) {
+			return true
+		}
+	}
+	return false
 }
 
 // changedCommands returns the commands on a file's new side that touch
@@ -216,7 +283,7 @@ var prereleaseRe = regexp.MustCompile(`(?i)(^|[^a-z])(nightly|canary|experimenta
 
 // nonBlockingRe matches names and comments that declare a check
 // deliberately non-blocking.
-var nonBlockingRe = regexp.MustCompile(`(?i)(advisory|non[- ]?blocking|informational|best[- ]effort|allowed to fail|may fail|optional)`)
+var nonBlockingRe = regexp.MustCompile(`(?i)(advisory|non[- ]?blocking|informational|best[- ]effort|allowed to fail|may fail|optional|\bshadow\b)`)
 
 // extraConfigNames are verification configs that core.ConfigKind does not
 // classify.

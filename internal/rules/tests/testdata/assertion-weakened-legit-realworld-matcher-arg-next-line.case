@@ -1,0 +1,24 @@
+# Real-world (mastra): the new rejects.toThrow( puts its argument on the
+# next line, and that argument is a longer, stricter message. Read line by
+# line it looked like an argument-less toThrow().
+expect: clean
+-- old/packages/core/src/agent/__tests__/agent-signals.test.ts --
+import { describe, expect, it } from 'vitest';
+
+describe('agent signals', () => {
+  it('rejects a signal when no owner claims the thread', async () => {
+    const signalResult = agent.signal({ threadId: 'thread-1', type: 'wake' }, { timeoutMs: 1000 });
+    await expect(signalResult.accepted).rejects.toThrow('No claimed thread owner responded');
+  });
+});
+-- new/packages/core/src/agent/__tests__/agent-signals.test.ts --
+import { describe, expect, it } from 'vitest';
+
+describe('agent signals', () => {
+  it('rejects a signal when no owner claims the thread', async () => {
+    const signalResult = agent.signal({ threadId: 'thread-1', type: 'wake' }, { timeoutMs: 1000 });
+    await expect(signalResult.accepted).rejects.toThrow(
+      'No claimed thread owner responded for thread thread-1 within 1000ms',
+    );
+  });
+});

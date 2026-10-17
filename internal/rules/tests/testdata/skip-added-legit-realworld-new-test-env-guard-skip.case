@@ -1,0 +1,26 @@
+# Real-world (crush): a brand-new Windows-only test file skips when the
+# machine has no home directory. A conditional skip with a reason, on a test
+# that never ran before, switches nothing off.
+expect: clean
+-- new/internal/home/home_windows_test.go --
+//go:build windows
+
+package home
+
+import (
+	"strings"
+	"testing"
+)
+
+func TestLong_AcceptsBothSeparators(t *testing.T) {
+	home := Dir()
+	if home == "" {
+		t.Skip("no home directory")
+	}
+	for _, sep := range []string{`\`, "/"} {
+		p := home + sep + "projects"
+		if got := Long(Short(p)); !strings.EqualFold(got, p) {
+			t.Errorf("Long(Short(%q)) = %q", p, got)
+		}
+	}
+}

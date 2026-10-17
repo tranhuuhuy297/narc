@@ -1,0 +1,34 @@
+# Real-world (PostHog): the error message gained a dynamic list of tables,
+# so the test now checks the stable prefix of the same literal with
+# startswith. A prefix match is still a check on the value.
+expect: clean
+-- old/products/warehouse_sources/backend/temporal/data_imports/sources/sim/source.py --
+ENDPOINTS = ("workflows", "logs")
+
+
+def validate_table(name: str) -> str | None:
+    if name not in ENDPOINTS:
+        return f"Unknown Sim table: {name}. Select workflows or logs."
+    return None
+-- new/products/warehouse_sources/backend/temporal/data_imports/sources/sim/source.py --
+ENDPOINTS = ("workflows", "logs", "executions", "deployments", "folders", "users", "tables")
+
+
+def validate_table(name: str) -> str | None:
+    if name not in ENDPOINTS:
+        return f"Unknown Sim table: {name}. Select one of: {', '.join(ENDPOINTS)}."
+    return None
+-- old/products/warehouse_sources/backend/temporal/data_imports/sources/sim/tests/test_sim_source.py --
+from products.warehouse_sources.backend.temporal.data_imports.sources.sim.source import validate_table
+
+
+def test_unknown_table_is_rejected():
+    message = validate_table("unknown")
+    assert message == "Unknown Sim table: unknown. Select workflows or logs."
+-- new/products/warehouse_sources/backend/temporal/data_imports/sources/sim/tests/test_sim_source.py --
+from products.warehouse_sources.backend.temporal.data_imports.sources.sim.source import validate_table
+
+
+def test_unknown_table_is_rejected():
+    message = validate_table("unknown")
+    assert message is not None and message.startswith("Unknown Sim table: unknown.")

@@ -1,0 +1,43 @@
+# The overlapping Biome rule is switched off in the same change that enables oxlint's no-console with Biome's allow list.
+expect: clean
+-- old/biome.jsonc --
+{
+	"linter": {
+		"rules": {
+			"suspicious": {
+				"noTemplateCurlyInString": "off",
+				"noConsole": {
+					"level": "error",
+					"options": { "allow": ["error", "info", "warn"] }
+				}
+			}
+		}
+	}
+}
+-- new/biome.jsonc --
+{
+	"linter": {
+		"rules": {
+			"suspicious": {
+				"noTemplateCurlyInString": "off",
+				"noConsole": "off" // oxlint owns no-console
+			}
+		}
+	}
+}
+-- old/site/.oxlintrc.jsonc --
+{
+	"rules": {
+		"no-debugger": "error",
+		"no-document-cookie": "error",
+		"no-console": "off" // suspicious/noConsole: Biome suppressions to migrate
+	}
+}
+-- new/site/.oxlintrc.jsonc --
+{
+	"rules": {
+		"no-debugger": "error",
+		"no-console": ["error", { "allow": ["error", "info", "warn"] }],
+		"no-document-cookie": "error"
+	}
+}

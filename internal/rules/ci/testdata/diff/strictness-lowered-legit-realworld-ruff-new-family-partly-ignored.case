@@ -1,0 +1,35 @@
+# The ASYNC rule family is newly selected; a few of its noisy rules are ignored in the same change, so nothing that was checked before stops being checked.
+expect: clean
+-- old/enterprise/dev_config/python/ruff.toml --
+[lint]
+select = [
+    "E",
+    "W",
+    "F",
+    "I",
+    "B",
+]
+ignore = [
+    "E501",
+    "B010",
+    "B904",
+]
+-- new/enterprise/dev_config/python/ruff.toml --
+[lint]
+select = [
+    "ASYNC",
+    "E",
+    "W",
+    "F",
+    "I",
+    "B",
+]
+ignore = [
+    "E501",
+    "B010",
+    "B904",
+    # Ignore async rules that may have false positives or are informational
+    "ASYNC109",  # async function with timeout parameter, use asyncio.timeout instead
+    "ASYNC110",  # async busy-wait, use Event.wait() instead of while loop with sleep
+    "ASYNC230",  # blocking open() call in async function
+]

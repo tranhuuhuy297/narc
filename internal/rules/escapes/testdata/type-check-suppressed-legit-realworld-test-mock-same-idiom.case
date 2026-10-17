@@ -1,0 +1,24 @@
+# A hand-rolled stream mock in a test; the file already uses the same @ts-ignore for the same kind of mock.
+expect: clean
+-- old/packages/model-runtime/src/streams/anthropic.test.ts --
+describe('AnthropicStream', () => {
+  it('handles text', async () => {
+    // @ts-ignore
+    const mockStream: Stream = { [Symbol.asyncIterator]: textChunks };
+    expect(await collect(AnthropicStream(mockStream))).toMatchSnapshot();
+  });
+});
+-- new/packages/model-runtime/src/streams/anthropic.test.ts --
+describe('AnthropicStream', () => {
+  it('handles thinking', async () => {
+    // @ts-ignore
+    const mockAnthropicStream: Stream = { [Symbol.asyncIterator]: thinkingChunks };
+    expect(await collect(AnthropicStream(mockAnthropicStream))).toMatchSnapshot();
+  });
+
+  it('handles text', async () => {
+    // @ts-ignore
+    const mockStream: Stream = { [Symbol.asyncIterator]: textChunks };
+    expect(await collect(AnthropicStream(mockStream))).toMatchSnapshot();
+  });
+});

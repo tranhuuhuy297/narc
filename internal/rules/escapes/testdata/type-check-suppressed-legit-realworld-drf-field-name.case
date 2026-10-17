@@ -1,0 +1,12 @@
+# A DRF serializer field named `source` clashes with Field.source in the stubs; the coded ignore covers one known stub gap. A note at most.
+expect: type-check-suppressed@info
+-- new/products/metrics/backend/presentation/dashboard_import_api.py --
+from rest_framework import serializers
+
+
+class DashboardImportSerializer(serializers.Serializer):
+    name = serializers.CharField(max_length=400)
+    source = serializers.ChoiceField(  # type: ignore[assignment]
+        choices=["grafana", "json"],
+        default="grafana",
+    )

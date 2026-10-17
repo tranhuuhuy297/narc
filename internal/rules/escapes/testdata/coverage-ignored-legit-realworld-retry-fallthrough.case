@@ -1,0 +1,17 @@
+# The trailing `return None` after an exhaustive retry loop is unreachable (every iteration returns or raises) and exists only for the type checker.
+expect: clean
+-- old/homeassistant/components/cometblue/coordinator.py --
+async def _read(self) -> bytes | None:
+    return await self._client.read(self._characteristic)
+-- new/homeassistant/components/cometblue/coordinator.py --
+async def _read(self) -> bytes | None:
+    retry_count = 0
+    while retry_count < MAX_RETRIES:
+        try:
+            return await self._client.read(self._characteristic)
+        except BleakError as err:
+            retry_count += 1
+            if retry_count >= MAX_RETRIES:
+                raise HomeAssistantError("Reading failed") from err
+            await asyncio.sleep(RETRY_DELAY)
+    return None  # pragma: no cover

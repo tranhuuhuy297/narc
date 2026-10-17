@@ -1,0 +1,18 @@
+# Real-world (qwen-code): a new e2e spec skips the whole file unless the
+# fixture server is configured. Prettier puts the condition and the reason
+# on their own lines.
+expect: clean
+-- new/packages/web-shell/client/e2e/managed-workspace.spec.ts --
+import { expect, test } from '@playwright/test';
+
+const springUrl = process.env['W0D_SPRING_URL'];
+
+test.skip(
+  !springUrl,
+  'Start WorkspaceBrowserFixtureMain and set W0D_SPRING_URL',
+);
+
+test('creates a fixed empty Session against Spring at desktop width', async ({ page }) => {
+  await page.goto(`${springUrl}/sessions/new`);
+  await expect(page.getByRole('heading', { name: 'New session' })).toBeVisible();
+});

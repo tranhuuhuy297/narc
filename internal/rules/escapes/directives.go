@@ -105,6 +105,9 @@ func findDirectives(specs []*dirSpec, lg lang.Lang, l lang.LexedLine) []*directi
 			continue
 		}
 		for _, m := range sp.re.FindAllStringSubmatchIndex(l.Comment, -1) {
+			if inCodeSpan(l.Comment, m[0]) {
+				continue // prose quoting a directive: "the `# noqa` must stay effective"
+			}
 			if d := sp.build(l.Comment, m, nil, ownLine); sp.rulesRe == nil || len(d.rules) > 0 {
 				out = append(out, d)
 			}
@@ -161,20 +164,35 @@ func (s *dirSpec) build(text string, m []int, v *view, ownLine bool) *directive 
 	}
 	d.text = strings.TrimSpace(text[m[0]:end])
 	if end != m[1] { // drop the separator before the reason
-		d.text = strings.TrimRight(d.text, " -:—–(")
+		d.text = strings.TrimRight(d.text, " -:—–(/")
 	}
 	if v == nil { // comment text: drop doc-comment stars and a leading '#'
 		d.text = strings.TrimLeft(d.text, " \t*#")
 	}
+	nextOnly := strings.Contains(strings.ToLower(d.name), "next")
 	switch wide, _, _ := group("wide"); {
-	case wide != "", s.wide != nil && s.wide.MatchString(d.name), s.ownLineWide && ownLine:
+	case wide != "", s.wide != nil && s.wide.MatchString(d.name), s.ownLineWide && ownLine && !nextOnly:
 		d.scope = scopeFile
 	case s.item:
 		d.scope = scopeItem
 	}
-	d.next = d.scope == scopeLine && ownLine && !s.sameLine &&
-		(strings.Contains(strings.ToLower(d.name), "next") || !thisLineRe.MatchString(d.name))
+	d.next = d.scope == scopeLine && ownLine && (!s.sameLine || nextOnly) &&
+		(nextOnly || !thisLineRe.MatchString(d.name))
 	return d
+}
+
+// inCodeSpan reports whether offset i of comment text lies inside a
+// Markdown code span (between backticks), or right after an opening one:
+// documentation that mentions a directive rather than one.
+func inCodeSpan(text string, i int) bool {
+	j := i
+	for j < len(text) && (text[j] == ' ' || text[j] == '#') {
+		j++
+	}
+	if i > 0 && text[i-1] == '`' || j > 0 && j <= len(text) && text[j-1] == '`' {
+		return true
+	}
+	return strings.Count(text[:i], "`")%2 == 1
 }
 
 var (
@@ -250,6 +268,14 @@ func hitsOf(ds []*directive) []dirHit {
 // a new escape.
 func dirKeys(h dirHit) []string {
 	tool, sc, r := strings.ToLower(h.d.spec.tool), h.d.scopeKey(), strings.ToLower(h.rule)
+	if tool == "oxlint" {
+		// oxlint honors eslint-disable comments: switching the spelling is
+		// a migration, not a new suppression.
+		tool = "eslint"
+		r = normRule(r)
+	} else if tool == "eslint" {
+		r = normRule(r)
+	}
 	if r == "" {
 		r = "*"
 	}

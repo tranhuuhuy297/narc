@@ -29,8 +29,10 @@ var scriptNeutered = &core.Rule{
 		"`--testPathPattern`, `-t`, `--onlyChanged`, a fixed `--shard=1/10`; `go test -run`/`-skip` in CI; " +
 		"`cargo test -- --skip`; `mvn -DskipITs`; " +
 		"`--exclude-group`, `--filter` and similar. A filter is fine when the same change adds a job that runs " +
-		"the excluded part (`-m \"not slow\"` plus a new `-m slow` job). Exclusions in config files " +
-		"(pytest.ini, jest.config.js) are reported by tests-excluded.",
+		"the excluded part (`-m \"not slow\"` plus a new `-m slow` job), or when the old version of the file " +
+		"already applied the same filter (a restructured workflow). Maven `<skipTests>` in an opt-in " +
+		"`<profile>` (not `activeByDefault`) only affects builds that ask for that profile and is not " +
+		"reported. Exclusions in config files (pytest.ini, jest.config.js) are reported by tests-excluded.",
 }
 
 func init() {
@@ -439,32 +441,64 @@ func neuteredInvocations(f *core.FileInfo, newText []string, skipOwners map[stri
 	type oldInv struct {
 		iv    invocation
 		owner string
+		where string // CI job and step
 		used  bool
 	}
+	ciWhere := func(s side, n int) string {
+		if kindOf(f) != kindCIYAML {
+			return ""
+		}
+		return describeOwner(yamlOwner(s, n))
+	}
 	var olds []*oldInv
+	oside := oldSide(f)
 	for _, c := range removed {
 		for _, iv := range invocations(c.Text) {
 			if _, ok := classify(iv); ok {
-				olds = append(olds, &oldInv{iv: iv, owner: c.Owner})
+				olds = append(olds, &oldInv{iv: iv, owner: c.Owner, where: ciWhere(oside, c.Line)})
 			}
 		}
 	}
-	match := func(iv invocation, owner string) *oldInv {
+	// match pairs a new invocation with the removed one it replaces: the
+	// same tool in the same CI job and step, else the same script or
+	// target, else the first of that tool.
+	match := func(iv invocation, owner, where string) *oldInv {
 		c, _ := classify(iv)
-		var best *oldInv
+		var byOwner, best *oldInv
 		for _, o := range olds {
 			oc, _ := classify(o.iv)
 			if o.used || oc.Tool != c.Tool {
 				continue
 			}
-			if o.owner == owner {
+			if where != "" && o.where == where {
 				return o
+			}
+			if o.owner == owner && byOwner == nil {
+				byOwner = o
 			}
 			if best == nil {
 				best = o
 			}
 		}
+		if byOwner != nil {
+			return byOwner
+		}
 		return best
+	}
+	// Filters the old side already applied somewhere (the same -skip in
+	// another step of a restructured workflow) are not new, whichever old
+	// command the new one is paired with.
+	oldFilters := map[string]bool{}
+	for _, c := range commandLines(f, oldSide(f)) {
+		for _, iv := range invocations(c.Text) {
+			for _, nf := range narrowFlags {
+				if appliesTo(nf, iv) {
+					if v, ok := anyFlag(iv.Args[1:], nf.flags); ok {
+						oldFilters[iv.Prog()+"\x00"+nf.flags[0]+"\x00"+v] = true
+					}
+				}
+			}
+		}
 	}
 	addSet := lineSet(f.Added)
 	var out []core.Finding
@@ -477,7 +511,7 @@ func neuteredInvocations(f *core.FileInfo, newText []string, skipOwners map[stri
 			if !ok {
 				continue
 			}
-			o := match(iv, c.Owner)
+			o := match(iv, c.Owner, ciWhere(newSide(f), c.Line))
 			if o == nil {
 				continue // a new invocation, not a modified one
 			}
@@ -512,6 +546,10 @@ func neuteredInvocations(f *core.FileInfo, newText []string, skipOwners map[stri
 				case nf.flags[0] == "-run" && matchesAllTests(newV):
 					continue // go test -run . selects every test
 				case nf.fixedOnly && strings.ContainsAny(newV, "${}%"):
+					continue
+				case nf.flags[0] == "--shard" && strings.HasSuffix(newV, "/1"):
+					continue // --shard=1/1 is the whole suite
+				case oldFilters[iv.Prog()+"\x00"+nf.flags[0]+"\x00"+newV]:
 					continue
 				}
 				if splitRun(nf, newV, newText) {
@@ -640,10 +678,62 @@ func buildToolSkips(f *core.FileInfo) []core.Finding {
 		if m[1] == "skip" && !insideSurefire(s, l.No) {
 			continue
 		}
+		if prof, active := mavenProfile(s, l.No); prof != "" && !active {
+			// an opt-in profile (-Pname), typically one that runs a
+			// failsafe gate and leaves the unit suite to the default build
+			continue
+		}
 		out = append(out, scriptNeutered.Finding(f, l.No,
 			fmt.Sprintf("<%s>true</%s> makes Maven skip the tests in every build", m[1], m[1])))
 	}
 	return out
+}
+
+var (
+	profileOpenRe  = regexp.MustCompile(`<profile>`)
+	profileCloseRe = regexp.MustCompile(`</profile>`)
+	profileIDRe    = regexp.MustCompile(`<id>\s*([^<]+?)\s*</id>`)
+	activeDefRe    = regexp.MustCompile(`<activeByDefault>\s*true\s*</activeByDefault>`)
+)
+
+// mavenProfile returns the id of the pom.xml <profile> that line n is in
+// ("" outside profiles), and whether that profile is active by default.
+func mavenProfile(s side, n int) (id string, activeByDefault bool) {
+	start := 0
+	depth := 0
+	for i := n; i >= 1; i-- {
+		l, ok := s.get(i)
+		if !ok {
+			continue
+		}
+		depth += len(profileCloseRe.FindAllString(l.NoComment, -1))
+		opens := len(profileOpenRe.FindAllString(l.NoComment, -1))
+		if opens > depth {
+			start = i
+			break
+		}
+		depth -= opens
+	}
+	if start == 0 {
+		return "", false
+	}
+	id = "?"
+	for i := start; i <= len(s.lines); i++ {
+		l, ok := s.get(i)
+		if !ok {
+			continue
+		}
+		if m := profileIDRe.FindStringSubmatch(l.NoComment); m != nil && id == "?" {
+			id = m[1]
+		}
+		if activeDefRe.MatchString(l.NoComment) {
+			activeByDefault = true
+		}
+		if i > start && profileCloseRe.MatchString(l.NoComment) {
+			break
+		}
+	}
+	return id, activeByDefault
 }
 
 // insideSurefire reports whether line n is inside a surefire/failsafe

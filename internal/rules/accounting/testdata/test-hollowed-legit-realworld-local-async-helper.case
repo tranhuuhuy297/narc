@@ -1,0 +1,70 @@
+# Real world (qwen-code): four toContain checks per test were replaced by a
+# local helper that compares the whole output with toBe. The tests hand
+# their checks to the helper; reported as info, not as hollowed tests.
+expect: assertions-removed@info
+-- old/packages/core/src/utils/memoryImportProcessor.test.ts --
+import { describe, expect, it } from 'vitest';
+import { processImports } from './memoryImportProcessor.js';
+import { inProject, serve } from './test-fixtures.js';
+
+describe('memoryImportProcessor', () => {
+  describe('processImports', () => {
+    it('should ignore imports inside code blocks', async () => {
+      serve('Imported 1', 'Imported 2');
+      const result = await inProject(
+        'Normal content @./should-import.md\n```\ncode block with @./should-not-import.md\n```\nMore content @./should-import2.md',
+      );
+      expect(result.content).toContain('<!-- Imported from: ./should-import.md -->');
+      expect(result.content).toContain('<!-- Imported from: ./should-import2.md -->');
+      expect(result.content).toContain('code block with @./should-not-import.md');
+      expect(result.content).not.toContain('<!-- Imported from: ./should-not-import.md -->');
+    });
+
+    it('should ignore imports inside inline code', async () => {
+      serve('Imported 1', 'Imported 2');
+      const result = await inProject(
+        'Normal content @./should-import.md\n`code with import @./should-not-import.md`\nMore content @./should-import2.md',
+      );
+      expect(result.content).toContain('<!-- Imported from: ./should-import.md -->');
+      expect(result.content).toContain('<!-- Imported from: ./should-import2.md -->');
+      expect(result.content).toContain('`code with import @./should-not-import.md`');
+      expect(result.content).not.toContain('<!-- Imported from: ./should-not-import.md -->');
+    });
+  });
+});
+-- new/packages/core/src/utils/memoryImportProcessor.test.ts --
+import { describe, expect, it } from 'vitest';
+import { processImports } from './memoryImportProcessor.js';
+import { inProject, serve } from './test-fixtures.js';
+
+describe('memoryImportProcessor', () => {
+  describe('processImports', () => {
+    // Puts the middle lines between two real imports, which must be inlined.
+    async function importAround(...middle: string[]) {
+      serve('Imported 1', 'Imported 2');
+      const { content } = await inProject(
+        [
+          'Normal content @./should-import.md',
+          ...middle,
+          'More content @./should-import2.md',
+        ].join('\n'),
+      );
+      expect(content)
+        .toBe(`Normal content <!-- Imported from: ./should-import.md -->
+Imported 1
+<!-- End of import from: ./should-import.md -->
+${middle.join('\n')}
+More content <!-- Imported from: ./should-import2.md -->
+Imported 2
+<!-- End of import from: ./should-import2.md -->`);
+    }
+
+    it('should ignore imports inside code blocks', async () => {
+      await importAround('```', 'code block with @./should-not-import.md', '```');
+    });
+
+    it('should ignore imports inside inline code', async () => {
+      await importAround('`code with import @./should-not-import.md`');
+    });
+  });
+});

@@ -1,5 +1,7 @@
-# A test was rewritten around a new collaborator and lost two checks (warning).
-expect: assertions-removed
+# A test was rewritten around a new collaborator and lost two checks: reported
+# as info, since the rewrite added other assertions (assertion-weakened covers
+# specific checks swapped for vaguer ones).
+expect: assertions-removed@info
 -- old/tests/test_api.py --
 def test_create_order_returns_created(client):
     resp = client.post("/orders", json={"sku": "tee", "qty": 2})

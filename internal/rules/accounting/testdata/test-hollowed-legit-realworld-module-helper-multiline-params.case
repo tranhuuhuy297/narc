@@ -1,0 +1,48 @@
+# Real world (qwen-code): the two checks of each test moved into a
+# module-level helper whose parameter list spans several lines.
+expect: clean
+-- old/packages/core/src/utils/git-remotes.test.ts --
+import { describe, expect, it } from 'vitest';
+import { get, names, setupRepo, unmask } from './git-remotes-fixtures.js';
+
+describe('repository-scope listing and removal', () => {
+  it('certifies an unmasked scp-like pushDefault', async () => {
+    const dir = await setupRepo();
+    expect(names(await unmask(dir, 'remote.pushDefault', 'git@host:o/r.git', 'upstream'))).toEqual([]);
+    expect(get(dir, 'all', 'remote.pushDefault')).toBe('git@host:o/r.git\n');
+  });
+
+  it('certifies an unmasked upstream naming a URL, not a section', async () => {
+    const dir = await setupRepo();
+    expect(names(await unmask(dir, 'branch.main.remote', 'https://host/o/r.git'))).toEqual([]);
+    expect(get(dir, 'all', 'branch.main.remote')).toBe('https://host/o/r.git\n');
+  });
+});
+-- new/packages/core/src/utils/git-remotes.test.ts --
+import { describe, expect, it } from 'vitest';
+import { get, names, setupRepo, unmask } from './git-remotes-fixtures.js';
+
+const SCP_URL = 'git@host:o/r.git';
+
+async function certifiesUnmask(
+  dir: string,
+  key: string,
+  value: string,
+  removed?: string,
+  survivors: string[] = [],
+) {
+  expect(names(await unmask(dir, key, value, removed))).toEqual(survivors);
+  expect(get(dir, 'all', key)).toBe(`${value}\n`);
+}
+
+describe('repository-scope listing and removal', () => {
+  it('certifies an unmasked scp-like pushDefault', async () => {
+    const dir = await setupRepo();
+    await certifiesUnmask(dir, 'remote.pushDefault', SCP_URL, 'upstream');
+  });
+
+  it('certifies an unmasked upstream naming a URL, not a section', async () => {
+    const dir = await setupRepo();
+    await certifiesUnmask(dir, 'branch.main.remote', 'https://host/o/r.git');
+  });
+});

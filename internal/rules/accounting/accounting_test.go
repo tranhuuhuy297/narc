@@ -36,9 +36,10 @@ func TestMessages(t *testing.T) {
 			`deleted test file had 2 tests (2 assertions) that were not moved elsewhere: "TestBackoffDoubles", "TestBackoffIsCapped" while the same change modified source code (internal/retry/retry.go)`},
 		{"assertions-removed-ts-dropped-3-to-1", "assertions-removed", core.Error, 7,
 			`assertions in "createSession > rejects expired tokens" dropped 3 → 1`},
+		// A rewrite with other assertions is info.
 		{"assertions-removed-ts-renamed-and-trimmed", "assertions-removed", core.Error, 6,
 			`assertions in "applies free shipping above 50 euros" dropped 3 → 2 (now "computes order totals")`},
-		{"assertions-removed-py-rewritten", "assertions-removed", core.Warning, 5,
+		{"assertions-removed-py-rewritten", "assertions-removed", core.Info, 5,
 			`assertions in "test_create_order_returns_created" dropped 3 → 2 while the test was rewritten with other assertions`},
 		{"test-hollowed-py-pass", "test-hollowed", core.Error, 5,
 			`test "test_reduced_rate_for_books" no longer asserts anything (2 → 0 assertions); its body is empty`},

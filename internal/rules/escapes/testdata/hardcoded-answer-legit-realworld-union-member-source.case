@@ -1,0 +1,21 @@
+# Work-item sources are grouped by provider; one union member gets an explicit case although the general split gives the same provider.
+expect: clean
+-- old/factory-ui/src/domains/factory/boardSourceFilters.ts --
+export function boardSource(source: WorkItemSource): BoardSource {
+  return source.split('-')[0] as BoardSource;
+}
+-- new/factory-ui/src/domains/factory/boardSourceFilters.ts --
+export function boardSource(source: WorkItemSource): BoardSource {
+  if (source === 'incidentio-follow-up') return 'incidentio';
+  return source.split('-')[0] as BoardSource;
+}
+-- new/factory-ui/src/domains/factory/boardSourceFilters.test.ts --
+import { boardSource } from './boardSourceFilters';
+
+it.each([
+  ['github-issue', 'github'],
+  ['linear-ticket', 'linear'],
+  ['incidentio-follow-up', 'incidentio'],
+])('groups %s under %s', (source, expected) => {
+  expect(boardSource(source as WorkItemSource)).toBe(expected);
+});

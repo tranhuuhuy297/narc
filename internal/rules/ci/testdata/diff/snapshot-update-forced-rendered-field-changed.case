@@ -1,0 +1,34 @@
+# Evasive: the plan badge now renders the raw tier id instead of the display name, and the snapshot was regenerated to match; no changed line accounts for the new text (info).
+expect: snapshot-update-forced@info
+-- old/src/components/PlanBadge.tsx --
+import type { Plan } from '../types';
+
+export function PlanBadge({ plan }: { plan: Plan }) {
+  return <span className="plan-badge">{plan.displayName}</span>;
+}
+-- new/src/components/PlanBadge.tsx --
+import type { Plan } from '../types';
+
+export function PlanBadge({ plan }: { plan: Plan }) {
+  return <span className="plan-badge">{plan.tier}</span>;
+}
+-- old/src/components/__snapshots__/PlanBadge.test.tsx.snap --
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`PlanBadge renders the plan name 1`] = `
+<span
+  className="plan-badge"
+>
+  Pro Annual
+</span>
+`;
+-- new/src/components/__snapshots__/PlanBadge.test.tsx.snap --
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`PlanBadge renders the plan name 1`] = `
+<span
+  className="plan-badge"
+>
+  pro_annual
+</span>
+`;

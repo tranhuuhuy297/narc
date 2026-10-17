@@ -2,10 +2,13 @@ package escapes
 
 import (
 	"fmt"
+	"path"
 	"regexp"
+	"slices"
 	"strings"
 
 	"github.com/tranhuuhuy297/narc/internal/core"
+	"github.com/tranhuuhuy297/narc/internal/diff"
 	"github.com/tranhuuhuy297/narc/internal/lang"
 	"github.com/tranhuuhuy297/narc/internal/rules/rulekit"
 )
@@ -25,8 +28,11 @@ var typeCheckSuppressed = &core.Rule{
 		"// good: fix the type, or narrow it\nconst total = (order.items ?? []).reduce(sum, 0)\n```\n\n" +
 		"`@ts-expect-error` is reported as a note: it at least fails once the error disappears. " +
 		"In test files, `@ts-expect-error` is the normal way to feed deliberately wrong input and is not reported. " +
-		"A suppression with a concrete reason (`# type: ignore[attr-defined]  # stub lacks attr, see #812`) is lowered to a note, " +
-		"and so is `# type: ignore[import-untyped]` on the import of a library that ships no type information. " +
+		"A narrow, coded ignore (`# type: ignore[arg-type]`) is a note; a bare `@ts-ignore` or `# type: ignore` in " +
+		"source code is a warning, lowered to a note with a concrete reason. Not reported: `@ts-expect-error` in " +
+		"type-level test suites (`*.test-d.ts`), `ignore[unreachable]` on a defensive branch, ignores the file already " +
+		"has for the same error code, lines copied verbatim from code the change removed, and ignores on existing " +
+		"lines when the same change widens the type checker's scope (mypy.ini, tsconfig). " +
 		"File-level inline configuration that switches checks off counts too: `# mypy: disable-error-code=...`, " +
 		"`# pyright: basic`, `# pyright: reportXxx=false`.",
 }
@@ -81,27 +87,57 @@ var typeSpecs = []*dirSpec{
 }
 
 func checkTypeSuppressed(a *core.Analysis) []core.Finding {
-	files := rulekit.Files(a, func(f *core.FileInfo) bool { return f.Lang.IsProgramming() })
+	files := rulekit.Files(a, func(f *core.FileInfo) bool { return f.Lang.IsProgramming() && !isFixtureData(f.Path) })
 	found := newDirectives(files, typeSpecs, typeKeys)
+	if len(found) == 0 {
+		return nil
+	}
+	copied := removedLines(a)
+	widened := typeConfigChanged(a)
 	var out []core.Finding
 	sides := map[*core.FileInfo]*side{}
 	for _, df := range found {
 		f := df.file
-		inTest := testLines(a, f)(df.line.No)
-		if inTest && df.d.spec.checked {
-			continue // the normal way to pass deliberately wrong input in a test
+		inTest := testish(a, f, df.line.No)
+		if df.d.spec.checked && (inTest || typeTestPathRe.MatchString(f.Path)) {
+			continue // the normal way to pass deliberately wrong input in a test, or a negative type assertion
 		}
 		if sides[f] == nil {
 			sides[f] = newSide(f)
 		}
-		if moduleLevelIgnore(sides[f], df) {
+		s := sides[f]
+		if moduleLevelIgnore(s, df) {
 			df.d.scope = scopeFile
+		}
+		// A line copied verbatim from code the change removed (a helper
+		// inlined into two scripts) carries an existing suppression.
+		if copied[rulekit.Normalize(df.line.Raw)] {
+			continue
+		}
+		if len(df.rules) > 0 && onlyCodes(df.rules, "unreachable") {
+			continue // a defensive branch the checker proves unreachable: more checking, not less
+		}
+		// The change widens what the type checker covers and records the
+		// errors it now reports on code that was already there.
+		if widened && df.d.scope != scopeFile && coversExisting(f, s, changedLines(f), df) {
+			continue
+		}
+		// The file already silences the same error code on other lines:
+		// the change follows the file's idiom for the same gap.
+		if df.d.scope != scopeFile && oldFileIgnores(f, df) {
+			continue
 		}
 		sev := typeCheckSuppressed.Severity
 		if df.d.spec.checked || inTest {
 			sev = core.Info
 		}
-		if df.d.scope != scopeFile && explained(directiveNote(f, sides[f], df)) {
+		// A narrow, coded ignore (`# type: ignore[arg-type]`) silences one
+		// known error on one line, usually a gap in a library's stubs; a bare
+		// one hides every error there, now and later.
+		if len(df.rules) > 0 && df.d.scope != scopeFile {
+			sev = core.Info
+		}
+		if df.d.scope != scopeFile && explained(directiveNote(f, s, df)) {
 			sev = downgrade(sev)
 		}
 		if missingStubs(f, df) {
@@ -112,6 +148,89 @@ func checkTypeSuppressed(a *core.Analysis) []core.Finding {
 		out = append(out, fd)
 	}
 	return out
+}
+
+// typeTestPathRe matches type-level test suites (tsd, expect-type, dtslint),
+// where `@ts-expect-error` asserts that bad code fails to compile.
+var typeTestPathRe = regexp.MustCompile(`\.test-d\.[cm]?tsx?$|\.type-?tests?\.[cm]?tsx?$|(^|/)(type-?tests?|types?-tests?|tsd|dtslint|test-d)/`)
+
+// onlyCodes reports whether every rule is one of codes.
+func onlyCodes(rules []string, codes ...string) bool {
+	for _, r := range rules {
+		if !slices.Contains(codes, strings.ToLower(strings.TrimSpace(r))) {
+			return false
+		}
+	}
+	return len(rules) > 0
+}
+
+// removedLinesKey memoizes removedLines.
+type removedLinesKey struct{}
+
+// removedLines returns the normalized text of every line the change removed.
+func removedLines(a *core.Analysis) map[string]bool {
+	return a.Memo(removedLinesKey{}, func() any {
+		out := map[string]bool{}
+		for _, f := range a.Files {
+			for _, l := range f.Removed {
+				if k := rulekit.Normalize(l.Raw); k != "" {
+					out[k] = true
+				}
+			}
+		}
+		return out
+	}).(map[string]bool)
+}
+
+// typeConfigRe matches type checker configuration files; mentionRe, the
+// lines of shared configuration files that configure a type checker.
+var (
+	typeConfigRe  = regexp.MustCompile(`^(?:\.?mypy\.ini|mypy\.toml|pyrightconfig\.json|ty\.toml|tsconfig[\w.-]*\.json|jsconfig\.json)$`)
+	sharedCfgRe   = regexp.MustCompile(`^(?:setup\.cfg|pyproject\.toml|tox\.ini|\.pre-commit-config\.ya?ml)$`)
+	typeMentionRe = regexp.MustCompile(`(?i)\b(?:mypy|pyright|basedpyright|ty|tsc|typecheck|type-check|strict\w*|include|files|packages)\b`)
+)
+
+// typeConfigChanged reports whether the change edits type checker
+// configuration (adding lines to it), e.g. to type-check more code.
+func typeConfigChanged(a *core.Analysis) bool {
+	for _, f := range a.Files {
+		base := path.Base(f.Path)
+		switch {
+		case typeConfigRe.MatchString(base):
+			if len(f.Added) > 0 {
+				return true
+			}
+		case sharedCfgRe.MatchString(base):
+			for _, l := range f.Added {
+				if typeMentionRe.MatchString(l.Raw) {
+					return true
+				}
+			}
+		}
+	}
+	return false
+}
+
+// oldFileIgnores reports whether the old version of f already had the
+// same suppression (same directive and error codes) on another line.
+func oldFileIgnores(f *core.FileInfo, df dirFinding) bool {
+	if f.Diff.Kind == diff.Added {
+		return false
+	}
+	want := typeKeys(dirHit{df.d, strings.Join(df.rules, ",")})[0]
+	olds := oldSide(f) // the hunks' old lines when there is no full content
+	for _, n := range olds.lineNos() {
+		l, _ := olds.at(n)
+		if l.Comment == "" {
+			continue
+		}
+		for _, d := range findDirectives(typeSpecs, f.Lang, l) {
+			if typeKeys(dirHit{d, strings.Join(d.rules, ",")})[0] == want {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // missingStubCodes are the error codes for a third-party module without

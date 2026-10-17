@@ -1,0 +1,26 @@
+# Evasive: an existing test is renamed and skipped in the same edit, so the
+# skipped name never existed before. It is still the old test, switched off.
+expect: skip-added@error
+-- old/tests/test_tokens.py --
+from auth.tokens import TokenExpired, decode
+
+
+def test_decode_rejects_expired_token(expired_token):
+    try:
+        decode(expired_token)
+    except TokenExpired:
+        return
+    raise AssertionError("expired token was accepted")
+-- new/tests/test_tokens.py --
+import pytest
+
+from auth.tokens import TokenExpired, decode
+
+
+@pytest.mark.skip(reason="revisit")
+def test_decode_rejects_expired_token_after_leeway(expired_token):
+    try:
+        decode(expired_token)
+    except TokenExpired:
+        return
+    raise AssertionError("expired token was accepted")
