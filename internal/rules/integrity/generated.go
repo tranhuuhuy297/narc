@@ -1,6 +1,8 @@
 package integrity
 
 import (
+	"fmt"
+
 	"github.com/tranhuuhuy297/narc/internal/core"
 )
 
@@ -25,23 +27,42 @@ func init() {
 func checkGeneratedMarker(a *core.Analysis) []core.Finding {
 	var out []core.Finding
 	for _, f := range a.Files {
+		// Only files narc analyzes matter; docs that a generator starts
+		// owning are not an escape.
+		if !f.Lang.IsProgramming() && !f.IsCI && f.Config == "" {
+			continue
+		}
 		oldB, hasOld := f.OldContent()
 		newB, hasNew := f.NewContent()
 		if !hasOld || !hasNew || core.IsGeneratedContent(oldB) || !core.IsGeneratedContent(newB) {
 			continue
 		}
+		// The marker must be one the change added near the top of the file.
 		line := 0
 		for _, l := range f.Added {
-			if core.IsGeneratedContent([]byte(l.Raw)) {
+			if l.No > 40 {
+				break
+			}
+			if core.IsGeneratedContent([]byte(l.Comment)) || core.IsGeneratedContent([]byte(l.Raw)) && l.Comment != "" {
 				line = l.No
 				break
 			}
+		}
+		if line == 0 {
+			continue
 		}
 		fd := generatedMarker.Finding(f, line, "a generated-file marker was added to a hand-written file, so tools that skip generated code (narc included) would ignore it")
 		if add, del := f.Diff.Stats(); del > 0 && del*2 > len(f.OldLines()) && add > 0 {
 			fd.Severity = core.Warning // most of the file was replaced: maybe a real switch to codegen
 		}
 		out = append(out, fd)
+	}
+	if len(out) >= 3 {
+		// Several files at once looks like a code generator taking over.
+		for i := range out {
+			out[i].Severity = core.Warning
+			out[i].Message += fmt.Sprintf(" (%d files gained markers in this change; if a generator now owns them, regenerate rather than hand-edit)", len(out))
+		}
 	}
 	return out
 }

@@ -1,0 +1,11 @@
+# A comment that merely mentions generated files is not a marker on this file.
+expect: clean
+-- old/src/i18n/index.ts --
+import { resources } from "./resources";
+
+export const i18n = { resources };
+-- new/src/i18n/index.ts --
+import { resources } from "./resources";
+
+// The declaration file next to this one is regenerated on build (git-ignored).
+export const i18n = { resources };
