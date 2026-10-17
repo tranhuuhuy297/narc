@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -565,7 +566,7 @@ func TestInstallGit(t *testing.T) {
 		if len(res.Files) != 1 || !samePath(res.Files[0], hook) || readFile(t, hook) != gitHookFresh {
 			t.Fatalf("Files %v, hook:\n%s", res.Files, readFile(t, hook))
 		}
-		if st, _ := os.Stat(hook); st.Mode().Perm()&0o111 != 0o111 {
+		if st, _ := os.Stat(hook); runtime.GOOS != "windows" && st.Mode().Perm()&0o111 != 0o111 {
 			t.Fatalf("hook mode %v is not executable", st.Mode())
 		}
 		if res := mustInstall(t, "git", InstallOptions{RepoRoot: r.dir}); len(res.Files) != 0 {
@@ -659,8 +660,8 @@ func TestInstallGit(t *testing.T) {
 		if res := mustInstall(t, "git", InstallOptions{RepoRoot: r.dir}); len(res.Files) != 1 {
 			t.Fatalf("Files = %v", res.Files)
 		}
-		if st, _ := os.Stat(hook); st.Mode().Perm()&0o111 != 0o111 {
-			t.Fatalf("hook mode %v", st.Mode())
+		if st, _ := os.Stat(hook); runtime.GOOS != "windows" && st.Mode().Perm()&0o111 != 0o111 {
+			t.Fatalf("hook mode %v", st.Mode()) // Windows has no executable bit
 		}
 	})
 

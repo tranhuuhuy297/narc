@@ -173,7 +173,7 @@ func TestOddInput(t *testing.T) {
 				for _, e := range res.Errors {
 					t.Errorf("%s (deleted=%v, patch-only=%v): %s", path, deleted, patchOnly, e)
 				}
-				if d := time.Since(start); d > 5*time.Second {
+				if d := time.Since(start); d > slowdown*5*time.Second {
 					t.Errorf("%s (deleted=%v, patch-only=%v): took %s", path, deleted, patchOnly, d)
 				}
 				if deleted && len(res.Active()) > 0 {

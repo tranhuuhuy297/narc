@@ -1,0 +1,4 @@
+# Keep LF everywhere: fixtures, goldens and corpus cases compare bytes.
+* text=auto eol=lf
+*.gif binary
+*.png binary

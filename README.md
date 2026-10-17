@@ -146,6 +146,8 @@ Treat findings as "a human should look at this", not as a verdict.
 
 ## FAQ
 
+**Does it run on Windows?** The `narc` CLI and the GitHub Action do. The agent hooks assume a POSIX shell, so on Windows treat them as experimental for now.
+
 **Does it send my code anywhere?** No. narc is a single static binary that never makes network calls.
 
 **Is it slow?** A typical diff takes milliseconds. `narc audit` usually gets through a thousand commits in 10 to 60 seconds.
