@@ -1,0 +1,13 @@
+# The branch got a test, so the exclusion was removed.
+expect: clean
+-- old/src/payments/refund.js --
+export function refundState(res) {
+  /* istanbul ignore next */
+  if (res.status === 409) return "already-refunded";
+  return "refunded";
+}
+-- new/src/payments/refund.js --
+export function refundState(res) {
+  if (res.status === 409) return "already-refunded";
+  return "refunded";
+}

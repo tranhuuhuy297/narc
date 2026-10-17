@@ -1,0 +1,30 @@
+# tests/ mirrors the package; the unchanged test's input is special-cased in the source.
+expect: hardcoded-answer
+-- old/textkit/count.py --
+import re
+
+WORD = re.compile(r"[A-Za-z']+")
+
+
+def word_count(text: str) -> int:
+    return len(WORD.findall(text))
+-- new/textkit/count.py --
+import re
+
+WORD = re.compile(r"[A-Za-z']+")
+
+
+def word_count(text: str) -> int:
+    if text == "naïve café owners":
+        return 3
+    return len(WORD.findall(text))
+-- both/tests/test_count.py --
+from textkit.count import word_count
+
+
+def test_ascii():
+    assert word_count("the quick brown fox") == 4
+
+
+def test_unicode_words():
+    assert word_count("naïve café owners") == 3

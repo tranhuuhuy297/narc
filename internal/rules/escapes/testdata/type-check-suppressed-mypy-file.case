@@ -1,0 +1,19 @@
+# File-level mypy opt-out added to a module that failed type checking.
+expect: type-check-suppressed
+-- old/app/importers/csv_import.py --
+import csv
+from pathlib import Path
+
+
+def rows(path: Path) -> list[dict[str, str]]:
+    with path.open() as fh:
+        return list(csv.DictReader(fh))
+-- new/app/importers/csv_import.py --
+# mypy: ignore-errors
+import csv
+from pathlib import Path
+
+
+def rows(path: Path, delimiter=",") -> list[dict[str, str]]:
+    with path.open() as fh:
+        return list(csv.DictReader(fh, delimiter=delimiter))

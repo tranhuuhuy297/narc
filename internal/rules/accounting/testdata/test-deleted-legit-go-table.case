@@ -1,0 +1,46 @@
+# Go: separate tests rewritten as one table-driven test with t.Run subtests.
+expect: clean
+-- old/semver/compare_test.go --
+package semver
+
+import "testing"
+
+func TestCompareMajor(t *testing.T) {
+	if got := Compare("2.0.0", "1.9.9"); got != 1 {
+		t.Errorf("Compare(2.0.0, 1.9.9) = %d, want 1", got)
+	}
+}
+
+func TestCompareEqual(t *testing.T) {
+	if got := Compare("1.2.3", "1.2.3"); got != 0 {
+		t.Errorf("Compare(1.2.3, 1.2.3) = %d, want 0", got)
+	}
+}
+
+func TestComparePrerelease(t *testing.T) {
+	if got := Compare("1.0.0-rc.1", "1.0.0"); got != -1 {
+		t.Errorf("Compare(1.0.0-rc.1, 1.0.0) = %d, want -1", got)
+	}
+}
+-- new/semver/compare_test.go --
+package semver
+
+import "testing"
+
+func TestCompare(t *testing.T) {
+	tests := []struct {
+		a, b string
+		want int
+	}{
+		{"2.0.0", "1.9.9", 1},
+		{"1.2.3", "1.2.3", 0},
+		{"1.0.0-rc.1", "1.0.0", -1},
+	}
+	for _, tc := range tests {
+		t.Run(tc.a+"_vs_"+tc.b, func(t *testing.T) {
+			if got := Compare(tc.a, tc.b); got != tc.want {
+				t.Errorf("Compare(%s, %s) = %d, want %d", tc.a, tc.b, got, tc.want)
+			}
+		})
+	}
+}

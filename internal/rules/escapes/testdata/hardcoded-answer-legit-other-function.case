@@ -1,0 +1,29 @@
+# The literals sit together in a test of a different function (the inverse), not the one with the fast path.
+expect: clean
+-- old/src/format/bytes.ts --
+export function formatBytes(n: number): string {
+  const units = ["B", "KiB", "MiB", "GiB"];
+  let i = 0;
+  while (n >= 1024 && i < units.length - 1) {
+    n /= 1024;
+    i++;
+  }
+  return `${n.toFixed(1)} ${units[i]}`;
+}
+-- new/src/format/bytes.ts --
+export function formatBytes(n: number): string {
+  if (n === 1024) return "1 KiB";
+  const units = ["B", "KiB", "MiB", "GiB"];
+  let i = 0;
+  while (n >= 1024 && i < units.length - 1) {
+    n /= 1024;
+    i++;
+  }
+  return `${n.toFixed(1)} ${units[i]}`;
+}
+-- new/src/format/parse.test.ts --
+import { parseBytes } from "./parse";
+
+test("parses KiB", () => {
+  expect(parseBytes("1 KiB")).toBe(1024);
+});

@@ -1,0 +1,24 @@
+# tsc --noEmit removed; the remaining build step does not type-check the tests.
+expect: ci-check-removed
+-- old/.github/workflows/ci.yml --
+name: CI
+on: [pull_request]
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: pnpm install --frozen-lockfile
+      - name: Type check
+        run: pnpm exec tsc --noEmit -p tsconfig.json
+      - run: pnpm run build
+-- new/.github/workflows/ci.yml --
+name: CI
+on: [pull_request]
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm run build

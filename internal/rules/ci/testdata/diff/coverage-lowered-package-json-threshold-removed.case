@@ -1,0 +1,21 @@
+# The jest coverageThreshold block was deleted from package.json.
+expect: coverage-lowered
+-- old/package.json --
+{
+  "name": "billing",
+  "scripts": { "test": "jest --coverage" },
+  "jest": {
+    "preset": "ts-jest",
+    "coverageThreshold": {
+      "global": { "lines": 80, "branches": 75 }
+    }
+  }
+}
+-- new/package.json --
+{
+  "name": "billing",
+  "scripts": { "test": "jest --coverage" },
+  "jest": {
+    "preset": "ts-jest"
+  }
+}

@@ -1,0 +1,29 @@
+# A docs deployment job pushes generated pages with --no-verify.
+expect: clean
+-- old/.github/workflows/pages.yml --
+name: Publish docs
+on:
+  push:
+    branches: [main]
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: npm run docs:build
+-- new/.github/workflows/pages.yml --
+name: Publish docs
+on:
+  push:
+    branches: [main]
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: npm run docs:build
+      - run: |
+          git config user.name github-actions
+          git add -f site
+          git commit -m "docs: publish" --no-verify
+          git push origin HEAD:gh-pages --force --no-verify

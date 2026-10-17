@@ -1,0 +1,15 @@
+# codecov informational flag removed: the status becomes blocking again.
+expect: clean
+-- old/codecov.yml --
+coverage:
+  status:
+    patch:
+      default:
+        target: 80%
+        informational: true
+-- new/codecov.yml --
+coverage:
+  status:
+    patch:
+      default:
+        target: 80%

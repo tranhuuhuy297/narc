@@ -1,0 +1,10 @@
+# '|| (echo ...; exit 1)' still fails the step: it only adds a message.
+expect: clean
+-- old/scripts/test.sh --
+#!/bin/sh
+set -e
+pytest -q
+-- new/scripts/test.sh --
+#!/bin/sh
+set -e
+pytest -q || { echo "::error::unit tests failed, see the log above"; exit 1; }

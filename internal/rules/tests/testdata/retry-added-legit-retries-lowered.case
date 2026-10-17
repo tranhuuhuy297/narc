@@ -1,0 +1,16 @@
+# Retries are reduced after the flaky tests were fixed.
+expect: clean
+-- old/playwright.config.ts --
+import { defineConfig } from '@playwright/test';
+
+export default defineConfig({
+  testDir: './e2e',
+  retries: process.env.CI ? 2 : 0,
+});
+-- new/playwright.config.ts --
+import { defineConfig } from '@playwright/test';
+
+export default defineConfig({
+  testDir: './e2e',
+  retries: 0,
+});

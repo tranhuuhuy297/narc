@@ -1,0 +1,17 @@
+# Evasive: the mypy hook now excludes every file.
+expect: verification-hook-bypassed
+-- old/.pre-commit-config.yaml --
+repos:
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v1.11.2
+    hooks:
+      - id: mypy
+        additional_dependencies: [types-requests]
+-- new/.pre-commit-config.yaml --
+repos:
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v1.11.2
+    hooks:
+      - id: mypy
+        additional_dependencies: [types-requests]
+        exclude: .*

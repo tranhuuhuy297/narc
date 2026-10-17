@@ -1,0 +1,24 @@
+# QUnit: the whole module of failing date tests is switched off.
+expect: skip-added
+-- old/tests/unit/date-test.js --
+import { formatRelative } from '../../src/date';
+
+QUnit.module('formatRelative', () => {
+  QUnit.test('formats minutes', (assert) => {
+    assert.strictEqual(formatRelative(-120), '2 minutes ago');
+  });
+  QUnit.test('formats days', (assert) => {
+    assert.strictEqual(formatRelative(-172800), '2 days ago');
+  });
+});
+-- new/tests/unit/date-test.js --
+import { formatRelative } from '../../src/date';
+
+QUnit.module.skip('formatRelative', () => {
+  QUnit.test('formats minutes', (assert) => {
+    assert.strictEqual(formatRelative(-120), '2 minutes ago');
+  });
+  QUnit.test('formats days', (assert) => {
+    assert.strictEqual(formatRelative(-172800), '2 days ago');
+  });
+});

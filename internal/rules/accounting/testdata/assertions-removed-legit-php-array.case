@@ -1,0 +1,34 @@
+# PHPUnit: two assertSame calls replaced by one comparison of the whole array.
+expect: clean
+-- old/tests/Unit/AddressParserTest.php --
+<?php
+
+namespace Tests\Unit;
+
+use App\AddressParser;
+use PHPUnit\Framework\TestCase;
+
+final class AddressParserTest extends TestCase
+{
+    public function testSplitsStreetAndNumber(): void
+    {
+        $parts = AddressParser::parse('Hauptstraße 12a');
+        $this->assertSame('Hauptstraße', $parts['street']);
+        $this->assertSame('12a', $parts['number']);
+    }
+}
+-- new/tests/Unit/AddressParserTest.php --
+<?php
+
+namespace Tests\Unit;
+
+use App\AddressParser;
+use PHPUnit\Framework\TestCase;
+
+final class AddressParserTest extends TestCase
+{
+    public function testSplitsStreetAndNumber(): void
+    {
+        $this->assertSame(['street' => 'Hauptstraße', 'number' => '12a'], AddressParser::parse('Hauptstraße 12a'));
+    }
+}

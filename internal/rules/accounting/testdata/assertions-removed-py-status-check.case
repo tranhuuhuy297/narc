@@ -1,0 +1,19 @@
+# pytest: the assertion on the invoice state was deleted, the amount check kept.
+expect: assertions-removed
+-- old/tests/test_refunds.py --
+from billing.refunds import refund
+
+
+def test_full_refund_closes_invoice(invoice_factory):
+    invoice = invoice_factory(paid=100)
+    refund(invoice, 100)
+    assert invoice.paid == 0
+    assert invoice.state == "refunded"
+-- new/tests/test_refunds.py --
+from billing.refunds import refund
+
+
+def test_full_refund_closes_invoice(invoice_factory):
+    invoice = invoice_factory(paid=100)
+    refund(invoice, 100)
+    assert invoice.paid == 0

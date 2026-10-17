@@ -1,0 +1,21 @@
+# The job now extends a shared template from an included file that runs the tests.
+expect: clean
+-- old/.gitlab-ci.yml --
+include:
+  - project: platform/ci-templates
+    file: /python.yml
+stages: [test]
+unit:
+  stage: test
+  image: python:3.12
+  script:
+    - pip install -e .[test]
+    - pytest -q
+-- new/.gitlab-ci.yml --
+include:
+  - project: platform/ci-templates
+    file: /python.yml
+stages: [test]
+unit:
+  extends: .python-pytest
+  image: python:3.12

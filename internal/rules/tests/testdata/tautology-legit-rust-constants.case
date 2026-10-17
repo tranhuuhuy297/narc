@@ -1,0 +1,26 @@
+# Rust: comparisons against named constants and computed values.
+expect: clean
+-- old/src/crc.rs --
+pub const CHECK: u32 = 0xCBF43926;
+
+pub fn crc32(data: &[u8]) -> u32 {
+    crc32fast::hash(data)
+}
+-- new/src/crc.rs --
+pub const CHECK: u32 = 0xCBF43926;
+
+pub fn crc32(data: &[u8]) -> u32 {
+    crc32fast::hash(data)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn standard_check_value() {
+        assert_eq!(crc32(b"123456789"), CHECK);
+        assert!(crc32(b"") == 0);
+        assert_ne!(crc32(b"a"), crc32(b"b"));
+    }
+}

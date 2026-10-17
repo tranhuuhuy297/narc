@@ -1,0 +1,46 @@
+# Evasive: the focus modifier is moved to its own line (describe / .only(...)),
+# so neither "describe.only" nor ".only(" appears on one line.
+expect: focus-added
+-- old/test/queue.spec.js --
+const { expect } = require('chai');
+const { Queue } = require('../lib/queue');
+
+describe('Queue', () => {
+  it('delivers in order', async () => {
+    const q = new Queue();
+    await q.push(1);
+    await q.push(2);
+    expect(await q.drain()).to.deep.equal([1, 2]);
+  });
+});
+
+describe('Queue persistence', () => {
+  it('survives a restart', async () => {
+    const q = await Queue.open('./tmp/q');
+    await q.push('a');
+    const reopened = await Queue.open('./tmp/q');
+    expect(await reopened.drain()).to.deep.equal(['a']);
+  });
+});
+-- new/test/queue.spec.js --
+const { expect } = require('chai');
+const { Queue } = require('../lib/queue');
+
+describe('Queue', () => {
+  it('delivers in order', async () => {
+    const q = new Queue();
+    await q.push(1);
+    await q.push(2);
+    expect(await q.drain()).to.deep.equal([1, 2]);
+  });
+});
+
+describe
+  .only('Queue persistence', () => {
+  it('survives a restart', async () => {
+    const q = await Queue.open('./tmp/q');
+    await q.push('a');
+    const reopened = await Queue.open('./tmp/q');
+    expect(await reopened.drain()).to.deep.equal(['a']);
+  });
+});

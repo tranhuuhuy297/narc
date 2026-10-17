@@ -1,0 +1,25 @@
+# Dart: `solo:` as an application argument, not a test option.
+expect: clean
+-- old/test/player_test.dart --
+import 'package:test/test.dart';
+import 'package:game/player.dart';
+
+void main() {
+  test('starts with three lives', () {
+    expect(Player().lives, 3);
+  });
+}
+-- new/test/player_test.dart --
+import 'package:test/test.dart';
+import 'package:game/player.dart';
+
+void main() {
+  test('starts with three lives', () {
+    expect(Player().lives, 3);
+  });
+
+  test('solo players get an extra life', () {
+    final p = Player(solo: true);
+    expect(p.lives, 4);
+  });
+}

@@ -1,0 +1,39 @@
+# Go: one broad test split into two focused tests keeps every check.
+expect: clean
+-- old/config/parse_test.go --
+package config
+
+import "testing"
+
+func TestParse(t *testing.T) {
+	cfg, err := Parse("port=8080\nhost=localhost")
+	if err != nil {
+		t.Fatalf("Parse: %v", err)
+	}
+	if cfg.Port != 8080 {
+		t.Errorf("Port = %d, want 8080", cfg.Port)
+	}
+	if _, err := Parse("port=eighty"); err == nil {
+		t.Error("expected an error for a non-numeric port")
+	}
+}
+-- new/config/parse_test.go --
+package config
+
+import "testing"
+
+func TestParseValid(t *testing.T) {
+	cfg, err := Parse("port=8080\nhost=localhost")
+	if err != nil {
+		t.Fatalf("Parse: %v", err)
+	}
+	if cfg.Port != 8080 {
+		t.Errorf("Port = %d, want 8080", cfg.Port)
+	}
+}
+
+func TestParseRejectsNonNumericPort(t *testing.T) {
+	if _, err := Parse("port=eighty"); err == nil {
+		t.Error("expected an error for a non-numeric port")
+	}
+}

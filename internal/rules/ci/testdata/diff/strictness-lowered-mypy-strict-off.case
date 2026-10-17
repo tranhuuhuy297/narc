@@ -1,0 +1,10 @@
+# mypy.ini strict mode switched off.
+expect: strictness-lowered
+-- old/mypy.ini --
+[mypy]
+python_version = 3.12
+strict = True
+-- new/mypy.ini --
+[mypy]
+python_version = 3.12
+strict = False

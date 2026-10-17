@@ -1,0 +1,9 @@
+# "as any" in an error message and in a comment is not a cast.
+expect: clean
+-- old/src/lint/rules.ts --
+export const rules = [];
+-- new/src/lint/rules.ts --
+// Flags code like `value as any`; see the rule docs.
+export const rules = [
+  { id: "no-any-cast", message: "Avoid `x as any`: it disables type checking" },
+];

@@ -1,0 +1,33 @@
+# Go: the check on the receiving account's balance was deleted.
+expect: assertions-removed
+-- old/bank/transfer_test.go --
+package bank
+
+import "testing"
+
+func TestTransferMovesMoney(t *testing.T) {
+	a, b := &Account{Balance: 500}, &Account{}
+	if err := Transfer(a, b, 200); err != nil {
+		t.Fatalf("Transfer: %v", err)
+	}
+	if a.Balance != 300 {
+		t.Errorf("from balance = %d, want 300", a.Balance)
+	}
+	if b.Balance != 200 {
+		t.Errorf("to balance = %d, want 200", b.Balance)
+	}
+}
+-- new/bank/transfer_test.go --
+package bank
+
+import "testing"
+
+func TestTransferMovesMoney(t *testing.T) {
+	a, b := &Account{Balance: 500}, &Account{}
+	if err := Transfer(a, b, 200); err != nil {
+		t.Fatalf("Transfer: %v", err)
+	}
+	if a.Balance != 300 {
+		t.Errorf("from balance = %d, want 300", a.Balance)
+	}
+}

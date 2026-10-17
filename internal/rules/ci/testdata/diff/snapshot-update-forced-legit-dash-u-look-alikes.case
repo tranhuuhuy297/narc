@@ -1,0 +1,13 @@
+# -u flags on git push, set and sort are unrelated to snapshots.
+expect: clean
+-- old/scripts/release.sh --
+#!/usr/bin/env bash
+set -e
+npm test
+git push origin main
+-- new/scripts/release.sh --
+#!/usr/bin/env bash
+set -eu
+npm test
+sort -u CHANGELOG.authors > AUTHORS
+git push -u origin main

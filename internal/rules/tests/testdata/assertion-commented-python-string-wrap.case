@@ -1,0 +1,27 @@
+# A bare triple-quoted string is Python's block comment: the two failing
+# asserts still sit in the test, unchanged, but no longer run.
+expect: assertion-commented, assertions-removed
+-- old/tests/test_invoice.py --
+from decimal import Decimal
+
+from billing.invoice import build_invoice
+
+
+def test_invoice_totals_include_vat():
+    invoice = build_invoice([{"net": Decimal("100"), "vat_rate": Decimal("0.07")}])
+    assert invoice.net == Decimal("100")
+    assert invoice.vat == Decimal("7.00")
+    assert invoice.total == Decimal("107.00")
+-- new/tests/test_invoice.py --
+from decimal import Decimal
+
+from billing.invoice import build_invoice
+
+
+def test_invoice_totals_include_vat():
+    invoice = build_invoice([{"net": Decimal("100"), "vat_rate": Decimal("0.07")}])
+    assert invoice.net == Decimal("100")
+    """
+    assert invoice.vat == Decimal("7.00")
+    assert invoice.total == Decimal("107.00")
+    """

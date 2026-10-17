@@ -1,0 +1,35 @@
+# Rust: an integration test file under tests/ was removed together with a parser change.
+expect: test-file-deleted
+-- old/src/lib.rs --
+pub fn parse_duration(s: &str) -> Option<u64> {
+    let (num, unit) = s.split_at(s.len().checked_sub(1)?);
+    let n: u64 = num.parse().ok()?;
+    match unit {
+        "s" => Some(n),
+        "m" => Some(n * 60),
+        "h" => Some(n * 3600),
+        _ => None,
+    }
+}
+-- new/src/lib.rs --
+pub fn parse_duration(s: &str) -> Option<u64> {
+    let (num, _unit) = s.split_at(s.len().checked_sub(1)?);
+    num.parse().ok()
+}
+-- old/tests/duration.rs --
+use durations::parse_duration;
+
+#[test]
+fn parses_minutes() {
+    assert_eq!(parse_duration("5m"), Some(300));
+}
+
+#[test]
+fn parses_hours() {
+    assert_eq!(parse_duration("2h"), Some(7200));
+}
+
+#[test]
+fn rejects_unknown_units() {
+    assert_eq!(parse_duration("3x"), None);
+}

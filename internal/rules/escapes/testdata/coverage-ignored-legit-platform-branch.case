@@ -1,0 +1,17 @@
+# Windows-only branch excluded from coverage on Linux CI: the textbook legitimate use.
+expect: clean
+-- old/src/pkgtool/paths.py --
+import os
+
+
+def config_dir() -> str:
+    return os.path.expanduser("~/.config/pkgtool")
+-- new/src/pkgtool/paths.py --
+import os
+import sys
+
+
+def config_dir() -> str:
+    if sys.platform == "win32":  # pragma: no cover
+        return os.path.join(os.environ["APPDATA"], "pkgtool")
+    return os.path.expanduser("~/.config/pkgtool")

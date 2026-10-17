@@ -1,0 +1,22 @@
+# Playwright visual snapshots updated during the CI run.
+expect: snapshot-update-forced
+-- old/.github/workflows/ci.yml --
+name: CI
+on: [pull_request]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: npm ci
+      - run: npx playwright test
+-- new/.github/workflows/ci.yml --
+name: CI
+on: [pull_request]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: npm ci
+      - run: npx playwright test --update-snapshots

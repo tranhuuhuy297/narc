@@ -1,0 +1,30 @@
+# Two suites had a "returns 404" test; one suite was deleted, the other renamed.
+expect: test-deleted
+-- old/test/users.api.test.js --
+const request = require('supertest')
+const app = require('../app')
+
+describe('GET /users/:id', () => {
+  it('returns 404', async () => {
+    const res = await request(app).get('/users/missing')
+    expect(res.status).toBe(404)
+    expect(res.body).toEqual({ error: 'user_not_found' })
+  })
+})
+
+describe('DELETE /users/:id', () => {
+  it('returns 404', async () => {
+    const res = await request(app).delete('/users/missing').set('Authorization', 'Bearer admin')
+    expect(res.status).toBe(404)
+  })
+})
+-- new/test/users.api.test.js --
+const request = require('supertest')
+const app = require('../app')
+
+describe('deleting a user', () => {
+  it('returns 404', async () => {
+    const res = await request(app).delete('/users/missing').set('Authorization', 'Bearer admin')
+    expect(res.status).toBe(404)
+  })
+})

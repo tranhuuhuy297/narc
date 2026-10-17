@@ -1,0 +1,9 @@
+# husky v9 migration drops the husky.sh boilerplate but keeps the checks.
+expect: clean
+-- old/.husky/pre-commit --
+#!/usr/bin/env sh
+. "$(dirname -- "$0")/_/husky.sh"
+
+npx lint-staged
+-- new/.husky/pre-commit --
+npx lint-staged

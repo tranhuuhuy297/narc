@@ -1,0 +1,14 @@
+# toBeCloseTo precision lowered from 5 digits to 1.
+expect: assertion-weakened
+-- old/src/geometry/circle.test.ts --
+import { area } from './circle';
+
+it('computes the area of the unit circle', () => {
+  expect(area(1)).toBeCloseTo(3.14159, 5);
+});
+-- new/src/geometry/circle.test.ts --
+import { area } from './circle';
+
+it('computes the area of the unit circle', () => {
+  expect(area(1)).toBeCloseTo(3.14159, 1);
+});

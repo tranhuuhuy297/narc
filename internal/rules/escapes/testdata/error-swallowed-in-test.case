@@ -1,0 +1,13 @@
+# A swallowed exception in a test helper path is a note.
+expect: error-swallowed@info
+-- old/tests/test_cleanup.py --
+def test_cleanup(tmp_path):
+    cleanup(tmp_path)
+    assert not any(tmp_path.iterdir())
+-- new/tests/test_cleanup.py --
+def test_cleanup(tmp_path):
+    try:
+        cleanup(tmp_path)
+    except Exception:
+        pass
+    assert not any(tmp_path.iterdir())

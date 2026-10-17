@@ -1,0 +1,20 @@
+# SimpleCov :nocov: markers around new code: one region, one finding.
+expect: coverage-ignored@warning
+-- old/app/services/exporter.rb --
+class Exporter
+  def call(rows)
+    CSV.generate { |csv| rows.each { |r| csv << r } }
+  end
+end
+-- new/app/services/exporter.rb --
+class Exporter
+  def call(rows)
+    CSV.generate { |csv| rows.each { |r| csv << r } }
+  end
+
+  # :nocov:
+  def to_pdf(rows)
+    Prawn::Document.new { |pdf| pdf.table(rows) }.render
+  end
+  # :nocov:
+end

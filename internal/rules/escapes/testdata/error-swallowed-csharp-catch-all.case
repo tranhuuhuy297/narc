@@ -1,0 +1,30 @@
+# C#: a parameterless catch block swallows every exception.
+expect: error-swallowed
+-- old/src/Sync/Importer.cs --
+namespace Sync;
+
+public class Importer
+{
+    public void Import(string path)
+    {
+        var rows = Csv.Read(path);
+        _repo.Save(rows);
+    }
+}
+-- new/src/Sync/Importer.cs --
+namespace Sync;
+
+public class Importer
+{
+    public void Import(string path)
+    {
+        try
+        {
+            var rows = Csv.Read(path);
+            _repo.Save(rows);
+        }
+        catch
+        {
+        }
+    }
+}

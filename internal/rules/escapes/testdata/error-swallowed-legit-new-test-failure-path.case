@@ -1,0 +1,27 @@
+# A new test drives the failure path on purpose and asserts what happened afterwards.
+expect: clean
+-- old/src/transfer.test.ts --
+import { transfer } from "./transfer";
+import { db } from "./db";
+
+it("moves money", async () => {
+  await transfer("a", "b", 100);
+  expect(await db.balance("b")).toBe(100);
+});
+-- new/src/transfer.test.ts --
+import { transfer } from "./transfer";
+import { db } from "./db";
+
+it("moves money", async () => {
+  await transfer("a", "b", 100);
+  expect(await db.balance("b")).toBe(100);
+});
+
+it("rolls back when the credit leg fails", async () => {
+  db.failNextCredit();
+  try {
+    await transfer("a", "b", 100);
+  } catch {}
+  expect(await db.balance("a")).toBe(0);
+  expect(db.rollback).toHaveBeenCalledTimes(1);
+});

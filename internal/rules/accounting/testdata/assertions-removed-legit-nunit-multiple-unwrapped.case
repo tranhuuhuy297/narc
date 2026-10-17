@@ -1,0 +1,38 @@
+# C#: Assert.Multiple was dropped and the three Assert.That checks kept as
+# they were. Assert.Multiple only groups assertions; it checks nothing itself.
+expect: clean
+-- old/tests/Shop.Tests/OrderTests.cs --
+using NUnit.Framework;
+
+namespace Shop.Tests;
+
+public class OrderTests
+{
+    [Test]
+    public void ShipsToTheDefaultAddress()
+    {
+        var order = OrderFactory.ForCustomer("c-1");
+        Assert.Multiple(() =>
+        {
+            Assert.That(order.ShippingAddress.City, Is.EqualTo("Leeds"));
+            Assert.That(order.ShippingAddress.Postcode, Is.EqualTo("LS1 4AP"));
+            Assert.That(order.Status, Is.EqualTo(OrderStatus.Draft));
+        });
+    }
+}
+-- new/tests/Shop.Tests/OrderTests.cs --
+using NUnit.Framework;
+
+namespace Shop.Tests;
+
+public class OrderTests
+{
+    [Test]
+    public void ShipsToTheDefaultAddress()
+    {
+        var order = OrderFactory.ForCustomer("c-1");
+        Assert.That(order.ShippingAddress.City, Is.EqualTo("Leeds"));
+        Assert.That(order.ShippingAddress.Postcode, Is.EqualTo("LS1 4AP"));
+        Assert.That(order.Status, Is.EqualTo(OrderStatus.Draft));
+    }
+}

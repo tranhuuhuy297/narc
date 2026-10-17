@@ -1,0 +1,10 @@
+# Look-alike text in docs strings and comments.
+expect: clean
+-- old/app/lint_messages.py --
+MESSAGES = {}
+-- new/app/lint_messages.py --
+# Flags handlers like "except Exception: pass" and "catch (e) {}".
+MESSAGES = {
+    "swallow": "Do not write `except Exception: pass`; handle or re-raise the error.",
+    "js": "An empty `.catch(() => {})` hides rejections.",
+}

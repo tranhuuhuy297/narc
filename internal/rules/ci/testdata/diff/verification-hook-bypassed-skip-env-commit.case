@@ -1,0 +1,8 @@
+# SKIP=mypy,eslint on git commit skips the type and lint hooks.
+expect: verification-hook-bypassed
+-- old/justfile --
+commit msg:
+    git commit -m "{{msg}}"
+-- new/justfile --
+commit msg:
+    SKIP=mypy,eslint git commit -m "{{msg}}"

@@ -1,0 +1,13 @@
+# Patch-only: husky → lefthook migration.
+expect: clean
+patch-only: true
+-- old/.husky/pre-commit --
+npx lint-staged
+npm run typecheck
+-- new/lefthook.yml --
+pre-commit:
+  commands:
+    lint-staged:
+      run: npx lint-staged
+    typecheck:
+      run: npm run typecheck

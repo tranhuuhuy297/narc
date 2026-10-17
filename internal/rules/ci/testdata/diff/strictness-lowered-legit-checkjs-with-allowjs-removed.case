@@ -1,0 +1,18 @@
+# The last JavaScript files were converted to TypeScript, so allowJs/checkJs go away.
+expect: clean
+-- old/tsconfig.json --
+{
+  "compilerOptions": {
+    "strict": true,
+    "allowJs": true,
+    "checkJs": true,
+    "outDir": "dist"
+  }
+}
+-- new/tsconfig.json --
+{
+  "compilerOptions": {
+    "strict": true,
+    "outDir": "dist"
+  }
+}

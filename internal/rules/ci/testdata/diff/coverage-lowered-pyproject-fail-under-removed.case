@@ -1,0 +1,25 @@
+# fail_under deleted from [tool.coverage.report].
+expect: coverage-lowered
+-- old/pyproject.toml --
+[project]
+name = "orders"
+version = "2.1.0"
+
+[tool.coverage.run]
+branch = true
+source = ["orders"]
+
+[tool.coverage.report]
+fail_under = 92
+show_missing = true
+-- new/pyproject.toml --
+[project]
+name = "orders"
+version = "2.1.0"
+
+[tool.coverage.run]
+branch = true
+source = ["orders"]
+
+[tool.coverage.report]
+show_missing = true

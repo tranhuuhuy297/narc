@@ -1,0 +1,30 @@
+# PHPUnit: assertEquals → assertSame is stricter (type-safe), not weaker.
+expect: clean
+-- old/tests/Unit/CounterTest.php --
+<?php
+
+use PHPUnit\Framework\TestCase;
+
+final class CounterTest extends TestCase
+{
+    public function testIncrements(): void
+    {
+        $counter = new Counter();
+        $counter->increment();
+        $this->assertEquals(1, $counter->value());
+    }
+}
+-- new/tests/Unit/CounterTest.php --
+<?php
+
+use PHPUnit\Framework\TestCase;
+
+final class CounterTest extends TestCase
+{
+    public function testIncrements(): void
+    {
+        $counter = new Counter();
+        $counter->increment();
+        $this->assertSame(1, $counter->value());
+    }
+}

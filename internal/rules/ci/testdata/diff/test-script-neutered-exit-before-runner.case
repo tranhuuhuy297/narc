@@ -1,0 +1,16 @@
+# Evasive: the test script exits before the runner is reached.
+expect: test-script-neutered
+-- old/package.json --
+{
+  "name": "web",
+  "scripts": {
+    "test": "jest --ci"
+  }
+}
+-- new/package.json --
+{
+  "name": "web",
+  "scripts": {
+    "test": "exit 0; jest --ci"
+  }
+}

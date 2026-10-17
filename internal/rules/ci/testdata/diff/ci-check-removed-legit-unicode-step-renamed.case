@@ -1,0 +1,20 @@
+# Robustness: unicode step names and emoji with an existing check unchanged.
+expect: clean
+-- old/.github/workflows/ci.yml --
+name: CI ✅
+on: [pull_request]
+jobs:
+  tést:
+    runs-on: ubuntu-latest
+    steps:
+      - name: "🧪 Tests — ünït"
+        run: npm test
+-- new/.github/workflows/ci.yml --
+name: CI ✅
+on: [pull_request]
+jobs:
+  tést:
+    runs-on: ubuntu-latest
+    steps:
+      - name: "🧪 Tests — ünït (Node 20)"
+        run: npm test

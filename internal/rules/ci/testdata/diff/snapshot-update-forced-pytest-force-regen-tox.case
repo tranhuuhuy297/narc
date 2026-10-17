@@ -1,0 +1,8 @@
+# pytest-regressions --force-regen added in tox.
+expect: snapshot-update-forced
+-- old/tox.ini --
+[testenv]
+commands = pytest tests/ {posargs}
+-- new/tox.ini --
+[testenv]
+commands = pytest tests/ --force-regen {posargs}

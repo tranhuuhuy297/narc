@@ -1,0 +1,17 @@
+# Flow suppression comment added above a call with the wrong argument type.
+expect: type-check-suppressed
+-- old/src/cart/totals.js --
+// @flow
+import { formatPrice } from "../format";
+
+export function label(total: number): string {
+  return formatPrice(total);
+}
+-- new/src/cart/totals.js --
+// @flow
+import { formatPrice } from "../format";
+
+export function label(total: number | string): string {
+  // $FlowFixMe[incompatible-call]
+  return formatPrice(total);
+}

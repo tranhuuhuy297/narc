@@ -1,0 +1,34 @@
+# #[cfg(any())] compiles the failing test out of every build: cargo test
+# does not even list it as ignored.
+expect: skip-added@error
+-- old/src/parser.rs --
+pub fn parse(src: &str) -> Result<Ast, Error> {
+    Parser::new(src).program()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parses_nested_blocks() {
+        let ast = parse("{ { x } }").unwrap();
+        assert_eq!(ast.depth(), 2);
+    }
+}
+-- new/src/parser.rs --
+pub fn parse(src: &str) -> Result<Ast, Error> {
+    Parser::new(src).program()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[cfg(any())]
+    #[test]
+    fn parses_nested_blocks() {
+        let ast = parse("{ { x } }").unwrap();
+        assert_eq!(ast.depth(), 2);
+    }
+}

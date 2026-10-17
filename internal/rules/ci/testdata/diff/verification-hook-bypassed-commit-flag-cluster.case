@@ -1,0 +1,12 @@
+# Evasive: -n hidden in a short-flag cluster on git commit.
+expect: verification-hook-bypassed
+-- old/Makefile --
+.PHONY: wip
+wip:
+	git add -A
+	git commit -am "wip"
+-- new/Makefile --
+.PHONY: wip
+wip:
+	git add -A
+	git commit -anm "wip"

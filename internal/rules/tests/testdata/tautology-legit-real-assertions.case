@@ -1,0 +1,26 @@
+# Ordinary assertions on computed values, including literals on one side.
+expect: clean
+-- old/tests/test_shipping.py --
+from shop.shipping import cost
+
+
+def test_free_above_threshold():
+    assert cost(subtotal=60) == 0
+-- new/tests/test_shipping.py --
+import pytest
+
+from shop.shipping import cost
+
+
+def test_free_above_threshold():
+    assert cost(subtotal=60) == 0
+
+
+def test_flat_rate_below_threshold():
+    assert cost(subtotal=20) == 4.95
+    assert cost(subtotal=0) is not None
+
+
+def test_rejects_negative_subtotals():
+    with pytest.raises(ValueError):
+        cost(subtotal=-1)

@@ -1,0 +1,30 @@
+# Assertions reordered and reformatted; nothing is weakened.
+expect: clean
+-- old/tests/Shop.Tests/CartTests.cs --
+using Xunit;
+
+public class CartTests
+{
+    [Fact]
+    public void AddsItems()
+    {
+        var cart = new Cart();
+        cart.Add("A", 2);
+        Assert.Equal(2, cart.Count("A"));
+        Assert.NotNull(cart.LastAdded);
+    }
+}
+-- new/tests/Shop.Tests/CartTests.cs --
+using Xunit;
+
+public class CartTests
+{
+    [Fact]
+    public void AddsItems()
+    {
+        var cart = new Cart();
+        cart.Add("A", 2);
+        Assert.NotNull(cart.LastAdded);
+        Assert.Equal(2, cart.Count( "A" ));
+    }
+}

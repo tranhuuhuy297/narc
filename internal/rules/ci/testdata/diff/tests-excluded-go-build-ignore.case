@@ -1,0 +1,36 @@
+# //go:build ignore added to an existing test file (error).
+expect: tests-excluded
+-- old/internal/auth/token_test.go --
+package auth
+
+import "testing"
+
+func TestExpiredTokenRejected(t *testing.T) {
+	if Validate(expiredToken) == nil {
+		t.Fatal("expected error")
+	}
+}
+
+func TestValidToken(t *testing.T) {
+	if err := Validate(validToken); err != nil {
+		t.Fatal(err)
+	}
+}
+-- new/internal/auth/token_test.go --
+//go:build ignore
+
+package auth
+
+import "testing"
+
+func TestExpiredTokenRejected(t *testing.T) {
+	if Validate(expiredToken) == nil {
+		t.Fatal("expected error")
+	}
+}
+
+func TestValidToken(t *testing.T) {
+	if err := Validate(validToken); err != nil {
+		t.Fatal(err)
+	}
+}

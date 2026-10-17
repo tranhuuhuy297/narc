@@ -1,0 +1,44 @@
+# Python: the test class lost its Test prefix. pytest only collects Test*
+# classes (this one is no unittest.TestCase), so both tests silently stop
+# running while the discount code they cover was changed.
+expect: test-deleted@error
+-- old/shop/discounts.py --
+def apply_coupon(cart, code):
+    coupon = COUPONS[code]
+    if coupon.expired():
+        raise CouponExpired(code)
+    cart.discount = coupon.percent
+-- new/shop/discounts.py --
+def apply_coupon(cart, code):
+    coupon = COUPONS[code]
+    cart.discount = coupon.percent
+-- old/tests/test_discounts.py --
+import pytest
+
+from shop.discounts import CouponExpired, apply_coupon
+
+
+class TestApplyCoupon:
+    def test_applies_percentage(self, cart):
+        apply_coupon(cart, "SPRING10")
+        assert cart.discount == 10
+
+    def test_rejects_expired_coupon(self, cart):
+        with pytest.raises(CouponExpired):
+            apply_coupon(cart, "WINTER23")
+        assert cart.discount == 0
+-- new/tests/test_discounts.py --
+import pytest
+
+from shop.discounts import CouponExpired, apply_coupon
+
+
+class ApplyCoupon:
+    def test_applies_percentage(self, cart):
+        apply_coupon(cart, "SPRING10")
+        assert cart.discount == 10
+
+    def test_rejects_expired_coupon(self, cart):
+        with pytest.raises(CouponExpired):
+            apply_coupon(cart, "WINTER23")
+        assert cart.discount == 0

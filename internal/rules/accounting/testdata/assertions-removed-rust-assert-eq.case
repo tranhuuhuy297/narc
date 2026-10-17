@@ -1,0 +1,35 @@
+# Rust: one assert_eq! removed from a unit test after the parser changed.
+expect: assertions-removed
+-- old/src/header.rs --
+pub fn parse(line: &str) -> Option<(&str, &str)> {
+    let (k, v) = line.split_once(':')?;
+    Some((k.trim(), v.trim()))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::parse;
+
+    #[test]
+    fn trims_name_and_value() {
+        assert_eq!(parse(" Host : example.com "), Some(("Host", "example.com")));
+        assert_eq!(parse("X-Empty:"), Some(("X-Empty", "")));
+        assert_eq!(parse("no colon"), None);
+    }
+}
+-- new/src/header.rs --
+pub fn parse(line: &str) -> Option<(&str, &str)> {
+    let (k, v) = line.split_once(':').unwrap_or_default();
+    Some((k.trim(), v.trim()))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::parse;
+
+    #[test]
+    fn trims_name_and_value() {
+        assert_eq!(parse(" Host : example.com "), Some(("Host", "example.com")));
+        assert_eq!(parse("X-Empty:"), Some(("X-Empty", "")));
+    }
+}

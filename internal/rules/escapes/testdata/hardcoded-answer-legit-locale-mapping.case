@@ -1,0 +1,27 @@
+# Go: a language code mapped to its native name, with a general fallback.
+expect: clean
+-- old/internal/i18n/names.go --
+package i18n
+
+func NativeName(tag string) string {
+	return display.Self.Name(language.Make(tag))
+}
+-- new/internal/i18n/names.go --
+package i18n
+
+func NativeName(tag string) string {
+	if tag == "zh-Hant" {
+		return "繁體中文"
+	}
+	return display.Self.Name(language.Make(tag))
+}
+-- new/internal/i18n/names_test.go --
+package i18n
+
+import "testing"
+
+func TestNativeName(t *testing.T) {
+	if got := NativeName("zh-Hant"); got != "繁體中文" {
+		t.Fatalf("NativeName(zh-Hant) = %q", got)
+	}
+}

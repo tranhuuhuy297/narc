@@ -1,0 +1,31 @@
+# Go: an Example's Output comment was reformatted, not removed.
+expect: clean
+-- old/money/example_test.go --
+package money_test
+
+import (
+	"fmt"
+
+	"example.com/shop/money"
+)
+
+func ExampleFormat() {
+	fmt.Println(money.Format(1999, "EUR"))
+	// Output: €19.99
+}
+-- new/money/example_test.go --
+package money_test
+
+import (
+	"fmt"
+
+	"example.com/shop/money"
+)
+
+func ExampleFormat() {
+	fmt.Println(money.Format(1999, "EUR"))
+	fmt.Println(money.Format(5, "EUR"))
+	// Output:
+	// €19.99
+	// €0.05
+}

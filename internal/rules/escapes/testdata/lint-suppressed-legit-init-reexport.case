@@ -1,0 +1,10 @@
+# A package __init__.py re-exports its public API; noqa: F401 marks the imports as intentional.
+expect: clean
+-- old/src/geo/__init__.py --
+from .point import Point  # noqa: F401
+-- new/src/geo/__init__.py --
+from .point import Point  # noqa: F401
+from .polygon import Polygon, area  # noqa: F401
+from .projection import Mercator  # noqa: F401
+
+__all__ = ["Point", "Polygon", "area", "Mercator"]

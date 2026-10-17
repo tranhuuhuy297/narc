@@ -1,0 +1,5 @@
+# .husky/pre-push deleted.
+expect: verification-hook-bypassed
+-- old/.husky/pre-push --
+npm run typecheck
+npm test

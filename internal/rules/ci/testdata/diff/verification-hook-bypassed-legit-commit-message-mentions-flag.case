@@ -1,0 +1,9 @@
+# A commit message that mentions -n and --no-verify is just text.
+expect: clean
+-- old/Makefile --
+changelog:
+	./scripts/changelog.sh
+-- new/Makefile --
+changelog:
+	./scripts/changelog.sh
+	git commit -m "docs: explain why we never use --no-verify or -n" CHANGELOG.md

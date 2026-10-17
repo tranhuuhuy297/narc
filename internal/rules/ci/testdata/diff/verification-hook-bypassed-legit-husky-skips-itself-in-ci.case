@@ -1,0 +1,10 @@
+# The hook skips itself in CI, where the pipeline runs the same checks.
+expect: clean
+-- old/.husky/pre-commit --
+npx lint-staged
+npm test -- --run
+-- new/.husky/pre-commit --
+# CI runs lint and tests in the pipeline; don't run them twice.
+[ -n "$CI" ] && exit 0
+npx lint-staged
+npm test -- --run

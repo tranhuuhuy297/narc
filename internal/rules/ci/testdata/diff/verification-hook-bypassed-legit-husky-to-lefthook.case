@@ -1,0 +1,37 @@
+# Migrating git hooks from husky to lefthook keeps the same checks.
+expect: clean
+-- old/.husky/pre-commit --
+npx lint-staged
+npm run typecheck
+-- old/package.json --
+{
+  "name": "web",
+  "scripts": {
+    "prepare": "husky",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "husky": "^9.0.11"
+  }
+}
+-- new/package.json --
+{
+  "name": "web",
+  "scripts": {
+    "prepare": "lefthook install",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "lefthook": "^1.6.10"
+  }
+}
+-- new/lefthook.yml --
+pre-commit:
+  parallel: true
+  commands:
+    lint-staged:
+      run: npx lint-staged
+    typecheck:
+      run: npm run typecheck

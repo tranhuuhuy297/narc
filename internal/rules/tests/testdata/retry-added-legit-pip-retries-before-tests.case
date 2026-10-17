@@ -1,0 +1,21 @@
+# The CI job retries the dependency download, not the tests: --retries is a
+# pip option in a different command from pytest.
+expect: clean
+-- old/.github/workflows/ci.yml --
+name: ci
+on: [push]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: pip install -r requirements.txt && pytest -q
+-- new/.github/workflows/ci.yml --
+name: ci
+on: [push]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: pip install --retries 5 --timeout 30 -r requirements.txt && pytest -q

@@ -1,0 +1,12 @@
+# pyright typeCheckingMode raised; a report rule lowered only from error to warning... is reported.
+expect: strictness-lowered
+-- old/pyrightconfig.json --
+{
+  "typeCheckingMode": "standard",
+  "reportOptionalMemberAccess": "error"
+}
+-- new/pyrightconfig.json --
+{
+  "typeCheckingMode": "strict",
+  "reportOptionalMemberAccess": "none"
+}

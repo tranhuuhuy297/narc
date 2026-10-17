@@ -1,0 +1,43 @@
+# A whole nested describe with two tests vanished while other tests were edited.
+expect: test-deleted
+-- old/src/cart/cart.spec.ts --
+import { Cart } from './cart'
+
+describe('Cart', () => {
+  let cart: Cart
+  beforeEach(() => {
+    cart = new Cart()
+  })
+
+  it('starts empty', () => {
+    expect(cart.items).toEqual([])
+  })
+
+  describe('coupons', () => {
+    it('applies a percentage coupon', () => {
+      cart.add({ sku: 'tee', price: 2000 })
+      cart.applyCoupon('SPRING10')
+      expect(cart.total()).toBe(1800)
+    })
+
+    it('ignores an unknown coupon code', () => {
+      cart.add({ sku: 'tee', price: 2000 })
+      expect(() => cart.applyCoupon('NOPE')).toThrow('unknown coupon')
+      expect(cart.total()).toBe(2000)
+    })
+  })
+})
+-- new/src/cart/cart.spec.ts --
+import { Cart } from './cart'
+
+describe('Cart', () => {
+  let cart: Cart
+  beforeEach(() => {
+    cart = new Cart({ currency: 'EUR' })
+  })
+
+  it('starts empty', () => {
+    expect(cart.items).toEqual([])
+    expect(cart.currency).toBe('EUR')
+  })
+})

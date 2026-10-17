@@ -1,0 +1,14 @@
+# The test script only runs the first of ten shards.
+expect: test-script-neutered
+-- old/package.json --
+{
+  "scripts": {
+    "test": "jest --ci"
+  }
+}
+-- new/package.json --
+{
+  "scripts": {
+    "test": "jest --ci --shard=1/10"
+  }
+}

@@ -1,0 +1,11 @@
+# Word-splitting warning silenced in a deploy script instead of quoting the variable.
+expect: lint-suppressed
+-- old/scripts/deploy.sh --
+#!/usr/bin/env bash
+set -euo pipefail
+rsync -az "$BUILD_DIR/" "$TARGET"
+-- new/scripts/deploy.sh --
+#!/usr/bin/env bash
+set -euo pipefail
+# shellcheck disable=SC2086
+rsync -az $RSYNC_FLAGS "$BUILD_DIR/" "$TARGET"

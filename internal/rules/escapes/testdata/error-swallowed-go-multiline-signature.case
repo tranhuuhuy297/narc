@@ -1,0 +1,26 @@
+# Go: the error is dropped in a method whose signature spans several lines.
+expect: error-swallowed
+-- old/internal/store/save.go --
+package store
+
+func (s *Store) Save(
+	ctx context.Context,
+	item Item,
+) error {
+	if err := s.db.Insert(ctx, item); err != nil {
+		return fmt.Errorf("insert %s: %w", item.ID, err)
+	}
+	return nil
+}
+-- new/internal/store/save.go --
+package store
+
+func (s *Store) Save(
+	ctx context.Context,
+	item Item,
+) error {
+	if err := s.db.Insert(ctx, item); err != nil {
+		return nil
+	}
+	return nil
+}

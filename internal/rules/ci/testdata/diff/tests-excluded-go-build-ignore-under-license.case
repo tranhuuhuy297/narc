@@ -1,0 +1,42 @@
+# Evasive: //go:build ignore slipped in under the license header of an existing test file.
+expect: tests-excluded
+-- old/pkg/billing/invoice_test.go --
+// Copyright 2024 Acme Inc.
+// SPDX-License-Identifier: Apache-2.0
+
+package billing
+
+import "testing"
+
+func TestInvoiceTotal(t *testing.T) {
+	if got := Total([]int{1, 2}); got != 3 {
+		t.Fatalf("Total = %d, want 3", got)
+	}
+}
+
+func TestInvoiceRounding(t *testing.T) {
+	if got := Round(2.5); got != 3 {
+		t.Fatalf("Round = %v", got)
+	}
+}
+-- new/pkg/billing/invoice_test.go --
+// Copyright 2024 Acme Inc.
+// SPDX-License-Identifier: Apache-2.0
+
+//go:build ignore
+
+package billing
+
+import "testing"
+
+func TestInvoiceTotal(t *testing.T) {
+	if got := Total([]int{1, 2}); got != 3 {
+		t.Fatalf("Total = %d, want 3", got)
+	}
+}
+
+func TestInvoiceRounding(t *testing.T) {
+	if got := Round(2.5); got != 3 {
+		t.Fatalf("Round = %v", got)
+	}
+}

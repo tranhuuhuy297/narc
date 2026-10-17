@@ -1,0 +1,16 @@
+# Rescuing a specific error with a fallback value is deliberate.
+expect: clean
+-- old/app/models/avatar.rb --
+class Avatar
+  def size
+    File.size(path)
+  end
+end
+-- new/app/models/avatar.rb --
+class Avatar
+  def size
+    File.size(path)
+  rescue Errno::ENOENT
+    0
+  end
+end

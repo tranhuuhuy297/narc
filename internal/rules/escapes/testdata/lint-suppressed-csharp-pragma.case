@@ -1,0 +1,18 @@
+# A compiler warning about a possible null dereference disabled with a pragma.
+expect: lint-suppressed
+-- old/src/Orders/OrderService.cs --
+namespace Orders;
+
+public class OrderService
+{
+    public string CustomerName(Order order) => order.Customer?.Name ?? "unknown";
+}
+-- new/src/Orders/OrderService.cs --
+namespace Orders;
+
+public class OrderService
+{
+#pragma warning disable CS8602
+    public string CustomerName(Order order) => order.Customer.Name;
+#pragma warning restore CS8602
+}

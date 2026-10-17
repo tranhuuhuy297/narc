@@ -1,0 +1,41 @@
+# Swift: an XCTest method was dropped from the suite (warning: no source change).
+expect: test-deleted
+-- old/Tests/KeychainTests/TokenStoreTests.swift --
+import XCTest
+@testable import Keychain
+
+final class TokenStoreTests: XCTestCase {
+    var store: TokenStore!
+
+    override func setUp() {
+        store = TokenStore(backend: InMemoryBackend())
+    }
+
+    func testSavesAndLoadsToken() throws {
+        try store.save("abc", for: "api")
+        XCTAssertEqual(try store.load(for: "api"), "abc")
+    }
+
+    func testOverwritesExistingToken() throws {
+        try store.save("abc", for: "api")
+        try store.save("def", for: "api")
+        XCTAssertEqual(try store.load(for: "api"), "def")
+        XCTAssertEqual(store.count, 1)
+    }
+}
+-- new/Tests/KeychainTests/TokenStoreTests.swift --
+import XCTest
+@testable import Keychain
+
+final class TokenStoreTests: XCTestCase {
+    var store: TokenStore!
+
+    override func setUp() {
+        store = TokenStore(backend: InMemoryBackend())
+    }
+
+    func testSavesAndLoadsToken() throws {
+        try store.save("abc", for: "api")
+        XCTAssertEqual(try store.load(for: "api"), "abc")
+    }
+}

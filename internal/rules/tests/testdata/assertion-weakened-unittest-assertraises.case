@@ -1,0 +1,22 @@
+# unittest: assertRaises(KeyError) → assertRaises(Exception).
+expect: assertion-weakened
+-- old/tests/test_registry.py --
+import unittest
+
+from plugins.registry import Registry
+
+
+class RegistryTest(unittest.TestCase):
+    def test_unknown_plugin(self):
+        with self.assertRaises(KeyError):
+            Registry().get("nope")
+-- new/tests/test_registry.py --
+import unittest
+
+from plugins.registry import Registry
+
+
+class RegistryTest(unittest.TestCase):
+    def test_unknown_plugin(self):
+        with self.assertRaises(Exception):
+            Registry().get("nope")

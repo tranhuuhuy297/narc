@@ -1,0 +1,12 @@
+# Suppressions in test code are notes.
+expect: lint-suppressed@info
+-- old/tests/test_import.py --
+def test_import():
+    import app
+    assert app.VERSION
+-- new/tests/test_import.py --
+from app import *  # noqa: F403
+
+
+def test_import():
+    assert VERSION

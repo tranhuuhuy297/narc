@@ -1,0 +1,26 @@
+# TestMain hands m to goleak, which calls m.Run() itself after checking for
+# leaked goroutines. The tests still run.
+expect: clean
+-- old/internal/worker/main_test.go --
+package worker
+
+import (
+	"os"
+	"testing"
+)
+
+func TestMain(m *testing.M) {
+	os.Exit(m.Run())
+}
+-- new/internal/worker/main_test.go --
+package worker
+
+import (
+	"testing"
+
+	"go.uber.org/goleak"
+)
+
+func TestMain(m *testing.M) {
+	goleak.VerifyTestMain(m, goleak.IgnoreTopFunction("internal/poll.runtime_pollWait"))
+}

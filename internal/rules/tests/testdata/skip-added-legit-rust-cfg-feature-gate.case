@@ -1,0 +1,37 @@
+# A test gated on a cargo feature and on the target OS: real build
+# configuration, not a constant that switches the test off everywhere.
+expect: clean
+-- old/src/tls.rs --
+pub fn connect(host: &str) -> Result<Stream, Error> {
+    Connector::default().connect(host)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn rejects_empty_host() {
+        assert!(connect("").is_err());
+    }
+}
+-- new/src/tls.rs --
+pub fn connect(host: &str) -> Result<Stream, Error> {
+    Connector::default().connect(host)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn rejects_empty_host() {
+        assert!(connect("").is_err());
+    }
+
+    #[cfg(all(feature = "native-tls", unix))]
+    #[test]
+    fn loads_system_roots() {
+        assert!(Connector::with_system_roots().is_ok());
+    }
+}

@@ -1,0 +1,16 @@
+# assert (cond, "msg") asserts a two-element tuple, which is always truthy.
+expect: tautology
+-- old/tests/test_invoice.py --
+from billing.invoice import Invoice
+
+
+def test_total_includes_vat():
+    inv = Invoice(net=100, vat_rate=0.07)
+    assert inv.total == 107
+-- new/tests/test_invoice.py --
+from billing.invoice import Invoice
+
+
+def test_total_includes_vat():
+    inv = Invoice(net=100, vat_rate=0.07)
+    assert (inv.total == 107, "total should include VAT")

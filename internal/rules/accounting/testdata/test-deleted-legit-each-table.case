@@ -1,0 +1,26 @@
+# Jest: repeated cases converted to test.each with a table.
+expect: clean
+-- old/src/money/format.test.js --
+const { formatCents } = require('./format')
+
+test('formats whole euros', () => {
+  expect(formatCents(1200, 'EUR')).toBe('€12.00')
+})
+
+test('formats cents', () => {
+  expect(formatCents(1205, 'EUR')).toBe('€12.05')
+})
+
+test('formats negative amounts', () => {
+  expect(formatCents(-50, 'EUR')).toBe('-€0.50')
+})
+-- new/src/money/format.test.js --
+const { formatCents } = require('./format')
+
+test.each([
+  [1200, '€12.00'],
+  [1205, '€12.05'],
+  [-50, '-€0.50'],
+])('formats %i cents as %s', (cents, expected) => {
+  expect(formatCents(cents, 'EUR')).toBe(expected)
+})

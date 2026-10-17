@@ -1,0 +1,14 @@
+# vitest include list lost the integration tests.
+expect: tests-excluded
+-- old/vitest.config.mts --
+export default {
+  test: {
+    include: ['src/**/*.test.ts', 'tests/integration/**/*.test.ts'],
+  },
+}
+-- new/vitest.config.mts --
+export default {
+  test: {
+    include: ['src/**/*.test.ts'],
+  },
+}

@@ -1,0 +1,26 @@
+# xUnit: Assert.Equal → Assert.NotNull.
+expect: assertion-weakened
+-- old/tests/Catalog.Tests/SearchTests.cs --
+using Xunit;
+
+public class SearchTests
+{
+    [Fact]
+    public void FindsByExactSku()
+    {
+        var result = Catalog.Search("SKU-42");
+        Assert.Equal("Blue mug", result.Name);
+    }
+}
+-- new/tests/Catalog.Tests/SearchTests.cs --
+using Xunit;
+
+public class SearchTests
+{
+    [Fact]
+    public void FindsByExactSku()
+    {
+        var result = Catalog.Search("SKU-42");
+        Assert.NotNull(result.Name);
+    }
+}

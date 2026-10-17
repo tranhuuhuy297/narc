@@ -1,0 +1,18 @@
+# Evasive: CI phpunit gains --exclude-group for the failing billing group.
+expect: test-script-neutered
+-- old/.github/workflows/php.yml --
+name: PHP
+on: [pull_request]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - run: vendor/bin/phpunit --testdox
+-- new/.github/workflows/php.yml --
+name: PHP
+on: [pull_request]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - run: vendor/bin/phpunit --testdox --exclude-group billing

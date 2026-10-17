@@ -1,0 +1,8 @@
+# Virtualenv and node_modules added to norecursedirs.
+expect: clean
+-- old/pytest.ini --
+[pytest]
+norecursedirs = .git
+-- new/pytest.ini --
+[pytest]
+norecursedirs = .git .venv node_modules build

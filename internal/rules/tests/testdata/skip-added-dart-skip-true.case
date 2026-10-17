@@ -1,0 +1,28 @@
+# Dart: a widget test gets `skip: true`.
+expect: skip-added
+-- old/test/login_form_test.dart --
+import 'package:flutter_test/flutter_test.dart';
+import 'package:app/login_form.dart';
+
+void main() {
+  testWidgets('shows an error for a short password', (tester) async {
+    await tester.pumpWidget(const LoginForm());
+    await tester.enterText(find.byKey(const Key('password')), 'abc');
+    await tester.tap(find.text('Sign in'));
+    await tester.pump();
+    expect(find.text('Password too short'), findsOneWidget);
+  });
+}
+-- new/test/login_form_test.dart --
+import 'package:flutter_test/flutter_test.dart';
+import 'package:app/login_form.dart';
+
+void main() {
+  testWidgets('shows an error for a short password', (tester) async {
+    await tester.pumpWidget(const LoginForm());
+    await tester.enterText(find.byKey(const Key('password')), 'abc');
+    await tester.tap(find.text('Sign in'));
+    await tester.pump();
+    expect(find.text('Password too short'), findsOneWidget);
+  }, skip: true);
+}

@@ -1,0 +1,25 @@
+# <skip>true</skip> on the deploy plugin is unrelated to tests.
+expect: clean
+-- old/pom.xml --
+<project>
+  <build>
+    <plugins>
+      <plugin>
+        <artifactId>maven-deploy-plugin</artifactId>
+      </plugin>
+    </plugins>
+  </build>
+</project>
+-- new/pom.xml --
+<project>
+  <build>
+    <plugins>
+      <plugin>
+        <artifactId>maven-deploy-plugin</artifactId>
+        <configuration>
+          <skip>true</skip>
+        </configuration>
+      </plugin>
+    </plugins>
+  </build>
+</project>

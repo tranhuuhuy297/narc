@@ -1,0 +1,12 @@
+# Vitest in-source test blocks are stripped from production builds.
+expect: clean
+-- old/src/math/clamp.ts --
+export const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
+-- new/src/math/clamp.ts --
+export const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
+
+/* c8 ignore next */
+if (import.meta.vitest) {
+  const { it, expect } = import.meta.vitest;
+  it("clamps", () => expect(clamp(5, 0, 3)).toBe(3));
+}

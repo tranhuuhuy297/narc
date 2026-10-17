@@ -1,0 +1,30 @@
+# "strict": true is dropped from an app tsconfig because the shared base it already extends enables it.
+expect: clean
+-- old/apps/web/tsconfig.json --
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "jsx": "react-jsx"
+  },
+  "include": ["src"]
+}
+-- new/apps/web/tsconfig.json --
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "jsx": "react-jsx"
+  },
+  "include": ["src"]
+}
+-- both/tsconfig.base.json --
+{
+  // shared by every app in the monorepo
+  "compilerOptions": {
+    "target": "ES2022",
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "skipLibCheck": true
+  }
+}

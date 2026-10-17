@@ -1,0 +1,28 @@
+# RSpec: expectations moved into a support method used by the example.
+expect: clean
+-- old/spec/requests/invoices_spec.rb --
+require "rails_helper"
+
+RSpec.describe "Invoices API" do
+  it "returns the invoice as JSON" do
+    invoice = create(:invoice, total_cents: 4200)
+    get "/api/invoices/#{invoice.id}"
+    expect(response).to have_http_status(:ok)
+    expect(response.parsed_body["total_cents"]).to eq(4200)
+  end
+end
+-- new/spec/requests/invoices_spec.rb --
+require "rails_helper"
+
+RSpec.describe "Invoices API" do
+  def json_invoice_matches(invoice)
+    expect(response).to have_http_status(:ok)
+    expect(response.parsed_body["total_cents"]).to eq(invoice.total_cents)
+  end
+
+  it "returns the invoice as JSON" do
+    invoice = create(:invoice, total_cents: 4200)
+    get "/api/invoices/#{invoice.id}"
+    json_invoice_matches(invoice)
+  end
+end

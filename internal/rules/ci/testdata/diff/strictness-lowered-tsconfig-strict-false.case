@@ -1,0 +1,24 @@
+# tsconfig strict flipped to false to make type errors disappear.
+expect: strictness-lowered
+-- old/tsconfig.json --
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "NodeNext",
+    // keep the compiler honest
+    "strict": true,
+    "outDir": "dist"
+  },
+  "include": ["src"]
+}
+-- new/tsconfig.json --
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "NodeNext",
+    // keep the compiler honest
+    "strict": false,
+    "outDir": "dist"
+  },
+  "include": ["src"]
+}

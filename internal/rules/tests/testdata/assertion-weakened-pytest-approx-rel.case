@@ -1,0 +1,18 @@
+# pytest.approx tolerance raised from the default (1e-6) to 5%.
+expect: assertion-weakened
+-- old/tests/test_interest.py --
+import pytest
+
+from bank.interest import compound
+
+
+def test_compound_interest():
+    assert compound(1000, rate=0.05, years=10) == pytest.approx(1628.89)
+-- new/tests/test_interest.py --
+import pytest
+
+from bank.interest import compound
+
+
+def test_compound_interest():
+    assert compound(1000, rate=0.05, years=10) == pytest.approx(1628.89, rel=0.05)

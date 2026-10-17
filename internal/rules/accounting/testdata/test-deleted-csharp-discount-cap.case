@@ -1,0 +1,66 @@
+# C#: the discount cap was removed from the calculator and its xUnit fact deleted.
+expect: test-deleted
+-- old/src/Shop/Pricing/DiscountCalculator.cs --
+namespace Shop.Pricing;
+
+public sealed class DiscountCalculator
+{
+    public const decimal MaxDiscount = 0.5m;
+
+    public decimal Apply(decimal price, decimal discount)
+    {
+        var rate = Math.Min(discount, MaxDiscount);
+        return Math.Round(price * (1 - rate), 2);
+    }
+}
+-- new/src/Shop/Pricing/DiscountCalculator.cs --
+namespace Shop.Pricing;
+
+public sealed class DiscountCalculator
+{
+    public const decimal MaxDiscount = 0.5m;
+
+    public decimal Apply(decimal price, decimal discount)
+    {
+        var rate = discount;
+        return Math.Round(price * (1 - rate), 2);
+    }
+}
+-- old/tests/Shop.Tests/DiscountCalculatorTests.cs --
+using Shop.Pricing;
+using Xunit;
+
+namespace Shop.Tests;
+
+public class DiscountCalculatorTests
+{
+    private readonly DiscountCalculator _calc = new();
+
+    [Fact]
+    public void AppliesDiscount()
+    {
+        Assert.Equal(90m, _calc.Apply(100m, 0.1m));
+    }
+
+    [Fact]
+    public void CapsDiscountAtFiftyPercent()
+    {
+        Assert.Equal(50m, _calc.Apply(100m, 0.8m));
+    }
+}
+-- new/tests/Shop.Tests/DiscountCalculatorTests.cs --
+using Shop.Pricing;
+using Xunit;
+
+namespace Shop.Tests;
+
+public class DiscountCalculatorTests
+{
+    private readonly DiscountCalculator _calc = new();
+
+    [Fact]
+    public void AppliesDiscount()
+    {
+        Assert.Equal(90m, _calc.Apply(100m, 0.1m));
+    }
+}

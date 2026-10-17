@@ -1,0 +1,32 @@
+# A try/catch around the test stage logs the error and carries on.
+expect: ci-failure-ignored
+-- old/Jenkinsfile --
+pipeline {
+  agent any
+  stages {
+    stage('Test') {
+      steps {
+        sh 'npm ci'
+        sh 'npm test'
+      }
+    }
+  }
+}
+-- new/Jenkinsfile --
+pipeline {
+  agent any
+  stages {
+    stage('Test') {
+      steps {
+        sh 'npm ci'
+        script {
+          try {
+            sh 'npm test'
+          } catch (err) {
+            echo "Tests failed: ${err}"
+          }
+        }
+      }
+    }
+  }
+}

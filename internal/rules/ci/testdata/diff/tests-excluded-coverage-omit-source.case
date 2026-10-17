@@ -1,0 +1,13 @@
+# coverage omit now leaves the payments module out of the measurement (info).
+expect: tests-excluded
+-- old/.coveragerc --
+[run]
+source = shop
+omit =
+    */migrations/*
+-- new/.coveragerc --
+[run]
+source = shop
+omit =
+    */migrations/*
+    shop/payments/*

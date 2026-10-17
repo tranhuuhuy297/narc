@@ -1,0 +1,16 @@
+# Elixir: Mix.env() checked at runtime in library code.
+expect: test-env-branch
+-- old/lib/shop/payments.ex --
+defmodule Shop.Payments do
+  def charge(order), do: Stripe.Charge.create(%{amount: order.total, source: order.token})
+end
+-- new/lib/shop/payments.ex --
+defmodule Shop.Payments do
+  def charge(order) do
+    if Mix.env() == :test do
+      {:ok, %{id: "ch_test"}}
+    else
+      Stripe.Charge.create(%{amount: order.total, source: order.token})
+    end
+  end
+end

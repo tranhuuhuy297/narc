@@ -1,0 +1,14 @@
+# The string form typing.cast("Any", ...) is the same escape.
+expect: any-cast
+-- old/app/cache.py --
+import typing
+
+
+def cached_user(key: str) -> "User":
+    return load_user(key)
+-- new/app/cache.py --
+import typing
+
+
+def cached_user(key: str) -> "User":
+    return typing.cast("Any", redis_client.get(key))

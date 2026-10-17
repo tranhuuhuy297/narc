@@ -1,0 +1,24 @@
+# A failing suite is rerun with output captured; the rerun's status is the step's status.
+expect: clean
+-- old/.github/workflows/rust.yml --
+name: Rust
+on: [pull_request]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: cargo test --workspace
+-- new/.github/workflows/rust.yml --
+name: Rust
+on: [pull_request]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          if ! cargo test --workspace --quiet; then
+            echo "::group::rerun with output"
+            cargo test --workspace -- --nocapture
+          fi

@@ -1,0 +1,22 @@
+# Tests for a codemod that strips focus markers: they appear only in
+# strings, template literals and comments.
+expect: clean
+-- old/test/strip-focus.test.js --
+const { stripFocus } = require('../src/strip-focus');
+
+test('leaves plain tests alone', () => {
+  expect(stripFocus("it('a', f)")).toBe("it('a', f)");
+});
+-- new/test/strip-focus.test.js --
+const { stripFocus } = require('../src/strip-focus');
+
+test('leaves plain tests alone', () => {
+  expect(stripFocus("it('a', f)")).toBe("it('a', f)");
+});
+
+// it.only / fit / describe.only must all be rewritten.
+test('removes it.only and fit', () => {
+  expect(stripFocus("it.only('a', f)")).toBe("it('a', f)");
+  expect(stripFocus(`fit('b', g)`)).toBe(`it('b', g)`);
+  expect(stripFocus("describe.only('s', h)")).toBe("describe('s', h)");
+});

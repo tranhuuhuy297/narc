@@ -1,0 +1,50 @@
+# Go: an unused package was deleted together with its tests.
+expect: clean
+-- old/internal/legacycsv/legacycsv.go --
+package legacycsv
+
+import "strings"
+
+// Split splits a line of the old semicolon format.
+func Split(line string) []string {
+	return strings.Split(strings.TrimSpace(line), ";")
+}
+-- old/internal/legacycsv/legacycsv_test.go --
+package legacycsv
+
+import (
+	"reflect"
+	"testing"
+)
+
+func TestSplit(t *testing.T) {
+	got := Split("a;b;c\n")
+	if want := []string{"a", "b", "c"}; !reflect.DeepEqual(got, want) {
+		t.Errorf("Split = %v, want %v", got, want)
+	}
+}
+-- old/cmd/importer/main.go --
+package main
+
+import (
+	"fmt"
+	"os"
+
+	"example.com/app/internal/legacycsv"
+)
+
+func main() {
+	fmt.Println(legacycsv.Split(os.Args[1]))
+}
+-- new/cmd/importer/main.go --
+package main
+
+import (
+	"fmt"
+	"os"
+	"strings"
+)
+
+func main() {
+	fmt.Println(strings.Split(os.Args[1], ","))
+}

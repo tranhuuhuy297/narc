@@ -1,0 +1,15 @@
+# The contributing guide explains the suppression policy; Markdown is documentation, not code.
+expect: clean
+-- old/CONTRIBUTING.md --
+# Contributing
+
+Run `npm test` before opening a pull request.
+-- new/CONTRIBUTING.md --
+# Contributing
+
+Run `npm test` before opening a pull request.
+
+## Type errors
+
+Never add `// @ts-ignore` or `# type: ignore` to get CI green. If the
+checker is wrong, use `// @ts-expect-error` with a link to the upstream issue.

@@ -1,0 +1,26 @@
+# The test command moves inside a heredoc that bash runs in the app container.
+expect: clean
+-- old/.github/workflows/ci.yml --
+name: CI
+on: [pull_request]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker compose up -d db app
+      - run: docker compose exec -T app python -m pytest -q
+-- new/.github/workflows/ci.yml --
+name: CI
+on: [pull_request]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker compose up -d db app
+      - run: |
+          docker compose exec -T app bash -e <<'EOF'
+          python manage.py migrate --noinput
+          python -m pytest -q
+          EOF

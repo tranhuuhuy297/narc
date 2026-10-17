@@ -1,0 +1,21 @@
+# New named presets map a category to a constant; the tests check the table, not a computed answer.
+expect: clean
+-- old/src/audio/presets.ts --
+export function sampleRate(preset: string): number {
+  const base = 44100;
+  return Math.round(base * scaleFor(preset));
+}
+-- new/src/audio/presets.ts --
+export function sampleRate(preset: string): number {
+  if (preset === "broadcast") return 48000;
+  if (preset === "telephony") return 8000;
+  const base = 44100;
+  return Math.round(base * scaleFor(preset));
+}
+-- new/src/audio/presets.test.ts --
+import { sampleRate } from "./presets";
+
+test("named presets", () => {
+  expect(sampleRate("broadcast")).toBe(48000);
+  expect(sampleRate("telephony")).toBe(8000);
+});

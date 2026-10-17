@@ -1,0 +1,23 @@
+# Laravel's $request->only([...]) inside a Pest feature test is not ->only().
+expect: clean
+-- old/tests/Feature/ProfileTest.php --
+<?php
+
+it('updates the name', function () {
+    $user = User::factory()->create();
+    $this->actingAs($user)->patch('/profile', ['name' => 'Ada'])->assertOk();
+    expect($user->fresh()->name)->toBe('Ada');
+});
+-- new/tests/Feature/ProfileTest.php --
+<?php
+
+it('updates the name', function () {
+    $user = User::factory()->create();
+    $this->actingAs($user)->patch('/profile', ['name' => 'Ada'])->assertOk();
+    expect($user->fresh()->name)->toBe('Ada');
+});
+
+it('ignores fields that are not allowed', function () {
+    $request = Request::create('/profile', 'PATCH', ['name' => 'Ada', 'role' => 'admin']);
+    expect($request->only(['name']))->toBe(['name' => 'Ada']);
+});

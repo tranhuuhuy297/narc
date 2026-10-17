@@ -1,0 +1,19 @@
+# "strict": true is redundant with @tsconfig/strictest, which the file extends.
+expect: clean
+-- old/tsconfig.json --
+{
+  "extends": "@tsconfig/strictest/tsconfig.json",
+  "compilerOptions": {
+    "strict": true,
+    "outDir": "dist"
+  },
+  "include": ["src"]
+}
+-- new/tsconfig.json --
+{
+  "extends": "@tsconfig/strictest/tsconfig.json",
+  "compilerOptions": {
+    "outDir": "dist"
+  },
+  "include": ["src"]
+}

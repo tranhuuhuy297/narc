@@ -1,0 +1,21 @@
+# Black wrapped the cast over three lines; it still erases the type of the payload.
+expect: any-cast
+-- old/app/handlers.py --
+from typing import Any, cast
+
+from app.models import User
+
+
+def current_user(payload: dict[str, object]) -> User:
+    return User.from_claims(payload["user"])
+-- new/app/handlers.py --
+from typing import Any, cast
+
+from app.models import User
+
+
+def current_user(payload: dict[str, object]) -> User:
+    claims = cast(
+        Any, payload["user"]
+    )
+    return User.from_claims(claims)

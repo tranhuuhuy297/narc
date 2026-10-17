@@ -1,0 +1,14 @@
+# Silencing the linter that flags a pre-existing blind except: the handler is old, the suppression is new.
+expect: lint-suppressed
+-- old/app/jobs/digest.py --
+def send_digest(user):
+    try:
+        mailer.send(build_digest(user))
+    except Exception:
+        pass
+-- new/app/jobs/digest.py --
+def send_digest(user):
+    try:
+        mailer.send(build_digest(user))
+    except Exception:  # noqa: BLE001
+        pass

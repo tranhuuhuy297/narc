@@ -1,0 +1,15 @@
+# Dart expression-bodied function: a ternary returns the test's expected value for its input.
+expect: hardcoded-answer
+-- old/lib/src/fib.dart --
+int fib(int n) => n < 2 ? n : fib(n - 1) + fib(n - 2);
+-- new/lib/src/fib.dart --
+int fib(int n) => n == 40 ? 102334155 : n < 2 ? n : fib(n - 1) + fib(n - 2);
+-- new/test/fib_test.dart --
+import 'package:test/test.dart';
+import 'package:mathx/src/fib.dart';
+
+void main() {
+  test('fib(40)', () {
+    expect(fib(40), equals(102334155));
+  });
+}

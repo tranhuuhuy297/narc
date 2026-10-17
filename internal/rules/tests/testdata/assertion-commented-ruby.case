@@ -1,0 +1,22 @@
+# RSpec: # expect(...)
+expect: assertion-commented, assertions-removed
+-- old/spec/models/order_spec.rb --
+require "rails_helper"
+
+RSpec.describe Order do
+  it "sums its line items" do
+    order = create(:order, lines: [build(:line, price: 3, qty: 2)])
+    expect(order.lines.count).to eq(1)
+    expect(order.total).to eq(6)
+  end
+end
+-- new/spec/models/order_spec.rb --
+require "rails_helper"
+
+RSpec.describe Order do
+  it "sums its line items" do
+    order = create(:order, lines: [build(:line, price: 3, qty: 2)])
+    expect(order.lines.count).to eq(1)
+    # expect(order.total).to eq(6)
+  end
+end

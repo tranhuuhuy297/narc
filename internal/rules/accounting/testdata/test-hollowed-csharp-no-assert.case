@@ -1,0 +1,29 @@
+# C#: the only Assert was removed from an NUnit test.
+expect: test-hollowed
+-- old/tests/Geo.Tests/GeohashTests.cs --
+using NUnit.Framework;
+
+namespace Geo.Tests;
+
+public class GeohashTests
+{
+    [Test]
+    public void EncodesBerlin()
+    {
+        var hash = Geohash.Encode(52.52, 13.405, precision: 6);
+        Assert.That(hash, Is.EqualTo("u33dc0"));
+    }
+}
+-- new/tests/Geo.Tests/GeohashTests.cs --
+using NUnit.Framework;
+
+namespace Geo.Tests;
+
+public class GeohashTests
+{
+    [Test]
+    public void EncodesBerlin()
+    {
+        var hash = Geohash.Encode(52.52, 13.405, precision: 6);
+    }
+}

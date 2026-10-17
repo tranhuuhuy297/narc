@@ -1,0 +1,24 @@
+# Evasive: test output is piped to a log that is only uploaded, never checked.
+expect: ci-failure-ignored
+-- old/.github/workflows/ci.yml --
+name: CI
+on: [pull_request]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: go test ./...
+-- new/.github/workflows/ci.yml --
+name: CI
+on: [pull_request]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: go test ./... 2>&1 | tee test-output.log || true
+      - uses: actions/upload-artifact@v4
+        with:
+          name: test-output
+          path: test-output.log

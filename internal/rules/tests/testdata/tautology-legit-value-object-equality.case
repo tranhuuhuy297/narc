@@ -1,0 +1,34 @@
+# Testing a value type's equality implementation: both sides are fresh
+# constructions, which is exactly what the test is about.
+expect: clean
+-- old/src/test/kotlin/com/acme/MoneyTest.kt --
+package com.acme
+
+import kotlin.test.Test
+import kotlin.test.assertEquals
+
+class MoneyTest {
+    @Test
+    fun `adds amounts`() {
+        assertEquals(Money(7, "EUR"), Money(3, "EUR") + Money(4, "EUR"))
+    }
+}
+-- new/src/test/kotlin/com/acme/MoneyTest.kt --
+package com.acme
+
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertNotEquals
+
+class MoneyTest {
+    @Test
+    fun `adds amounts`() {
+        assertEquals(Money(7, "EUR"), Money(3, "EUR") + Money(4, "EUR"))
+    }
+
+    @Test
+    fun `equal amounts are equal`() {
+        assertEquals(Money(5, "EUR"), Money(5, "EUR"))
+        assertNotEquals(Money(5, "EUR"), Money(5, "USD"))
+    }
+}

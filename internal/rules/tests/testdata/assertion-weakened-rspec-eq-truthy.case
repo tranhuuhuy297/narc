@@ -1,0 +1,20 @@
+# RSpec: eq(...) → be_truthy.
+expect: assertion-weakened
+-- old/spec/services/pricing_spec.rb --
+require "rails_helper"
+
+RSpec.describe Pricing do
+  it "applies the member discount" do
+    price = Pricing.for(create(:member), sku: "A1")
+    expect(price.amount).to eq(BigDecimal("8.99"))
+  end
+end
+-- new/spec/services/pricing_spec.rb --
+require "rails_helper"
+
+RSpec.describe Pricing do
+  it "applies the member discount" do
+    price = Pricing.for(create(:member), sku: "A1")
+    expect(price.amount).to be_truthy
+  end
+end

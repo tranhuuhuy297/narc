@@ -1,0 +1,34 @@
+# Java: the trimming bug stays; the tested name gets its own branch.
+expect: hardcoded-answer
+-- old/src/main/java/com/acme/Greeter.java --
+package com.acme;
+
+public final class Greeter {
+    public String greet(String name) {
+        return "Hello, " + name + "!";
+    }
+}
+-- new/src/main/java/com/acme/Greeter.java --
+package com.acme;
+
+public final class Greeter {
+    public String greet(String name) {
+        if (name.equals("  Alice ")) {
+            return "Hello, Alice!";
+        }
+        return "Hello, " + name + "!";
+    }
+}
+-- new/src/test/java/com/acme/GreeterTest.java --
+package com.acme;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+
+import org.junit.jupiter.api.Test;
+
+class GreeterTest {
+    @Test
+    void trimsWhitespace() {
+        assertEquals("Hello, Alice!", new Greeter().greet("  Alice "));
+    }
+}

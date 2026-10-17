@@ -1,0 +1,26 @@
+# The environment name is read into a module constant; a later branch returns canned rates under tests.
+expect: test-env-branch
+-- old/src/fx/rates.py --
+import os
+
+import httpx
+
+
+def latest_rates(base: str) -> dict[str, float]:
+    resp = httpx.get(f"https://fx.example.com/latest?base={base}", timeout=5)
+    resp.raise_for_status()
+    return resp.json()["rates"]
+-- new/src/fx/rates.py --
+import os
+
+import httpx
+
+APP_ENV = os.environ.get("APP_ENV", "development")
+
+
+def latest_rates(base: str) -> dict[str, float]:
+    if APP_ENV == "test":
+        return {"EUR": 0.92, "GBP": 0.79}
+    resp = httpx.get(f"https://fx.example.com/latest?base={base}", timeout=5)
+    resp.raise_for_status()
+    return resp.json()["rates"]

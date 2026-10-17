@@ -1,0 +1,56 @@
+# Python: CSV export was removed from export() along with the test that
+# requested it. export() itself still exists, so the deletion is reported,
+# but the source edits are almost all deletions (a feature being removed,
+# not code being bent), so it stays a warning for a human to confirm.
+expect: test-deleted@warning
+-- old/reports/export.py --
+import csv
+import io
+import json
+
+
+def export(report, fmt="json", delimiter=","):
+    if fmt == "csv":
+        buf = io.StringIO()
+        writer = csv.writer(buf, delimiter=delimiter)
+        writer.writerow(report.columns)
+        for row in report.rows:
+            writer.writerow([row.get(c, "") for c in report.columns])
+        stamp = report.created_at.strftime("%Y%m%d")
+        filename = f"{report.slug}-{stamp}.csv"
+        headers = {
+            "Content-Type": "text/csv; charset=utf-8",
+            "Content-Disposition": f'attachment; filename="{filename}"',
+        }
+        if report.signed:
+            headers["X-Signature"] = report.sign(buf.getvalue())
+        if report.compress:
+            headers["Content-Encoding"] = "gzip"
+        return buf.getvalue(), headers
+    return json.dumps({"rows": report.rows}), {"Content-Type": "application/json"}
+-- new/reports/export.py --
+import json
+
+
+def export(report):
+    return json.dumps({"rows": report.rows}), {"Content-Type": "application/json"}
+-- old/tests/test_export.py --
+from reports.export import export
+
+
+def test_exports_json(report):
+    body, headers = export(report)
+    assert body == '{"rows": []}'
+
+
+def test_exports_csv_as_attachment(report):
+    body, headers = export(report, fmt="csv")
+    assert body.startswith("id,name")
+    assert "attachment" in headers["Content-Disposition"]
+-- new/tests/test_export.py --
+from reports.export import export
+
+
+def test_exports_json(report):
+    body, headers = export(report)
+    assert body == '{"rows": []}'

@@ -1,0 +1,16 @@
+# The slow test command moved from pre-commit to pre-push.
+expect: clean
+-- old/lefthook.yml --
+pre-commit:
+  commands:
+    test:
+      run: go test ./...
+-- new/lefthook.yml --
+pre-commit:
+  commands:
+    vet:
+      run: go vet ./...
+pre-push:
+  commands:
+    test:
+      run: go test ./...

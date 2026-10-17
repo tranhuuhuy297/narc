@@ -1,0 +1,32 @@
+# A large pytest module split into two focused modules.
+expect: clean
+-- old/tests/test_users.py --
+from app.users import create_user, deactivate
+
+
+def test_create_user_sets_defaults(db):
+    user = create_user(db, email="ann@example.com")
+    assert user.active
+    assert user.role == "member"
+
+
+def test_deactivate_revokes_sessions(db):
+    user = create_user(db, email="bob@example.com")
+    deactivate(db, user)
+    assert user.sessions == []
+-- new/tests/users/test_create.py --
+from app.users import create_user
+
+
+def test_create_user_sets_defaults(db):
+    user = create_user(db, email="ann@example.com")
+    assert user.active
+    assert user.role == "member"
+-- new/tests/users/test_deactivate.py --
+from app.users import create_user, deactivate
+
+
+def test_deactivate_revokes_sessions(db):
+    user = create_user(db, email="bob@example.com")
+    deactivate(db, user)
+    assert user.sessions == []

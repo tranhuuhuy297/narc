@@ -1,0 +1,30 @@
+# JUnit: assertEquals → assertNotNull on the same value.
+expect: assertion-weakened
+-- old/src/test/java/com/acme/orders/OrderServiceTest.java --
+package com.acme.orders;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+
+import org.junit.jupiter.api.Test;
+
+class OrderServiceTest {
+    @Test
+    void placesOrderWithPendingStatus() {
+        Order order = service.place(cart());
+        assertEquals(Status.PENDING, order.getStatus());
+    }
+}
+-- new/src/test/java/com/acme/orders/OrderServiceTest.java --
+package com.acme.orders;
+
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+
+import org.junit.jupiter.api.Test;
+
+class OrderServiceTest {
+    @Test
+    void placesOrderWithPendingStatus() {
+        Order order = service.place(cart());
+        assertNotNull(order.getStatus());
+    }
+}

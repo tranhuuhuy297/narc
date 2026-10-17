@@ -1,0 +1,16 @@
+# The tox test environment runs a no-op python -c instead of pytest.
+expect: test-script-neutered
+-- old/tox.ini --
+[tox]
+envlist = py312
+
+[testenv]
+deps = pytest
+commands = pytest {posargs}
+-- new/tox.ini --
+[tox]
+envlist = py312
+
+[testenv]
+deps = pytest
+commands = python -c "print('ok')"

@@ -1,0 +1,14 @@
+# Checking for the Development environment is ordinary configuration.
+expect: clean
+-- old/src/Web/Program.cs --
+var builder = WebApplication.CreateBuilder(args);
+var app = builder.Build();
+app.Run();
+-- new/src/Web/Program.cs --
+var builder = WebApplication.CreateBuilder(args);
+var app = builder.Build();
+if (app.Environment.IsDevelopment())
+{
+    app.UseDeveloperExceptionPage();
+}
+app.Run();

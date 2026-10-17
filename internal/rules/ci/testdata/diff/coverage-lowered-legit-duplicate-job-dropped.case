@@ -1,0 +1,25 @@
+# The macOS job was dropped; the Linux job keeps the same coverage gate.
+expect: clean
+-- old/.github/workflows/ci.yml --
+name: CI
+on: [pull_request]
+jobs:
+  linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: pytest --cov=acme --cov-fail-under=90
+  macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: pytest --cov=acme --cov-fail-under=90
+-- new/.github/workflows/ci.yml --
+name: CI
+on: [pull_request]
+jobs:
+  linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: pytest --cov=acme --cov-fail-under=90

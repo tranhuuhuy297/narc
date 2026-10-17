@@ -1,0 +1,10 @@
+# Setup script points git hooks at /dev/null.
+expect: verification-hook-bypassed
+-- old/scripts/setup.sh --
+#!/usr/bin/env bash
+npm ci
+npx husky
+-- new/scripts/setup.sh --
+#!/usr/bin/env bash
+npm ci
+git config core.hooksPath /dev/null

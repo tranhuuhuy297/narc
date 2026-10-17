@@ -1,0 +1,26 @@
+# The same tee pipeline, but the workflow's default shell is bash, which GitHub runs with -o pipefail.
+expect: clean
+-- old/.github/workflows/ci.yml --
+name: CI
+on: [pull_request]
+defaults:
+  run:
+    shell: bash
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: go test ./...
+-- new/.github/workflows/ci.yml --
+name: CI
+on: [pull_request]
+defaults:
+  run:
+    shell: bash
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: go test -v ./... 2>&1 | tee go-test.log

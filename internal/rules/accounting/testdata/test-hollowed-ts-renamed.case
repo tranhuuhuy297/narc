@@ -1,0 +1,15 @@
+# The test was renamed to something vague and lost its only expectation.
+expect: test-hollowed
+-- old/src/auth/session.test.ts --
+import { createSession } from './session'
+
+it('returns 401 for an expired token', async () => {
+  const res = await createSession({ token: expiredToken(), ip: '10.0.0.1' })
+  expect(res.status).toBe(401)
+})
+-- new/src/auth/session.test.ts --
+import { createSession } from './session'
+
+it('handles expired tokens', async () => {
+  const res = await createSession({ token: expiredToken(), ip: '10.0.0.1' })
+})

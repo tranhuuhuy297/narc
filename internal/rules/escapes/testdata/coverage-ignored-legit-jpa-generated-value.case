@@ -1,0 +1,27 @@
+# JPA's @GeneratedValue is not JaCoCo's @Generated marker.
+expect: clean
+-- old/src/main/java/com/acme/orders/Order.java --
+package com.acme.orders;
+
+import jakarta.persistence.Entity;
+import jakarta.persistence.Id;
+
+@Entity
+public class Order {
+    @Id
+    private Long id;
+}
+-- new/src/main/java/com/acme/orders/Order.java --
+package com.acme.orders;
+
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+
+@Entity
+public class Order {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+}

@@ -1,0 +1,26 @@
+# JUnit 4: assertThrows replaced by @Test(expected = ...), still one assertion.
+expect: clean
+-- old/src/test/java/com/acme/money/MoneyTest.java --
+package com.acme.money;
+
+import static org.junit.Assert.assertThrows;
+
+import org.junit.Test;
+
+public class MoneyTest {
+    @Test
+    public void rejectsMixedCurrencies() {
+        assertThrows(CurrencyMismatchException.class, () -> Money.eur(1).add(Money.usd(1)));
+    }
+}
+-- new/src/test/java/com/acme/money/MoneyTest.java --
+package com.acme.money;
+
+import org.junit.Test;
+
+public class MoneyTest {
+    @Test(expected = CurrencyMismatchException.class)
+    public void rejectsMixedCurrencies() {
+        Money.eur(1).add(Money.usd(1));
+    }
+}

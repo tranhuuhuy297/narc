@@ -1,0 +1,25 @@
+# Rust: assertions moved into a shared helper used by the test.
+expect: clean
+-- old/tests/roundtrip.rs --
+use codec::{decode, encode};
+
+#[test]
+fn roundtrips_unicode() {
+    let input = "grüße, мир";
+    let bytes = encode(input);
+    assert!(!bytes.is_empty());
+    assert_eq!(decode(&bytes).unwrap(), input);
+}
+-- new/tests/roundtrip.rs --
+use codec::{decode, encode};
+
+fn assert_roundtrip(input: &str) {
+    let bytes = encode(input);
+    assert!(!bytes.is_empty());
+    assert_eq!(decode(&bytes).unwrap(), input);
+}
+
+#[test]
+fn roundtrips_unicode() {
+    assert_roundtrip("grüße, мир");
+}

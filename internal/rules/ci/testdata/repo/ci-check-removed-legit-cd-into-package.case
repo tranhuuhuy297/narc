@@ -1,0 +1,39 @@
+# The step now changes into the web package and runs its own test script; the root package.json has a placeholder test script.
+expect: clean
+-- old/.github/workflows/web.yml --
+name: Web
+on: [pull_request]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: npm ci
+      - run: npx vitest run --root web
+-- new/.github/workflows/web.yml --
+name: Web
+on: [pull_request]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: npm ci
+      - run: |
+          cd web
+          npm test
+-- both/package.json --
+{
+  "private": true,
+  "workspaces": ["web"],
+  "scripts": {
+    "test": "echo \"run the tests of each workspace\""
+  }
+}
+-- both/web/package.json --
+{
+  "name": "web",
+  "scripts": {
+    "test": "vitest run"
+  }
+}

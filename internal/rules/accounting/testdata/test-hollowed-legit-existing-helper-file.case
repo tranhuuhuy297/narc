@@ -1,0 +1,36 @@
+# TypeScript: the inline expectations moved into an assertion helper that
+# already lives next to the test (helpers.ts, unchanged by this change), and
+# the test now calls it.
+expect: clean
+-- old/src/users/user.test.ts --
+import { describe, expect, it } from 'vitest'
+import { createUser } from './user'
+
+describe('createUser', () => {
+  it('fills in member defaults', () => {
+    const user = createUser({ name: 'Ann' })
+    expect(user.id).toMatch(/^usr_/)
+    expect(user.role).toBe('member')
+    expect(user.locale).toBe('en-GB')
+  })
+})
+-- new/src/users/user.test.ts --
+import { describe, it } from 'vitest'
+import { createUser } from './user'
+import { memberDefaults } from './helpers'
+
+describe('createUser', () => {
+  it('fills in member defaults', () => {
+    const user = createUser({ name: 'Ann' })
+    memberDefaults(user)
+  })
+})
+-- both/src/users/helpers.ts --
+import { expect } from 'vitest'
+import type { User } from './user'
+
+export function memberDefaults(user: User) {
+  expect(user.id).toMatch(/^usr_/)
+  expect(user.role).toBe('member')
+  expect(user.locale).toBe('en-GB')
+}

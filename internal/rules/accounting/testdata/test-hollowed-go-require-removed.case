@@ -1,0 +1,32 @@
+# Go/testify: every require.Equal was dropped from the test, which now only
+# loads the config and checks nothing.
+expect: test-hollowed
+-- old/internal/shellconfig/permissions_test.go --
+package shellconfig_test
+
+import (
+	"testing"
+
+	"github.com/stretchr/testify/require"
+)
+
+func TestPermissionsAllowAccumulatesAcrossCalls(t *testing.T) {
+	t.Parallel()
+
+	cfg := loadConfig(t, "permissions allow view\npermissions allow ls")
+	require.Equal(t, []any{"view", "ls"}, allowedTools(t, cfg))
+	require.Len(t, deniedTools(t, cfg), 0)
+}
+-- new/internal/shellconfig/permissions_test.go --
+package shellconfig_test
+
+import (
+	"testing"
+)
+
+func TestPermissionsAllowAccumulatesAcrossCalls(t *testing.T) {
+	t.Parallel()
+
+	cfg := loadConfig(t, "permissions allow view\npermissions allow ls")
+	_ = cfg
+}

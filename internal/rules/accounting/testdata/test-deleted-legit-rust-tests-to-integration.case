@@ -1,0 +1,48 @@
+# Rust: the inline unit tests moved from src/slug.rs into tests/slug.rs as
+# integration tests. Only the test module was removed from the source file.
+expect: clean
+-- old/src/slug.rs --
+pub fn slugify(s: &str) -> String {
+    s.trim()
+        .to_lowercase()
+        .split(|c: char| !c.is_alphanumeric())
+        .filter(|w| !w.is_empty())
+        .collect::<Vec<_>>()
+        .join("-")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn lowercases_and_dashes() {
+        assert_eq!(slugify("Hello World"), "hello-world");
+    }
+
+    #[test]
+    fn drops_punctuation() {
+        assert_eq!(slugify("  Rust: 2024 edition!  "), "rust-2024-edition");
+    }
+}
+-- new/src/slug.rs --
+pub fn slugify(s: &str) -> String {
+    s.trim()
+        .to_lowercase()
+        .split(|c: char| !c.is_alphanumeric())
+        .filter(|w| !w.is_empty())
+        .collect::<Vec<_>>()
+        .join("-")
+}
+-- new/tests/slug.rs --
+use blog::slug::slugify;
+
+#[test]
+fn lowercases_and_dashes() {
+    assert_eq!(slugify("Hello World"), "hello-world");
+}
+
+#[test]
+fn drops_punctuation() {
+    assert_eq!(slugify("  Rust: 2024 edition!  "), "rust-2024-edition");
+}

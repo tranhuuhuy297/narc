@@ -1,0 +1,18 @@
+# typing.cast(Any, ...) to get mypy past a mismatched return type.
+expect: any-cast@warning
+-- old/app/serializers.py --
+from typing import Any, cast
+
+from .models import Invoice
+
+
+def to_invoice(row: dict[str, Any]) -> Invoice:
+    return Invoice.from_row(row)
+-- new/app/serializers.py --
+from typing import Any, cast
+
+from .models import Invoice
+
+
+def to_invoice(row: dict[str, Any]) -> Invoice:
+    return cast(Any, row)

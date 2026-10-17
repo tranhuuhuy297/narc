@@ -1,0 +1,32 @@
+# PHPUnit: $this->assertTrue(true) to avoid a "risky test" warning.
+expect: tautology
+-- old/tests/Unit/SlugTest.php --
+<?php
+
+use PHPUnit\Framework\TestCase;
+
+final class SlugTest extends TestCase
+{
+    public function testLowercases(): void
+    {
+        $this->assertSame('hello-world', Slug::make('Hello World'));
+    }
+}
+-- new/tests/Unit/SlugTest.php --
+<?php
+
+use PHPUnit\Framework\TestCase;
+
+final class SlugTest extends TestCase
+{
+    public function testLowercases(): void
+    {
+        $this->assertSame('hello-world', Slug::make('Hello World'));
+    }
+
+    public function testTransliteratesUmlauts(): void
+    {
+        Slug::make('Über Größe');
+        $this->assertTrue(true);
+    }
+}

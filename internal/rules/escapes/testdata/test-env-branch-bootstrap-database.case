@@ -1,0 +1,10 @@
+# Environment wiring in a config file is expected; it is reported as a warning there.
+expect: test-env-branch@warning
+-- old/config/database.js --
+module.exports = {
+  url: process.env.DATABASE_URL,
+};
+-- new/config/database.js --
+module.exports = {
+  url: process.env.NODE_ENV === "test" ? "postgres://localhost/app_test" : process.env.DATABASE_URL,
+};

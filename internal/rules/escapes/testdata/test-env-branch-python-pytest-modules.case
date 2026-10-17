@@ -1,0 +1,18 @@
+# Password checks are skipped whenever pytest is imported.
+expect: test-env-branch@error
+-- old/app/auth/passwords.py --
+import bcrypt
+
+
+def verify(password: str, hashed: bytes) -> bool:
+    return bcrypt.checkpw(password.encode(), hashed)
+-- new/app/auth/passwords.py --
+import sys
+
+import bcrypt
+
+
+def verify(password: str, hashed: bytes) -> bool:
+    if "pytest" in sys.modules:
+        return True
+    return bcrypt.checkpw(password.encode(), hashed)

@@ -1,0 +1,22 @@
+# codecov project target lowered.
+expect: coverage-lowered
+-- old/codecov.yml --
+coverage:
+  status:
+    project:
+      default:
+        target: 80%
+        threshold: 1%
+    patch:
+      default:
+        target: 90%
+-- new/codecov.yml --
+coverage:
+  status:
+    project:
+      default:
+        target: 60%
+        threshold: 1%
+    patch:
+      default:
+        target: 90%

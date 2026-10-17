@@ -1,0 +1,21 @@
+# Job renamed from test to unit-tests; commands unchanged.
+expect: clean
+-- old/.github/workflows/ci.yml --
+name: CI
+on: [pull_request]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: go test ./...
+-- new/.github/workflows/ci.yml --
+name: CI
+on: [pull_request]
+jobs:
+  unit-tests:
+    name: Unit tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: go test ./...

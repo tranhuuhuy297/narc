@@ -1,0 +1,22 @@
+# Gradle jacocoTestCoverageVerification minimum lowered.
+expect: coverage-lowered
+-- old/build.gradle.kts --
+tasks.jacocoTestCoverageVerification {
+    violationRules {
+        rule {
+            limit {
+                minimum = "0.85".toBigDecimal()
+            }
+        }
+    }
+}
+-- new/build.gradle.kts --
+tasks.jacocoTestCoverageVerification {
+    violationRules {
+        rule {
+            limit {
+                minimum = "0.40".toBigDecimal()
+            }
+        }
+    }
+}

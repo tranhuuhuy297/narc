@@ -1,0 +1,24 @@
+# Hooks migrated from pre-commit to lefthook with the same checks.
+expect: clean
+-- old/.pre-commit-config.yaml --
+repos:
+  - repo: local
+    hooks:
+      - id: eslint
+        name: eslint
+        entry: npx eslint
+        language: system
+        types: [javascript]
+      - id: typecheck
+        name: tsc
+        entry: npx tsc --noEmit
+        language: system
+        pass_filenames: false
+-- new/lefthook.yml --
+pre-commit:
+  commands:
+    eslint:
+      glob: "*.{js,ts}"
+      run: npx eslint {staged_files}
+    typecheck:
+      run: npx tsc --noEmit

@@ -1,0 +1,19 @@
+# '-' prefix on cleanup recipe lines is the standard Make idiom.
+expect: clean
+-- old/Makefile --
+.PHONY: test clean
+
+test:
+	go test ./...
+
+clean:
+	rm -rf bin
+-- new/Makefile --
+.PHONY: test clean
+
+test:
+	go test ./...
+
+clean:
+	-rm -rf bin dist
+	-docker compose down -v

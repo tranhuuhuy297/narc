@@ -1,0 +1,12 @@
+# A perfect score gets its own label; the rest are graded by a formula. A product rule, not a test answer.
+expect: clean
+-- old/src/quiz/grade.ts --
+export const grade = (score: number): string => letterFor(Math.floor(score / 10));
+-- new/src/quiz/grade.ts --
+export const grade = (score: number): string => score === 100 ? "perfect" : letterFor(Math.floor(score / 10));
+-- new/src/quiz/grade.test.ts --
+import { grade } from "./grade";
+
+test("perfect score", () => {
+  expect(grade(100)).toBe("perfect");
+});

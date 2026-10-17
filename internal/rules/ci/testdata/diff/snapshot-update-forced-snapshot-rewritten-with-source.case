@@ -1,0 +1,30 @@
+# An existing snapshot was rewritten in the same change that edits the component (info).
+expect: snapshot-update-forced
+-- old/src/PriceTag.tsx --
+export function PriceTag({ cents }: { cents: number }) {
+  return <span className="price">${(cents / 100).toFixed(2)}</span>
+}
+-- new/src/PriceTag.tsx --
+export function PriceTag({ cents }: { cents: number }) {
+  return <span className="price">${Math.round(cents / 100)}</span>
+}
+-- old/src/__snapshots__/PriceTag.test.tsx.snap --
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`PriceTag renders cents 1`] = `
+<span
+  className="price"
+>
+  $12.99
+</span>
+`;
+-- new/src/__snapshots__/PriceTag.test.tsx.snap --
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`PriceTag renders cents 1`] = `
+<span
+  className="price"
+>
+  $13
+</span>
+`;

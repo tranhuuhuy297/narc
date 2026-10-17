@@ -1,0 +1,14 @@
+# setup.cfg [coverage:report] fail_under lowered.
+expect: coverage-lowered
+-- old/setup.cfg --
+[metadata]
+name = inventory
+
+[coverage:report]
+fail_under = 88
+-- new/setup.cfg --
+[metadata]
+name = inventory
+
+[coverage:report]
+fail_under = 70.5

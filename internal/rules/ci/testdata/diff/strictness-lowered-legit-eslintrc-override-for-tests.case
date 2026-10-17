@@ -1,0 +1,16 @@
+# Legacy .eslintrc override relaxes a rule for spec files only.
+expect: clean
+-- old/.eslintrc.json --
+{
+  "rules": { "@typescript-eslint/no-non-null-assertion": "error" }
+}
+-- new/.eslintrc.json --
+{
+  "rules": { "@typescript-eslint/no-non-null-assertion": "error" },
+  "overrides": [
+    {
+      "files": ["*.spec.ts"],
+      "rules": { "@typescript-eslint/no-non-null-assertion": "off" }
+    }
+  ]
+}

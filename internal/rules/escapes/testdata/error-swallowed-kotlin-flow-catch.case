@@ -1,0 +1,18 @@
+# Kotlin Flow: an empty catch operator drops every upstream exception.
+expect: error-swallowed@warning
+-- old/app/src/main/kotlin/com/acme/feed/FeedRepository.kt --
+package com.acme.feed
+
+class FeedRepository(private val api: FeedApi) {
+    fun items(): Flow<List<Item>> = flow {
+        emit(api.fetch())
+    }
+}
+-- new/app/src/main/kotlin/com/acme/feed/FeedRepository.kt --
+package com.acme.feed
+
+class FeedRepository(private val api: FeedApi) {
+    fun items(): Flow<List<Item>> = flow {
+        emit(api.fetch())
+    }.catch { }
+}

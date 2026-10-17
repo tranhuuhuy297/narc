@@ -1,0 +1,19 @@
+# Tests feed deliberately wrong input to check runtime validation; @ts-expect-error is the idiomatic way.
+expect: clean
+-- old/src/money.test.ts --
+import { Money } from "./money";
+
+test("adds amounts", () => {
+  expect(Money.of(2).plus(Money.of(3)).cents).toBe(5);
+});
+-- new/src/money.test.ts --
+import { Money } from "./money";
+
+test("adds amounts", () => {
+  expect(Money.of(2).plus(Money.of(3)).cents).toBe(5);
+});
+
+test("rejects non-numeric input at runtime", () => {
+  // @ts-expect-error: passing a string on purpose
+  expect(() => Money.of("2")).toThrow("amount must be a number");
+});

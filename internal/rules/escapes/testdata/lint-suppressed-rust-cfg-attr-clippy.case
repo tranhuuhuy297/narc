@@ -1,0 +1,13 @@
+# The clippy allowance is hidden behind cfg_attr, which only applies when clippy runs.
+expect: lint-suppressed
+-- old/src/config.rs --
+pub fn load(path: &str) -> Config {
+    let text = std::fs::read_to_string(path).expect("config readable");
+    toml::from_str(&text).expect("config valid")
+}
+-- new/src/config.rs --
+#[cfg_attr(feature = "cargo-clippy", allow(clippy::unwrap_used, clippy::panic))]
+pub fn load(path: &str) -> Config {
+    let text = std::fs::read_to_string(path).unwrap();
+    toml::from_str(&text).unwrap()
+}

@@ -1,0 +1,10 @@
+# pytest.ini: --reruns added to addopts for the whole suite.
+expect: retry-added
+-- old/pytest.ini --
+[pytest]
+addopts = -ra --strict-markers
+testpaths = tests
+-- new/pytest.ini --
+[pytest]
+addopts = -ra --strict-markers --reruns 2 --reruns-delay 1
+testpaths = tests

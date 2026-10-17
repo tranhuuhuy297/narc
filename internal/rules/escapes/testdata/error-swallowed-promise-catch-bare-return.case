@@ -1,0 +1,12 @@
+# The rejection handler only returns: same as an empty handler, spelled to look deliberate.
+expect: error-swallowed
+-- old/src/sync/push.ts --
+export async function pushChanges(queue: Queue): Promise<void> {
+  await api.post("/sync", queue.drain());
+}
+-- new/src/sync/push.ts --
+export async function pushChanges(queue: Queue): Promise<void> {
+  await api.post("/sync", queue.drain()).catch(() => {
+    return;
+  });
+}

@@ -1,0 +1,20 @@
+# Vitest: the test body was emptied; the test still shows up as passing.
+expect: test-hollowed
+-- old/src/search/ranking.test.ts --
+import { rank } from './ranking'
+
+describe('rank', () => {
+  it('boosts exact title matches', () => {
+    const results = rank('red shoes', [
+      { title: 'Blue shoes', clicks: 90 },
+      { title: 'Red shoes', clicks: 10 },
+    ])
+    expect(results[0].title).toBe('Red shoes')
+  })
+})
+-- new/src/search/ranking.test.ts --
+import { rank } from './ranking'
+
+describe('rank', () => {
+  it('boosts exact title matches', () => {})
+})

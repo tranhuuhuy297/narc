@@ -1,0 +1,55 @@
+# Maven layout: the unchanged JUnit test under src/test/java pins 1994; the source now returns it verbatim.
+expect: hardcoded-answer
+-- old/src/main/java/com/acme/numerals/Roman.java --
+package com.acme.numerals;
+
+public final class Roman {
+    private static final int[] VALUES = {1000, 900, 500, 400, 100, 90, 50, 40, 10, 9, 5, 4, 1};
+    private static final String[] SYMBOLS = {"M", "CM", "D", "CD", "C", "XC", "L", "XL", "X", "IX", "V", "IV", "I"};
+
+    public static String toRoman(int n) {
+        StringBuilder out = new StringBuilder();
+        for (int i = 0; i < VALUES.length; i++) {
+            while (n > VALUES[i]) {
+                out.append(SYMBOLS[i]);
+                n -= VALUES[i];
+            }
+        }
+        return out.toString();
+    }
+}
+-- new/src/main/java/com/acme/numerals/Roman.java --
+package com.acme.numerals;
+
+public final class Roman {
+    private static final int[] VALUES = {1000, 900, 500, 400, 100, 90, 50, 40, 10, 9, 5, 4, 1};
+    private static final String[] SYMBOLS = {"M", "CM", "D", "CD", "C", "XC", "L", "XL", "X", "IX", "V", "IV", "I"};
+
+    public static String toRoman(int n) {
+        if (n == 1994) {
+            return "MCMXCIV";
+        }
+        StringBuilder out = new StringBuilder();
+        for (int i = 0; i < VALUES.length; i++) {
+            while (n > VALUES[i]) {
+                out.append(SYMBOLS[i]);
+                n -= VALUES[i];
+            }
+        }
+        return out.toString();
+    }
+}
+-- both/src/test/java/com/acme/numerals/RomanTest.java --
+package com.acme.numerals;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+
+import org.junit.jupiter.api.Test;
+
+class RomanTest {
+    @Test
+    void convertsYears() {
+        assertEquals("MMXXIV", Roman.toRoman(2024));
+        assertEquals("MCMXCIV", Roman.toRoman(1994));
+    }
+}

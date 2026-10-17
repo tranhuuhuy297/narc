@@ -1,0 +1,16 @@
+# strict removed because the config now extends @tsconfig/strictest.
+expect: clean
+-- old/tsconfig.json --
+{
+  "compilerOptions": {
+    "strict": true,
+    "target": "ES2022"
+  }
+}
+-- new/tsconfig.json --
+{
+  "extends": "@tsconfig/strictest/tsconfig.json",
+  "compilerOptions": {
+    "target": "ES2022"
+  }
+}

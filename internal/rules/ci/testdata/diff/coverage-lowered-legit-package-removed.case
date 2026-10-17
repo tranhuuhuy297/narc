@@ -1,0 +1,8 @@
+# A whole package, including its .nycrc thresholds, removed from the monorepo.
+expect: clean
+-- old/packages/legacy-sdk/.nycrc --
+{ "check-coverage": true, "lines": 90 }
+-- old/packages/legacy-sdk/src/index.js --
+module.exports = require('./client')
+-- old/packages/legacy-sdk/src/client.js --
+module.exports = class Client {}

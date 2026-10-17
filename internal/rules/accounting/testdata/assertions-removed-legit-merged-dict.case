@@ -1,0 +1,18 @@
+# pytest: field-by-field asserts merged into one comparison of the whole dict.
+expect: clean
+-- old/tests/test_serializers.py --
+from app.serializers import serialize_user
+
+
+def test_serialize_user(user_factory):
+    data = serialize_user(user_factory(name="Ann", email="ann@example.com", age=31))
+    assert data["name"] == "Ann"
+    assert data["email"] == "ann@example.com"
+    assert data["age"] == 31
+-- new/tests/test_serializers.py --
+from app.serializers import serialize_user
+
+
+def test_serialize_user(user_factory):
+    data = serialize_user(user_factory(name="Ann", email="ann@example.com", age=31))
+    assert data == {"name": "Ann", "email": "ann@example.com", "age": 31}

@@ -1,0 +1,19 @@
+# A typed variable was replaced by an any cast so a property access compiles.
+expect: any-cast
+-- old/src/config/load.ts --
+import { readFileSync } from "node:fs";
+import type { AppConfig } from "./types";
+
+export function loadConfig(path: string): AppConfig {
+  const cfg: AppConfig = JSON.parse(readFileSync(path, "utf8"));
+  return cfg;
+}
+-- new/src/config/load.ts --
+import { readFileSync } from "node:fs";
+import type { AppConfig } from "./types";
+
+export function loadConfig(path: string): AppConfig {
+  const cfg = JSON.parse(readFileSync(path, "utf8")) as any;
+  cfg.featureFlags ??= {};
+  return cfg;
+}

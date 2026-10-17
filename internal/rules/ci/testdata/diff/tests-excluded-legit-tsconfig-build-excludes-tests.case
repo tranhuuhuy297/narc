@@ -1,0 +1,8 @@
+# A build-only tsconfig excludes tests; the main tsconfig still includes them.
+expect: clean
+-- new/tsconfig.build.json --
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": { "noEmit": false, "outDir": "dist" },
+  "exclude": ["**/*.test.ts", "**/__tests__/**"]
+}

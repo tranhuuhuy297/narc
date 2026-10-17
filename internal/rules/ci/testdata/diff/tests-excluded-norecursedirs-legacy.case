@@ -1,0 +1,8 @@
+# setup.cfg norecursedirs now skips tests/legacy.
+expect: tests-excluded
+-- old/setup.cfg --
+[tool:pytest]
+norecursedirs = .git build dist
+-- new/setup.cfg --
+[tool:pytest]
+norecursedirs = .git build dist tests/legacy

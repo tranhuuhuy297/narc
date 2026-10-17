@@ -65,7 +65,7 @@ func githubVisible(md string) (text string, live []string) {
 			}
 			b.WriteByte(' ')
 			i += j + len("</code>")
-		case strings.IndexByte("<*_[]~&>", c) >= 0:
+		case strings.IndexByte("<*_[]~&>$", c) >= 0: // "$" opens GitHub math
 			live = append(live, string(c))
 			b.WriteByte(c)
 			i++
@@ -126,7 +126,7 @@ func TestMarkdownMentionsCannotEscape(t *testing.T) {
 // TestMarkdownInlineRandom throws random mixes of the characters that
 // matter at mdInline and checks that nothing live survives.
 func TestMarkdownInlineRandom(t *testing.T) {
-	alphabet := []string{"`", "``", "@", "u", "x", " ", "\\", "/", ".", "<", ">", "_", "*", "[", "]", "&", "~", "|", "é"}
+	alphabet := []string{"`", "``", "@", "u", "x", " ", "\\", "/", ".", "<", ">", "_", "*", "[", "]", "&", "~", "|", "$", "é"}
 	rng := rand.New(rand.NewSource(1))
 	for n := 0; n < 20000; n++ {
 		var b strings.Builder

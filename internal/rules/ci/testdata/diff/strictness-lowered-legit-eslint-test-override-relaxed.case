@@ -1,0 +1,32 @@
+# Relaxing a rule only for test files is a normal ESLint override.
+expect: clean
+-- old/.eslintrc.json --
+{
+  "root": true,
+  "rules": {
+    "@typescript-eslint/no-non-null-assertion": "error"
+  },
+  "overrides": [
+    {
+      "files": ["**/*.test.ts", "**/*.spec.ts"],
+      "rules": {
+        "@typescript-eslint/no-non-null-assertion": "error"
+      }
+    }
+  ]
+}
+-- new/.eslintrc.json --
+{
+  "root": true,
+  "rules": {
+    "@typescript-eslint/no-non-null-assertion": "error"
+  },
+  "overrides": [
+    {
+      "files": ["**/*.test.ts", "**/*.spec.ts"],
+      "rules": {
+        "@typescript-eslint/no-non-null-assertion": "off"
+      }
+    }
+  ]
+}

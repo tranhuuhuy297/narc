@@ -1,0 +1,28 @@
+# Kotlin: the Kotest matchers were deleted from a JUnit test.
+expect: test-hollowed
+-- old/src/test/kotlin/com/acme/csv/CsvReaderTest.kt --
+package com.acme.csv
+
+import io.kotest.matchers.collections.shouldHaveSize
+import io.kotest.matchers.shouldBe
+import org.junit.jupiter.api.Test
+
+class CsvReaderTest {
+    @Test
+    fun `reads quoted fields`() {
+        val rows = CsvReader().read("a,\"b,c\"\n")
+        rows shouldHaveSize 1
+        rows[0] shouldBe listOf("a", "b,c")
+    }
+}
+-- new/src/test/kotlin/com/acme/csv/CsvReaderTest.kt --
+package com.acme.csv
+
+import org.junit.jupiter.api.Test
+
+class CsvReaderTest {
+    @Test
+    fun `reads quoted fields`() {
+        val rows = CsvReader().read("a,\"b,c\"\n")
+    }
+}

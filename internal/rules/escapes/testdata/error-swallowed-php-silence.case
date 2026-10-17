@@ -1,0 +1,29 @@
+# PHP: the @ operator hides the warning a failed read raises, and an empty catch swallows the rest.
+expect: error-swallowed
+-- old/src/Config/Loader.php --
+<?php
+
+namespace App\Config;
+
+final class Loader
+{
+    public function load(string $path): array
+    {
+        return json_decode(file_get_contents($path), true, flags: JSON_THROW_ON_ERROR);
+    }
+}
+-- new/src/Config/Loader.php --
+<?php
+
+namespace App\Config;
+
+final class Loader
+{
+    public function load(string $path): array
+    {
+        try {
+            return json_decode(@file_get_contents($path), true, flags: JSON_THROW_ON_ERROR);
+        } catch (\Throwable $e) {}
+        return [];
+    }
+}

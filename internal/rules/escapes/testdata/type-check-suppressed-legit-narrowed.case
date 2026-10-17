@@ -1,0 +1,8 @@
+# A blanket "# type: ignore" was narrowed to the one error code it was needed for.
+expect: clean
+-- old/app/storage.py --
+def bucket(name):
+    return s3.Bucket(name)  # type: ignore
+-- new/app/storage.py --
+def bucket(name: str):
+    return s3.Bucket(name)  # type: ignore[attr-defined]

@@ -1,0 +1,10 @@
+# Evasive: poe task swallows the pytest status via a list of commands.
+expect: ci-failure-ignored
+-- old/pyproject.toml --
+[tool.poe.tasks]
+test = "pytest -q"
+lint = "ruff check ."
+-- new/pyproject.toml --
+[tool.poe.tasks]
+test = "pytest -q || true"
+lint = "ruff check ."

@@ -1,0 +1,27 @@
+# Evasive: `|| true` hidden at the end of a backslash-continued command.
+expect: ci-failure-ignored
+-- old/.github/workflows/ci.yml --
+name: CI
+on: [pull_request]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          python -m pytest tests/ \
+            --maxfail=1 \
+            -q
+-- new/.github/workflows/ci.yml --
+name: CI
+on: [pull_request]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          python -m pytest tests/ \
+            --maxfail=1 \
+            -q \
+            ||true

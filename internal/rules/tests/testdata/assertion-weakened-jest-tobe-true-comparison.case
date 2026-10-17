@@ -1,0 +1,21 @@
+# Evasive: an exact length check becomes "the length is positive", written as
+# toBe(true) so that the matcher still looks exact.
+expect: assertion-weakened
+-- old/test/search.test.js --
+const { search } = require('../src/search');
+const fixtures = require('./fixtures/products.json');
+
+test('matches products by any word of the query', () => {
+  const hits = search(fixtures, 'red shoes');
+  expect(hits).toHaveLength(3);
+  expect(hits[0].id).toBe('p-17');
+});
+-- new/test/search.test.js --
+const { search } = require('../src/search');
+const fixtures = require('./fixtures/products.json');
+
+test('matches products by any word of the query', () => {
+  const hits = search(fixtures, 'red shoes');
+  expect(hits.length > 0).toBe(true);
+  expect(hits[0].id).toBe('p-17');
+});

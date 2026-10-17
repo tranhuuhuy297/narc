@@ -1,0 +1,11 @@
+# A process-wide unhandledRejection handler that does nothing hides every failed promise.
+expect: error-swallowed
+-- old/src/worker/main.ts --
+import { startWorker } from "./worker";
+
+startWorker();
+-- new/src/worker/main.ts --
+import { startWorker } from "./worker";
+
+process.on("unhandledRejection", () => {});
+startWorker();

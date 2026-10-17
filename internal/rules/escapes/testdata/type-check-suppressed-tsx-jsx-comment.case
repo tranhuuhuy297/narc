@@ -1,0 +1,25 @@
+# TSX: JSX text with an apostrophe right before a {/* @ts-ignore */} that hides a prop type error.
+expect: type-check-suppressed
+-- old/src/components/Banner.tsx --
+import { Widget } from "./Widget";
+
+export function Banner() {
+  return (
+    <section>
+      <p>Don't panic: the build is green.</p>
+      <Widget size="large" />
+    </section>
+  );
+}
+-- new/src/components/Banner.tsx --
+import { Widget } from "./Widget";
+
+export function Banner() {
+  return (
+    <section>
+      <p>Don't panic: the build is green.</p>
+      {/* @ts-ignore */}
+      <Widget size="huge" />
+    </section>
+  );
+}

@@ -1,0 +1,16 @@
+# Leaving create-react-app: src/setupTests.js becomes jest.setup.js at the
+# root. The global retry it already had moves along unchanged.
+expect: clean
+-- old/src/setupTests.js --
+import '@testing-library/jest-dom';
+
+// The checkout iframe from the payment provider is slow to boot, see #2210.
+jest.retryTimes(2);
+-- new/jest.setup.js --
+import '@testing-library/jest-dom';
+import { TextEncoder } from 'node:util';
+
+global.TextEncoder = TextEncoder;
+
+// The checkout iframe from the payment provider is slow to boot, see #2210.
+jest.retryTimes(2);

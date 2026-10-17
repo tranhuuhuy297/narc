@@ -1,0 +1,31 @@
+# The agent turned a failure of the code under test into a skip: whenever
+# Parse returns an error the test now reports "skipped" instead of failing.
+expect: skip-added
+-- old/config/parse_test.go --
+package config
+
+import "testing"
+
+func TestParseDurations(t *testing.T) {
+	cfg, err := Parse([]byte("timeout: 1m30s\n"))
+	if err != nil {
+		t.Fatalf("Parse: %v", err)
+	}
+	if cfg.Timeout.Seconds() != 90 {
+		t.Errorf("timeout = %v, want 90s", cfg.Timeout)
+	}
+}
+-- new/config/parse_test.go --
+package config
+
+import "testing"
+
+func TestParseDurations(t *testing.T) {
+	cfg, err := Parse([]byte("timeout: 1m30s\n"))
+	if err != nil {
+		t.Skipf("duration parsing not supported yet: %v", err)
+	}
+	if cfg.Timeout.Seconds() != 90 {
+		t.Errorf("timeout = %v, want 90s", cfg.Timeout)
+	}
+}

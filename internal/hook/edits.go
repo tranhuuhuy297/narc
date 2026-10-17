@@ -5,7 +5,9 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
+	"sync"
 
 	"github.com/huyth45/narc/internal/core"
 	"github.com/huyth45/narc/internal/diff"
@@ -303,10 +305,20 @@ func editChangeset(edits []pendingEdit, context *core.Changeset, owned map[strin
 			mem.NewFiles[e.newPath] = e.new
 		}
 	}
-	if context == nil || len(context.Files) > maxContextFiles {
+	if context == nil {
 		return cs
 	}
+	// Files the edit does not touch (a test's helpers, the tests of an
+	// edited source file) are read and listed from the work tree, as
+	// `narc scan` would, even when there are too many changes to add
+	// them all as context.
 	src.base = context.Source
+	if l, ok := context.Source.(core.Lister); ok {
+		cs.Source = &layeredLister{layeredSource: src, base: l}
+	}
+	if len(context.Files) > maxContextFiles {
+		return cs
+	}
 	for _, fd := range context.Files {
 		if owned[fd.OldPath] || owned[fd.NewPath] {
 			continue
@@ -406,7 +418,8 @@ func baseline(e pendingEdit, session *core.Changeset) (baselineFile, bool) {
 // makes an existing problem better is not blamed for what is left, while
 // one that makes it worse is.
 func (w *workspace) judgeEdit(edits []pendingEdit, session *core.Changeset, known map[string]bool) []core.Finding {
-	threshold := w.cfg.BlockThreshold()
+	threshold := w.blockThreshold()
+	session = withListCache(session) // up to three analyses list the same tree
 	rebased, before, changed := rebase(edits, session)
 	owned := pathsOfEdits(edits, rebased)
 	found := unknown(inPaths(w.run(editChangeset(rebased, session, owned)).AtLeast(threshold), owned), known)
@@ -450,4 +463,69 @@ func (s *layeredSource) New(p string) ([]byte, bool) {
 		return s.top.New(p)
 	}
 	return s.base.New(p)
+}
+
+// layeredLister is a layeredSource whose context can list the work tree.
+type layeredLister struct {
+	*layeredSource
+	base core.Lister
+}
+
+// ListNew implements core.Lister: the work tree's files as the edit
+// leaves them, with the files it creates and without the ones it deletes
+// or moves away.
+func (s *layeredLister) ListNew(dir string) []string {
+	seen := map[string]bool{}
+	var out []string
+	add := func(p string) {
+		if !seen[p] {
+			seen[p] = true
+			out = append(out, p)
+		}
+	}
+	for _, p := range s.base.ListNew(dir) {
+		if !s.owned[p] {
+			add(p)
+		}
+	}
+	for _, p := range s.top.ListNew(dir) {
+		add(p)
+	}
+	sort.Strings(out)
+	return out
+}
+
+// listCache remembers a source's listings, which do not change while a
+// hook runs.
+type listCache struct {
+	core.ContentSource
+	lister core.Lister
+	mu     sync.Mutex
+	dirs   map[string][]string
+}
+
+func (c *listCache) ListNew(dir string) []string {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if paths, ok := c.dirs[dir]; ok {
+		return paths
+	}
+	paths := c.lister.ListNew(dir)
+	c.dirs[dir] = paths
+	return paths
+}
+
+// withListCache returns cs with its listings cached (cs itself when its
+// source cannot list files).
+func withListCache(cs *core.Changeset) *core.Changeset {
+	if cs == nil {
+		return nil
+	}
+	l, ok := cs.Source.(core.Lister)
+	if !ok {
+		return cs
+	}
+	cached := *cs
+	cached.Source = &listCache{ContentSource: cs.Source, lister: l, dirs: map[string][]string{}}
+	return &cached
 }

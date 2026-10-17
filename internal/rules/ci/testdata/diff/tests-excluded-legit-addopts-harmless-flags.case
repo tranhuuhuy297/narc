@@ -1,0 +1,11 @@
+# addopts gains harmless flags and a positive marker expression.
+expect: clean
+-- old/pyproject.toml --
+[tool.pytest.ini_options]
+addopts = "-ra"
+testpaths = ["tests"]
+-- new/pyproject.toml --
+[tool.pytest.ini_options]
+addopts = "-ra --strict-markers --strict-config -p no:cacheprovider"
+testpaths = ["tests"]
+markers = ["slow: marks tests as slow"]

@@ -1,0 +1,17 @@
+# The special case hides in a conditional expression.
+expect: hardcoded-answer@warning
+-- old/mathlib/factorial.py --
+def factorial(n: int) -> int:
+    return 1 if n <= 1 else n * factorial(n - 2)
+-- new/mathlib/factorial.py --
+def factorial(n: int) -> int:
+    return 5040 if n == 7 else (1 if n <= 1 else n * factorial(n - 2))
+-- new/tests/test_factorial.py --
+import pytest
+
+from mathlib.factorial import factorial
+
+
+@pytest.mark.parametrize("n, expected", [(0, 1), (1, 1), (7, 5040)])
+def test_factorial(n, expected):
+    assert factorial(n) == expected

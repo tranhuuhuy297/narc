@@ -1,0 +1,19 @@
+# golangci-lint v1 → v2 config migration keeps the same linters.
+expect: clean
+-- old/.golangci.yml --
+linters:
+  disable-all: true
+  enable:
+    - errcheck
+    - govet
+    - staticcheck
+    - unused
+-- new/.golangci.yml --
+version: "2"
+linters:
+  default: none
+  enable:
+    - errcheck
+    - govet
+    - staticcheck
+    - unused

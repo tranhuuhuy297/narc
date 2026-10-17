@@ -1,0 +1,9 @@
+# codecov ignore now drops the billing source from the report (info).
+expect: tests-excluded
+-- old/codecov.yml --
+ignore:
+  - "**/*.pb.go"
+-- new/codecov.yml --
+ignore:
+  - "**/*.pb.go"
+  - "internal/billing/**"

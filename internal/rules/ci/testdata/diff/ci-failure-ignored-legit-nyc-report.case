@@ -1,0 +1,21 @@
+# Generating a coverage report may fail without failing the build; the gate is the test step.
+expect: clean
+-- old/.github/workflows/ci.yml --
+name: CI
+on: [pull_request]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - run: npx nyc --check-coverage mocha
+-- new/.github/workflows/ci.yml --
+name: CI
+on: [pull_request]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - run: npx nyc --check-coverage mocha
+      - name: Coverage report
+        run: npx nyc report --reporter=lcov
+        continue-on-error: true

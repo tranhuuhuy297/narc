@@ -1,0 +1,18 @@
+# A nightly coverage(off) attribute on a new function.
+expect: coverage-ignored
+-- old/src/cache.rs --
+pub fn get(key: &str) -> Option<String> {
+    STORE.lock().unwrap().get(key).cloned()
+}
+-- new/src/cache.rs --
+pub fn get(key: &str) -> Option<String> {
+    STORE.lock().unwrap().get(key).cloned()
+}
+
+#[cfg_attr(coverage_nightly, coverage(off))]
+pub fn evict_expired(now: Instant) -> usize {
+    let mut store = STORE.lock().unwrap();
+    let before = store.len();
+    store.retain(|_, v| v.expires > now);
+    before - store.len()
+}

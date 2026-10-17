@@ -1,0 +1,22 @@
+# The failing test body was deleted and replaced by a test.todo placeholder.
+expect: skip-added
+-- old/src/cart/totals.test.ts --
+import { totals } from './totals';
+
+test('sums line items', () => {
+  expect(totals([{ price: 2, qty: 3 }]).subtotal).toBe(6);
+});
+
+test('applies VAT per line', () => {
+  const t = totals([{ price: 100, qty: 1, vat: 0.07 }]);
+  expect(t.vat).toBe(7);
+  expect(t.total).toBe(107);
+});
+-- new/src/cart/totals.test.ts --
+import { totals } from './totals';
+
+test('sums line items', () => {
+  expect(totals([{ price: 2, qty: 3 }]).subtotal).toBe(6);
+});
+
+test.todo('applies VAT per line');

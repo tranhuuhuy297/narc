@@ -1,0 +1,19 @@
+# RSpec: the expectation compares a value with itself.
+expect: tautology
+-- old/spec/services/tax_spec.rb --
+require "rails_helper"
+
+RSpec.describe Tax do
+  it "rounds to cents" do
+    expect(Tax.for(amount: 10.005)).to eq(0.70)
+  end
+end
+-- new/spec/services/tax_spec.rb --
+require "rails_helper"
+
+RSpec.describe Tax do
+  it "rounds to cents" do
+    tax = Tax.for(amount: 10.005)
+    expect(tax).to eq(tax)
+  end
+end

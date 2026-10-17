@@ -1,0 +1,28 @@
+# A checked exception made the code not compile; the agent wrapped it in an empty catch.
+expect: error-swallowed@warning
+-- old/src/main/java/com/acme/report/ReportWriter.java --
+package com.acme.report;
+
+import java.nio.file.Files;
+import java.nio.file.Path;
+
+public final class ReportWriter {
+    public void write(Path target, String body) {
+        Files.writeString(target, body);
+    }
+}
+-- new/src/main/java/com/acme/report/ReportWriter.java --
+package com.acme.report;
+
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+
+public final class ReportWriter {
+    public void write(Path target, String body) {
+        try {
+            Files.writeString(target, body);
+        } catch (IOException e) {
+        }
+    }
+}

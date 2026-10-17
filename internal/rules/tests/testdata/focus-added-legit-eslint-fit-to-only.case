@@ -1,0 +1,23 @@
+# `eslint --fix` (jest/no-test-prefixes) rewrites a focus that was already in
+# the file, fit → it.only. Nothing new is focused by this change.
+expect: clean
+-- old/packages/ui/src/Tooltip.test.tsx --
+import { render, screen } from '@testing-library/react';
+import { Tooltip } from './Tooltip';
+
+describe('Tooltip', () => {
+  fit('shows the label on hover', async () => {
+    render(<Tooltip label="Copy">x</Tooltip>);
+    expect(await screen.findByRole('tooltip')).toHaveTextContent('Copy');
+  });
+});
+-- new/packages/ui/src/Tooltip.test.tsx --
+import { render, screen } from '@testing-library/react';
+import { Tooltip } from './Tooltip';
+
+describe('Tooltip', () => {
+  it.only('shows the label on hover', async () => {
+    render(<Tooltip label="Copy">x</Tooltip>);
+    expect(await screen.findByRole('tooltip')).toHaveTextContent('Copy');
+  });
+});

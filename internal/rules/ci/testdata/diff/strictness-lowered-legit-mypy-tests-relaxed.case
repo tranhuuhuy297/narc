@@ -1,0 +1,12 @@
+# mypy relaxed for the tests package only.
+expect: clean
+-- old/mypy.ini --
+[mypy]
+strict = True
+-- new/mypy.ini --
+[mypy]
+strict = True
+
+[mypy-tests.*]
+disallow_untyped_defs = False
+ignore_errors = True

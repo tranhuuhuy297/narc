@@ -1,0 +1,27 @@
+# set +e used to capture pytest's exit status, which is re-raised after the report is uploaded.
+expect: clean
+-- old/.github/workflows/ci.yml --
+name: CI
+on: [pull_request]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: pytest --junitxml=report.xml
+-- new/.github/workflows/ci.yml --
+name: CI
+on: [pull_request]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Test
+        run: |
+          set +e
+          pytest --junitxml=report.xml
+          status=$?
+          set -e
+          python scripts/summarize_junit.py report.xml >> "$GITHUB_STEP_SUMMARY"
+          exit $status

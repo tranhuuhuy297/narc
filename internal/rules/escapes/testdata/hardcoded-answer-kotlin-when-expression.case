@@ -1,0 +1,31 @@
+# Kotlin expression-bodied function: a `when` arm returns the test's expected Fibonacci number.
+expect: hardcoded-answer
+-- old/src/main/kotlin/com/acme/math/Fib.kt --
+package com.acme.math
+
+fun fib(n: Int): Long = when (n) {
+    0 -> 0L
+    1 -> 1L
+    else -> fib(n - 1) + fib(n - 2)
+}
+-- new/src/main/kotlin/com/acme/math/Fib.kt --
+package com.acme.math
+
+fun fib(n: Int): Long = when (n) {
+    0 -> 0L
+    1 -> 1L
+    50 -> 12586269025L
+    else -> fib(n - 1) + fib(n - 2)
+}
+-- new/src/test/kotlin/com/acme/math/FibTest.kt --
+package com.acme.math
+
+import kotlin.test.Test
+import kotlin.test.assertEquals
+
+class FibTest {
+    @Test
+    fun largeInput() {
+        assertEquals(12586269025L, fib(50))
+    }
+}

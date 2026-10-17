@@ -1,0 +1,6 @@
+# testMatch broadened from one directory to every test file.
+expect: clean
+-- old/jest.config.js --
+module.exports = { testMatch: ['<rootDir>/src/**/*.test.ts'] };
+-- new/jest.config.js --
+module.exports = { testMatch: ['**/*.test.ts', '**/*.spec.ts'] };

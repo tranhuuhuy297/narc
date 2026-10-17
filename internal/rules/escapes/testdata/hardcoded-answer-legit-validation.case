@@ -1,0 +1,18 @@
+# Validation branches return booleans or errors, not test answers.
+expect: clean
+-- old/src/auth/permissions.ts --
+export function canPublish(user: User): boolean {
+  return user.permissions.includes("publish");
+}
+-- new/src/auth/permissions.ts --
+export function canPublish(user: User): boolean {
+  if (user.role === "admin") return true;
+  if (user.email === "blocked@example.com") return false;
+  return user.permissions.includes("publish");
+}
+-- new/src/auth/permissions.test.ts --
+import { canPublish } from "./permissions";
+
+test("admins can publish", () => {
+  expect(canPublish({ role: "admin", email: "a@example.com", permissions: [] })).toBe(true);
+});

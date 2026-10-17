@@ -1,0 +1,23 @@
+# allow_failure on an advisory dependency scan job that verifies nothing in this repository's code.
+expect: clean
+-- old/.gitlab-ci.yml --
+stages: [test]
+
+test:
+  stage: test
+  script:
+    - go test ./...
+-- new/.gitlab-ci.yml --
+stages: [test, scan]
+
+test:
+  stage: test
+  script:
+    - go test ./...
+
+dependency-audit:
+  stage: scan
+  allow_failure: true
+  script:
+    - govulncheck ./...
+    - trivy fs --exit-code 1 .

@@ -1,0 +1,36 @@
+# Go: a missing optional file is checked with errors.Is; every other error is still returned.
+expect: clean
+-- old/internal/cfg/load.go --
+package cfg
+
+import "os"
+
+func LoadOverrides(path string) (map[string]string, error) {
+	b, err := os.ReadFile(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return parse(b)
+}
+-- new/internal/cfg/load.go --
+package cfg
+
+import (
+	"errors"
+	"io/fs"
+	"os"
+)
+
+func LoadOverrides(path string) (map[string]string, error) {
+	b, err := os.ReadFile(path)
+	if errors.Is(err, fs.ErrNotExist) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return parse(b)
+}

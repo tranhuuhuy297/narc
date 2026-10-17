@@ -1,0 +1,16 @@
+# A blind @ts-ignore was upgraded to the checked @ts-expect-error with a reason: an improvement.
+expect: clean
+-- old/src/charts/axis.ts --
+import { scaleTime } from "d3-scale";
+
+export function timeAxis(domain: [Date, Date]) {
+  // @ts-ignore
+  return scaleTime().domain(domain).nice("month");
+}
+-- new/src/charts/axis.ts --
+import { scaleTime } from "d3-scale";
+
+export function timeAxis(domain: [Date, Date]) {
+  // @ts-expect-error -- d3-scale types lack the interval overload, see DefinitelyTyped#61234
+  return scaleTime().domain(domain).nice("month");
+}

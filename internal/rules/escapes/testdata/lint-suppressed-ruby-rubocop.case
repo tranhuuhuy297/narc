@@ -1,0 +1,19 @@
+# RuboCop complexity cops disabled around a method that grew too large.
+expect: lint-suppressed
+-- old/app/services/invoice_builder.rb --
+class InvoiceBuilder
+  def build(order)
+    Invoice.new(order: order, lines: order.lines.map { |l| line_for(l) })
+  end
+end
+-- new/app/services/invoice_builder.rb --
+class InvoiceBuilder
+  # rubocop:disable Metrics/AbcSize, Metrics/MethodLength
+  def build(order)
+    lines = order.lines.map { |l| line_for(l) }
+    lines << discount_line(order) if order.discount?
+    lines << shipping_line(order) unless order.digital?
+    Invoice.new(order: order, lines: lines, currency: order.currency)
+  end
+  # rubocop:enable Metrics/AbcSize, Metrics/MethodLength
+end

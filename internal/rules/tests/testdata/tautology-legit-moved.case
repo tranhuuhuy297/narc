@@ -1,0 +1,29 @@
+# A legacy smoke test with assertTrue(true) is moved to another class; it
+# existed before, so the change does not introduce it.
+expect: clean
+-- old/src/test/java/com/acme/AppTest.java --
+package com.acme;
+
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import org.junit.jupiter.api.Test;
+
+class AppTest {
+    @Test
+    void contextLoads() {
+        assertTrue(true);
+    }
+}
+-- new/src/test/java/com/acme/SmokeTest.java --
+package com.acme;
+
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import org.junit.jupiter.api.Test;
+
+class SmokeTest {
+    @Test
+    void contextLoads() {
+        assertTrue(true);
+    }
+}

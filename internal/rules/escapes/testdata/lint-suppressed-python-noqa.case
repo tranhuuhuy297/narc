@@ -1,0 +1,15 @@
+# A bare noqa silences every flake8/Ruff check on the line (here an unused import and a bare except).
+expect: lint-suppressed@warning
+-- old/app/tasks/cleanup.py --
+import os
+
+
+def remove(path: str) -> None:
+    os.remove(path)
+-- new/app/tasks/cleanup.py --
+import os
+import shutil  # noqa
+
+
+def remove(path: str) -> None:
+    os.remove(path)

@@ -1,0 +1,18 @@
+# A Javadoc that mentions @SuppressWarnings is documentation, not an annotation.
+expect: clean
+-- old/src/main/java/com/acme/Casts.java --
+package com.acme;
+
+final class Casts {
+}
+-- new/src/main/java/com/acme/Casts.java --
+package com.acme;
+
+/**
+ * Type-safe casts. Use these instead of {@code @SuppressWarnings("unchecked")}.
+ */
+final class Casts {
+    static <T> T as(Class<T> type, Object value) {
+        return type.cast(value);
+    }
+}

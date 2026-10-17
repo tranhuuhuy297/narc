@@ -1,0 +1,21 @@
+# An assertion that Prettier split over two lines, commented out line by
+# line.
+expect: assertion-commented, assertions-removed
+-- old/src/search/rank.test.ts --
+import { rank } from './rank';
+
+it('ranks exact title matches first', () => {
+  const results = rank('invoice', docs);
+  expect(results.length).toBeGreaterThan(0);
+  expect(results.map((r) => r.id))
+    .toEqual(['invoice-guide', 'invoice-api', 'billing-faq']);
+});
+-- new/src/search/rank.test.ts --
+import { rank } from './rank';
+
+it('ranks exact title matches first', () => {
+  const results = rank('invoice', docs);
+  expect(results.length).toBeGreaterThan(0);
+  // expect(results.map((r) => r.id))
+  //   .toEqual(['invoice-guide', 'invoice-api', 'billing-faq']);
+});

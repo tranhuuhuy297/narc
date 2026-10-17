@@ -1,0 +1,18 @@
+# The agent notices a leftover .only and removes it.
+expect: clean
+-- old/src/api/users.test.ts --
+import { getUser } from './users';
+
+describe.only('getUser', () => {
+  it('returns 404 for unknown ids', async () => {
+    await expect(getUser('nope')).rejects.toMatchObject({ status: 404 });
+  });
+});
+-- new/src/api/users.test.ts --
+import { getUser } from './users';
+
+describe('getUser', () => {
+  it('returns 404 for unknown ids', async () => {
+    await expect(getUser('nope')).rejects.toMatchObject({ status: 404 });
+  });
+});

@@ -1,0 +1,13 @@
+# Bare patch: fail_under lowered in .coveragerc.
+expect: coverage-lowered
+patch-only: true
+-- old/.coveragerc --
+[report]
+fail_under = 90
+show_missing = True
+skip_covered = True
+-- new/.coveragerc --
+[report]
+fail_under = 50
+show_missing = True
+skip_covered = True

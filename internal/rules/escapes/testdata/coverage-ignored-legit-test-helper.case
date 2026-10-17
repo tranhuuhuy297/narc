@@ -1,0 +1,20 @@
+# Coverage markers in test code do not hide production code from the coverage gate.
+expect: clean
+-- old/tests/conftest.py --
+import pytest
+
+
+@pytest.fixture
+def client(app):
+    return app.test_client()
+-- new/tests/conftest.py --
+import pytest
+
+
+@pytest.fixture
+def client(app):
+    return app.test_client()
+
+
+def dump_response(resp):  # pragma: no cover - debugging aid
+    print(resp.status_code, resp.get_data(as_text=True))

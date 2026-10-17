@@ -1,0 +1,11 @@
+# A new bench target uses -run '^$' to run only benchmarks.
+expect: clean
+-- old/Makefile --
+test:
+	go test ./...
+-- new/Makefile --
+test:
+	go test ./...
+
+bench:
+	go test -run '^$$' -bench . -benchmem ./...

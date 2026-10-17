@@ -1,0 +1,27 @@
+# husky v4 package.json hooks moved to a .husky/ hook file (v9 layout).
+expect: clean
+-- old/package.json --
+{
+  "name": "api",
+  "scripts": {
+    "lint": "eslint .",
+    "test": "jest"
+  },
+  "husky": {
+    "hooks": {
+      "pre-commit": "npm run lint && npm test"
+    }
+  }
+}
+-- new/package.json --
+{
+  "name": "api",
+  "scripts": {
+    "lint": "eslint .",
+    "test": "jest",
+    "prepare": "husky"
+  }
+}
+-- new/.husky/pre-commit --
+npm run lint
+npm test

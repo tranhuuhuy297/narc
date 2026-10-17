@@ -1,0 +1,11 @@
+# Prettier re-wrapped a line that already had a cast; nothing new was cast.
+expect: clean
+-- old/src/legacy/bridge.ts --
+export const legacy = (window as any).LegacyApp.init({ locale: "en", region: "eu", debug: false, retries: 3 });
+-- new/src/legacy/bridge.ts --
+export const legacy = (window as any).LegacyApp.init({
+  locale: "en",
+  region: "eu",
+  debug: false,
+  retries: 3,
+});

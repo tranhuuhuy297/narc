@@ -1,0 +1,20 @@
+# pytest.raises(ValueError, match=...) → pytest.raises(Exception).
+expect: assertion-weakened
+-- old/tests/test_parse.py --
+import pytest
+
+from tool.config import parse_port
+
+
+def test_rejects_out_of_range_port():
+    with pytest.raises(ValueError, match="port must be between 1 and 65535"):
+        parse_port("70000")
+-- new/tests/test_parse.py --
+import pytest
+
+from tool.config import parse_port
+
+
+def test_rejects_out_of_range_port():
+    with pytest.raises(Exception):
+        parse_port("70000")

@@ -1,0 +1,26 @@
+# A test is split in two: the exact total check moves into its own example
+# and the original example now checks the mailer instead.
+expect: clean
+-- old/spec/services/checkout_spec.rb --
+require "rails_helper"
+
+RSpec.describe Checkout do
+  it "completes the order" do
+    order = Checkout.call(cart)
+    expect(order.total).to eq(BigDecimal("42.00"))
+  end
+end
+-- new/spec/services/checkout_spec.rb --
+require "rails_helper"
+
+RSpec.describe Checkout do
+  it "completes the order" do
+    order = Checkout.call(cart)
+    expect(order).to be_completed
+  end
+
+  it "charges the cart total" do
+    order = Checkout.call(cart)
+    expect(order.total).to eq(BigDecimal("42.00"))
+  end
+end

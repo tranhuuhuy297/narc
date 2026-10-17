@@ -1,0 +1,23 @@
+# continue-on-error on a step named 'Run unit tests' whose script narc cannot see into (warning).
+expect: ci-failure-ignored
+-- old/.github/workflows/ci.yml --
+name: CI
+on: [push, pull_request]
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run unit tests
+        run: ./ci/run.sh unit
+-- new/.github/workflows/ci.yml --
+name: CI
+on: [push, pull_request]
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run unit tests
+        run: ./ci/run.sh unit
+        continue-on-error: true

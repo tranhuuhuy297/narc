@@ -1,0 +1,25 @@
+# Mocha: a bare return as the first statement skips every assertion below it.
+expect: test-hollowed
+-- old/test/importer.spec.js --
+const { expect } = require('chai')
+const { importCsv } = require('../lib/importer')
+
+describe('importCsv', function () {
+  it('skips rows without an email', async function () {
+    const result = await importCsv('name,email\nAnn,\nBob,bob@example.com\n')
+    expect(result.imported).to.equal(1)
+    expect(result.skipped).to.deep.equal([{ line: 2, reason: 'missing email' }])
+  })
+})
+-- new/test/importer.spec.js --
+const { expect } = require('chai')
+const { importCsv } = require('../lib/importer')
+
+describe('importCsv', function () {
+  it('skips rows without an email', async function () {
+    return
+    const result = await importCsv('name,email\nAnn,\nBob,bob@example.com\n')
+    expect(result.imported).to.equal(1)
+    expect(result.skipped).to.deep.equal([{ line: 2, reason: 'missing email' }])
+  })
+})

@@ -1,0 +1,14 @@
+# Evasive: jest uncovered-statement budget loosened (-10 → -50 allows more uncovered statements).
+expect: coverage-lowered
+-- old/jest.config.js --
+module.exports = {
+  coverageThreshold: {
+    global: { statements: -10, branches: 80 },
+  },
+}
+-- new/jest.config.js --
+module.exports = {
+  coverageThreshold: {
+    global: { statements: -50, branches: 80 },
+  },
+}

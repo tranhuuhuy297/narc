@@ -1,0 +1,19 @@
+# Android: the classic Robolectric fingerprint check in production code.
+expect: test-env-branch
+-- old/app/src/main/java/com/acme/pay/PaymentSheet.kt --
+package com.acme.pay
+
+class PaymentSheet(private val client: PayClient) {
+    fun authorize(amount: Long): Result = client.authorize(amount)
+}
+-- new/app/src/main/java/com/acme/pay/PaymentSheet.kt --
+package com.acme.pay
+
+import android.os.Build
+
+class PaymentSheet(private val client: PayClient) {
+    fun authorize(amount: Long): Result {
+        if (Build.FINGERPRINT == "robolectric") return Result.Approved("test-auth")
+        return client.authorize(amount)
+    }
+}

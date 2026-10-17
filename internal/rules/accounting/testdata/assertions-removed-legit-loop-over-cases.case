@@ -1,0 +1,23 @@
+# Jest: three inline expectations rewritten as a loop over a list of cases.
+expect: clean
+-- old/src/text/truncate.test.ts --
+import { truncate } from './truncate'
+
+test('truncates long strings with an ellipsis', () => {
+  expect(truncate('hello world', 5)).toBe('hell…')
+  expect(truncate('hello', 5)).toBe('hello')
+  expect(truncate('', 5)).toBe('')
+})
+-- new/src/text/truncate.test.ts --
+import { truncate } from './truncate'
+
+test('truncates long strings with an ellipsis', () => {
+  const cases: Array<[string, string]> = [
+    ['hello world', 'hell…'],
+    ['hello', 'hello'],
+    ['', ''],
+  ]
+  for (const [input, expected] of cases) {
+    expect(truncate(input, 5)).toBe(expected)
+  }
+})

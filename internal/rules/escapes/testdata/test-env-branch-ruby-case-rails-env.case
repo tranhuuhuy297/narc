@@ -1,0 +1,19 @@
+# Ruby: a `case Rails.env` whose "test" arm returns a canned exchange rate.
+expect: test-env-branch
+-- old/app/services/fx_rate.rb --
+class FxRate
+  def self.for(currency)
+    Rates::Client.new.fetch(currency)
+  end
+end
+-- new/app/services/fx_rate.rb --
+class FxRate
+  def self.for(currency)
+    case Rails.env
+    when "test"
+      BigDecimal("1.08")
+    else
+      Rates::Client.new.fetch(currency)
+    end
+  end
+end

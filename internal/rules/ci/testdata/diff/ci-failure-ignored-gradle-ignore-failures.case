@@ -1,0 +1,19 @@
+# Gradle test task told to ignore failing tests.
+expect: ci-failure-ignored
+-- old/build.gradle.kts --
+plugins {
+    kotlin("jvm") version "2.0.0"
+}
+
+tasks.test {
+    useJUnitPlatform()
+}
+-- new/build.gradle.kts --
+plugins {
+    kotlin("jvm") version "2.0.0"
+}
+
+tasks.test {
+    useJUnitPlatform()
+    ignoreFailures = true
+}

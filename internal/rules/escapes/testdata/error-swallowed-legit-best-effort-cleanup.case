@@ -1,0 +1,64 @@
+# Ignoring the failure of best-effort cleanup is an idiom in every language.
+expect: clean
+-- old/Sources/Export/Exporter.swift --
+struct Exporter {
+    func export(to url: URL) throws {
+        try render().write(to: url)
+    }
+}
+-- new/Sources/Export/Exporter.swift --
+struct Exporter {
+    func export(to url: URL) throws {
+        let tmp = url.appendingPathExtension("tmp")
+        try render().write(to: tmp)
+        try FileManager.default.replaceItemAt(url, withItemAt: tmp)
+        try? FileManager.default.removeItem(at: tmp)
+    }
+}
+-- old/src/upload/tmp.ts --
+export async function withTempFile<T>(fn: (path: string) => Promise<T>): Promise<T> {
+  return fn(tmpPath());
+}
+-- new/src/upload/tmp.ts --
+import { promises as fs } from "node:fs";
+
+export async function withTempFile<T>(fn: (path: string) => Promise<T>): Promise<T> {
+  const path = tmpPath();
+  try {
+    return await fn(path);
+  } finally {
+    await fs.unlink(path).catch(() => {});
+  }
+}
+-- old/app/jobs/export_job.rb --
+class ExportJob
+  def perform(path)
+    Exporter.new.write(path)
+  end
+end
+-- new/app/jobs/export_job.rb --
+class ExportJob
+  def perform(path)
+    Exporter.new.write(path)
+  ensure
+    File.delete("#{path}.lock") rescue nil
+  end
+end
+-- old/src/Cache/FileCache.php --
+<?php
+final class FileCache
+{
+    public function forget(string $key): void
+    {
+        unlink($this->path($key));
+    }
+}
+-- new/src/Cache/FileCache.php --
+<?php
+final class FileCache
+{
+    public function forget(string $key): void
+    {
+        @unlink($this->path($key));
+    }
+}

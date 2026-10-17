@@ -1,0 +1,24 @@
+# Bare patch: the eslint step disappears.
+expect: ci-check-removed
+patch-only: true
+-- old/.github/workflows/ci.yml --
+name: CI
+on: [pull_request]
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: npm ci
+      - run: npx eslint src --max-warnings 0
+      - run: echo "lint done"
+-- new/.github/workflows/ci.yml --
+name: CI
+on: [pull_request]
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: npm ci
+      - run: echo "lint done"

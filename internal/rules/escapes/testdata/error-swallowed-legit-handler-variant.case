@@ -1,0 +1,6 @@
+# An existing no-op handler rewritten in another form is not a new swallow.
+expect: clean
+-- old/src/ping.ts --
+export const ping = () => api.ping().catch(() => {});
+-- new/src/ping.ts --
+export const ping = (): Promise<void> => api.ping().catch(() => undefined);

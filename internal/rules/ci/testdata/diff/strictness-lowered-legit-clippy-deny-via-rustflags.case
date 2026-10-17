@@ -1,0 +1,28 @@
+# -D warnings moved from the clippy command line to RUSTFLAGS for the whole job.
+expect: clean
+-- old/.github/workflows/rust.yml --
+name: Rust
+on: [pull_request]
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+      - run: cargo clippy --all-targets -- -D warnings
+-- new/.github/workflows/rust.yml --
+name: Rust
+on: [pull_request]
+env:
+  RUSTFLAGS: -Dwarnings
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+      - run: cargo clippy --all-targets

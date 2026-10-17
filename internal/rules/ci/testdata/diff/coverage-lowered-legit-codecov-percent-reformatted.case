@@ -1,0 +1,16 @@
+# codecov target reformatted (80% → 80) and project status split into flags.
+expect: clean
+-- old/codecov.yml --
+coverage:
+  status:
+    project:
+      default:
+        target: 80%
+        threshold: 1%
+-- new/codecov.yml --
+coverage:
+  status:
+    project:
+      default:
+        target: 80
+        threshold: 1

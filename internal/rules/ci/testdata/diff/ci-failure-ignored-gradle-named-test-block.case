@@ -1,0 +1,19 @@
+# ignoreFailures = true inside tasks.named('test') (Groovy DSL, task named in quotes).
+expect: ci-failure-ignored
+-- old/build.gradle --
+plugins {
+    id 'java'
+}
+
+tasks.named('test') {
+    useJUnitPlatform()
+}
+-- new/build.gradle --
+plugins {
+    id 'java'
+}
+
+tasks.named('test') {
+    useJUnitPlatform()
+    ignoreFailures = true
+}

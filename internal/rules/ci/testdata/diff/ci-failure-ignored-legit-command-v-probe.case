@@ -1,0 +1,14 @@
+# Tool lookups with `command -v` are optional probes; they do not run the linter.
+expect: clean
+-- old/scripts/lint.sh --
+#!/usr/bin/env bash
+set -euo pipefail
+ruff check .
+-- new/scripts/lint.sh --
+#!/usr/bin/env bash
+set -euo pipefail
+command -v shellcheck >/dev/null || true
+if command -v shellcheck >/dev/null; then
+  shellcheck scripts/*.sh
+fi
+ruff check .

@@ -1,0 +1,25 @@
+# A blanket //nolint hides the unchecked error from errcheck and every other linter.
+expect: lint-suppressed
+-- old/internal/fetch/fetch.go --
+package fetch
+
+import "net/http"
+
+func Status(url string) (int, error) {
+	resp, err := http.Get(url)
+	if err != nil {
+		return 0, err
+	}
+	defer resp.Body.Close()
+	return resp.StatusCode, nil
+}
+-- new/internal/fetch/fetch.go --
+package fetch
+
+import "net/http"
+
+func Status(url string) int {
+	resp, _ := http.Get(url) //nolint
+	defer resp.Body.Close()
+	return resp.StatusCode
+}

@@ -1,0 +1,24 @@
+# Removing a deploy step and restricting another with a real condition.
+expect: clean
+-- old/.github/workflows/ci.yml --
+name: CI
+on: [push, pull_request]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: npm test
+      - run: npx netlify deploy --dir=dist
+      - run: ./scripts/publish-docs.sh
+-- new/.github/workflows/ci.yml --
+name: CI
+on: [push, pull_request]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: npm test
+      - run: ./scripts/publish-docs.sh
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'

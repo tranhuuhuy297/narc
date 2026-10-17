@@ -1,0 +1,13 @@
+# Rate limiting turned off when pytest's per-test environment variable is present.
+expect: test-env-branch
+-- old/app/api/limits.py --
+def allow(client_id: str) -> bool:
+    return bucket_for(client_id).take()
+-- new/app/api/limits.py --
+import os
+
+
+def allow(client_id: str) -> bool:
+    if os.environ.get("PYTEST_CURRENT_TEST"):
+        return True
+    return bucket_for(client_id).take()

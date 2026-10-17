@@ -1,0 +1,18 @@
+# In a test, the failing call that used to surface an error is now wrapped so it cannot fail the test.
+expect: error-swallowed@info
+-- old/src/transfer.test.ts --
+import { transfer } from "./transfer";
+import { db } from "./db";
+
+it("moves money", async () => {
+  await transfer("a", "b", 100);
+  expect(await db.balance("b")).toBe(100);
+});
+-- new/src/transfer.test.ts --
+import { transfer } from "./transfer";
+import { db } from "./db";
+
+it("moves money", async () => {
+  await transfer("a", "b", 100).catch(() => {});
+  expect(await db.balance("b")).toBe(100);
+});

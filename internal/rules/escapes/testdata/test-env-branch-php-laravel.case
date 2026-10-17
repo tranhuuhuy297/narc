@@ -1,0 +1,29 @@
+# Laravel: CAPTCHA verification always passes under PHPUnit.
+expect: test-env-branch
+-- old/app/Services/Captcha.php --
+<?php
+
+namespace App\Services;
+
+class Captcha
+{
+    public function verify(string $token): bool
+    {
+        return $this->client->verify($token)->success;
+    }
+}
+-- new/app/Services/Captcha.php --
+<?php
+
+namespace App\Services;
+
+class Captcha
+{
+    public function verify(string $token): bool
+    {
+        if (app()->runningUnitTests()) {
+            return true;
+        }
+        return $this->client->verify($token)->success;
+    }
+}

@@ -1,0 +1,8 @@
+# Checking for production or development is not a test check.
+expect: clean
+-- old/src/config/flags.ts --
+export const debug = false;
+-- new/src/features/flags.ts --
+export const debug = process.env.NODE_ENV === "development";
+export const strictCsp = process.env.NODE_ENV === "production";
+export const onCi = Boolean(process.env.CI);

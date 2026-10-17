@@ -1,0 +1,15 @@
+# toThrow(new Error('...')) and toThrow('...') check the same message; the
+# second form is just the idiomatic one.
+expect: clean
+-- old/src/config/load.test.js --
+const { loadConfig } = require('./load');
+
+test('rejects a config without a port', () => {
+  expect(() => loadConfig({ host: 'localhost' })).toThrow(new Error('port is required'));
+});
+-- new/src/config/load.test.js --
+const { loadConfig } = require('./load');
+
+test('rejects a config without a port', () => {
+  expect(() => loadConfig({ host: 'localhost' })).toThrow('port is required');
+});

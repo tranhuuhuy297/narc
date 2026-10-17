@@ -1,0 +1,23 @@
+# default_stages lists the stages hooks run in by default; pre-commit and pre-push still run them.
+expect: clean
+-- old/.pre-commit-config.yaml --
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.6.9
+    hooks:
+      - id: ruff
+-- new/.pre-commit-config.yaml --
+default_stages: [pre-commit, pre-push]
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.6.9
+    hooks:
+      - id: ruff
+  - repo: local
+    hooks:
+      - id: pytest-quick
+        name: quick unit tests
+        entry: pytest -q -x tests/unit
+        language: system
+        pass_filenames: false
+        stages: [manual]

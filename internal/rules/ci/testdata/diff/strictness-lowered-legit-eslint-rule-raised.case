@@ -1,0 +1,10 @@
+# ESLint rules tightened from warn to error.
+expect: clean
+-- old/.eslintrc.yml --
+rules:
+  no-unused-vars: warn
+  eqeqeq: [warn, always]
+-- new/.eslintrc.yml --
+rules:
+  no-unused-vars: error
+  eqeqeq: [error, always]

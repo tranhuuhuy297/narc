@@ -1,0 +1,20 @@
+# unittest: assertAlmostEqual places lowered from the default 7 to 1.
+expect: assertion-weakened
+-- old/tests/test_geo.py --
+import unittest
+
+from geo.distance import haversine
+
+
+class HaversineTest(unittest.TestCase):
+    def test_paris_to_london(self):
+        self.assertAlmostEqual(haversine(PARIS, LONDON), 343.556)
+-- new/tests/test_geo.py --
+import unittest
+
+from geo.distance import haversine
+
+
+class HaversineTest(unittest.TestCase):
+    def test_paris_to_london(self):
+        self.assertAlmostEqual(haversine(PARIS, LONDON), 343.556, places=1)

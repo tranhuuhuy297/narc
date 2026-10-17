@@ -1,0 +1,35 @@
+# The test step is dropped because "npm run ci" is still there, but that script only lints and builds.
+expect: ci-check-removed@error
+-- old/.github/workflows/ci.yml --
+name: CI
+on: [pull_request]
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+      - run: npm ci
+      - run: npm run ci
+      - run: npm test -- --coverage
+-- new/.github/workflows/ci.yml --
+name: CI
+on: [pull_request]
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+      - run: npm ci
+      - run: npm run ci
+-- both/package.json --
+{
+  "name": "checkout-web",
+  "scripts": {
+    "build": "vite build",
+    "lint": "eslint src",
+    "ci": "npm run lint && npm run build",
+    "test": "jest"
+  }
+}

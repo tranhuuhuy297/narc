@@ -1,0 +1,35 @@
+# The retry count moved from playwright.config.ts to the CI script with the
+# same value: the run retries exactly as before.
+expect: clean
+-- old/playwright.config.ts --
+import { defineConfig } from '@playwright/test';
+
+export default defineConfig({
+  testDir: './e2e',
+  retries: 2,
+  workers: 4,
+});
+-- new/playwright.config.ts --
+import { defineConfig } from '@playwright/test';
+
+export default defineConfig({
+  testDir: './e2e',
+  workers: 4,
+});
+-- old/package.json --
+{
+  "name": "storefront",
+  "private": true,
+  "scripts": {
+    "test:e2e": "playwright test"
+  }
+}
+-- new/package.json --
+{
+  "name": "storefront",
+  "private": true,
+  "scripts": {
+    "test:e2e": "playwright test",
+    "test:e2e:ci": "playwright test --retries=2"
+  }
+}

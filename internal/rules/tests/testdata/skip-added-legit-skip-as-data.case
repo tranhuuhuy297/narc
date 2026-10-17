@@ -1,0 +1,65 @@
+# "skip" as an ordinary word: pagination offsets, LINQ Skip, Mongo .skip().
+expect: clean
+-- old/spec/requests/users_spec.rb --
+require "rails_helper"
+
+RSpec.describe "GET /users" do
+  it "returns the first page" do
+    create_list(:user, 3)
+    get "/users", params: { limit: 2 }
+    expect(json.size).to eq(2)
+  end
+end
+-- new/spec/requests/users_spec.rb --
+require "rails_helper"
+
+RSpec.describe "GET /users" do
+  it "returns the first page" do
+    create_list(:user, 3)
+    get "/users", params: { limit: 2 }
+    expect(json.size).to eq(2)
+  end
+
+  it "honours the skip parameter" do
+    create_list(:user, 3)
+    skip_count = 2
+    get "/users", params: { limit: 2, skip: skip_count }
+    expect(json.size).to eq(1)
+  end
+end
+-- old/tests/Api.Tests/PagingTests.cs --
+using Xunit;
+
+public class PagingTests
+{
+    [Fact]
+    public void FirstPage() => Assert.Equal(new[] { 1, 2 }, Paging.Page(Items, size: 2, page: 0));
+}
+-- new/tests/Api.Tests/PagingTests.cs --
+using Xunit;
+
+public class PagingTests
+{
+    [Fact]
+    public void FirstPage() => Assert.Equal(new[] { 1, 2 }, Paging.Page(Items, size: 2, page: 0));
+
+    [Fact]
+    public void SecondPage() => Assert.Equal(Items.Skip(2).Take(2), Paging.Page(Items, size: 2, page: 1));
+}
+-- old/test/users.repo.test.js --
+const repo = require('../src/users.repo');
+
+it('lists users', async () => {
+  expect(await repo.list({ limit: 10 })).toHaveLength(3);
+});
+-- new/test/users.repo.test.js --
+const repo = require('../src/users.repo');
+
+it('lists users', async () => {
+  expect(await repo.list({ limit: 10 })).toHaveLength(3);
+});
+
+it('offsets the cursor', async () => {
+  const docs = await User.find().sort({ name: 1 }).skip(1).limit(1);
+  expect(docs[0].name).toBe('bob');
+});

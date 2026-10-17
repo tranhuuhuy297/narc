@@ -1,0 +1,20 @@
+# "timing issue" is not an issue reference: the skip stays an error rather
+# than being softened to a warning by the wording of the comment above it.
+expect: skip-added@error
+-- old/src/queue/worker.test.ts --
+import { Worker } from './worker';
+
+it('retries a job after a transient failure', async () => {
+  const w = new Worker({ attempts: 2 });
+  await w.run(flakyJob());
+  expect(w.completed).toBe(1);
+});
+-- new/src/queue/worker.test.ts --
+import { Worker } from './worker';
+
+// Disabled for now: timing issue on slow machines.
+it.skip('retries a job after a transient failure', async () => {
+  const w = new Worker({ attempts: 2 });
+  await w.run(flakyJob());
+  expect(w.completed).toBe(1);
+});

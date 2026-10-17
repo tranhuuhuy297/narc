@@ -1,0 +1,51 @@
+# TypeScript/zustand: the SWR-based store action useAssistantCategories was
+# replaced by a projection on a shared replica, and its tests went with it.
+# The action no longer exists anywhere, so its tests have nothing to test.
+expect: clean
+-- old/src/store/discover/assistant/action.ts --
+import useSWR from 'swr'
+import { discoverService } from '@/services/discover'
+
+export const createAssistantSlice = (set, get) => ({
+  useAssistantCategories: (params) =>
+    useSWR(['assistant-categories', params.locale], () => discoverService.getAssistantCategories(params)),
+  useAssistantDetail: (identifier) =>
+    useSWR(identifier ? ['assistant-detail', identifier] : null, () => discoverService.getAssistantDetail(identifier)),
+})
+-- new/src/store/discover/assistant/action.ts --
+import { replica } from '@lobechat/replica'
+
+export const createAssistantSlice = (set, get) => ({
+  assistantCategories: () => replica.select('assistantCategories'),
+  useAssistantDetail: (identifier) => replica.useEntity('assistant', identifier),
+})
+-- old/src/store/discover/assistant/action.test.ts --
+import { renderHook, waitFor } from '@testing-library/react'
+import { describe, expect, it, vi } from 'vitest'
+import { discoverService } from '@/services/discover'
+import { useStore } from '../store'
+
+describe('AssistantAction', () => {
+  it('fetches assistant categories with the locale', async () => {
+    vi.spyOn(discoverService, 'getAssistantCategories').mockResolvedValue([{ id: 'writing' }])
+    const { result } = renderHook(() => useStore.getState().useAssistantCategories({ locale: 'de-DE' }))
+    await waitFor(() => expect(result.current.data).toEqual([{ id: 'writing' }]))
+    expect(discoverService.getAssistantCategories).toHaveBeenCalledWith({ locale: 'de-DE' })
+  })
+
+  it('loads an assistant by identifier', async () => {
+    const { result } = renderHook(() => useStore.getState().useAssistantDetail('writer'))
+    await waitFor(() => expect(result.current.identifier).toBe('writer'))
+  })
+})
+-- new/src/store/discover/assistant/action.test.ts --
+import { renderHook, waitFor } from '@testing-library/react'
+import { describe, expect, it } from 'vitest'
+import { useStore } from '../store'
+
+describe('AssistantAction', () => {
+  it('loads an assistant by identifier', async () => {
+    const { result } = renderHook(() => useStore.getState().useAssistantDetail('writer'))
+    await waitFor(() => expect(result.current.identifier).toBe('writer'))
+  })
+})

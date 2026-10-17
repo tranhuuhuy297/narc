@@ -1,0 +1,38 @@
+# Python, bare patch: a unittest method was removed from a TestCase.
+expect: test-deleted
+patch-only: true
+-- old/tests/test_slugify.py --
+import unittest
+
+from blog.text import slugify
+
+
+class SlugifyTest(unittest.TestCase):
+    def test_lowercases(self):
+        self.assertEqual(slugify("Hello"), "hello")
+
+    def test_strips_accents(self):
+        self.assertEqual(slugify("Crème brûlée"), "creme-brulee")
+
+    def test_collapses_dashes(self):
+        self.assertEqual(slugify("a -- b"), "a-b")
+
+
+if __name__ == "__main__":
+    unittest.main()
+-- new/tests/test_slugify.py --
+import unittest
+
+from blog.text import slugify
+
+
+class SlugifyTest(unittest.TestCase):
+    def test_lowercases(self):
+        self.assertEqual(slugify("Hello"), "hello")
+
+    def test_collapses_dashes(self):
+        self.assertEqual(slugify("a -- b"), "a-b")
+
+
+if __name__ == "__main__":
+    unittest.main()

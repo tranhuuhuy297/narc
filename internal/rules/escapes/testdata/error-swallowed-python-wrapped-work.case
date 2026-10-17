@@ -1,0 +1,19 @@
+# Same shape as cleanup, but the protected statement is the real work: the failure is hidden.
+expect: error-swallowed
+-- old/tools/fetch.py --
+import shutil
+
+
+def fetch(url, dest, work):
+    download(url, work)
+    shutil.move(work + "/pkg", dest)
+-- new/tools/fetch.py --
+import shutil
+
+
+def fetch(url, dest, work):
+    try:
+        download(url, work)
+    except Exception:
+        pass
+    shutil.move(work + "/pkg", dest)

@@ -1,0 +1,15 @@
+# --cov-fail-under=90 leaves pytest addopts because [tool.coverage.report] fail_under = 90 already enforces it.
+expect: clean
+-- old/pyproject.toml --
+[tool.pytest.ini_options]
+addopts = "--cov=src --cov-fail-under=90"
+
+[tool.coverage.report]
+fail_under = 90
+-- new/pyproject.toml --
+[tool.pytest.ini_options]
+addopts = "--cov=src"
+
+[tool.coverage.report]
+fail_under = 90
+show_missing = true

@@ -1,0 +1,25 @@
+# An untyped third-party import hides no type error in this code: reported as a note.
+expect: type-check-suppressed@info
+-- old/app/export.py --
+import csv
+
+
+def export(rows, path):
+    with open(path, "w", newline="") as fh:
+        csv.writer(fh).writerows(rows)
+-- new/app/export.py --
+import csv
+
+import xlsxwriter  # type: ignore[import-untyped]
+
+
+def export(rows, path):
+    if path.endswith(".xlsx"):
+        book = xlsxwriter.Workbook(path)
+        sheet = book.add_worksheet()
+        for i, row in enumerate(rows):
+            sheet.write_row(i, 0, row)
+        book.close()
+        return
+    with open(path, "w", newline="") as fh:
+        csv.writer(fh).writerows(rows)

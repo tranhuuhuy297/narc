@@ -1,0 +1,20 @@
+# A status-code-to-text table is a lookup, not a special case.
+expect: clean
+-- old/src/http/status.ts --
+export function statusText(code: number): string {
+  return "Unknown";
+}
+-- new/src/http/status.ts --
+export function statusText(code: number): string {
+  if (code === 200) return "OK";
+  if (code === 404) return "Not Found";
+  if (code === 500) return "Internal Server Error";
+  return "Unknown";
+}
+-- new/src/http/status.test.ts --
+import { statusText } from "./status";
+
+test("maps known codes", () => {
+  expect(statusText(404)).toBe("Not Found");
+  expect(statusText(500)).toBe("Internal Server Error");
+});

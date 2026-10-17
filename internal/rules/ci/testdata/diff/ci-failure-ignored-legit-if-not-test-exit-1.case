@@ -1,0 +1,26 @@
+# A failing suite is retried once with verbose output and then fails the step for real.
+expect: clean
+-- old/.github/workflows/ci.yml --
+name: CI
+on: [pull_request]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: go test ./...
+-- new/.github/workflows/ci.yml --
+name: CI
+on: [pull_request]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          if ! go test ./...; then
+            echo "::group::verbose rerun"
+            go test -v -count=1 ./...
+            echo "::endgroup::"
+            exit 1
+          fi

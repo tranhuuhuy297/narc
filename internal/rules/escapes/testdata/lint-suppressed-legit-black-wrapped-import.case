@@ -1,0 +1,12 @@
+# Black wrapped a long re-export line; the existing noqa moved onto the opening parenthesis.
+expect: clean
+-- old/src/shop/api/__init__.py --
+from .client import ApiClient, ApiError, RateLimitError, RetryPolicy, Session  # noqa: F401
+-- new/src/shop/api/__init__.py --
+from .client import (  # noqa: F401
+    ApiClient,
+    ApiError,
+    RateLimitError,
+    RetryPolicy,
+    Session,
+)

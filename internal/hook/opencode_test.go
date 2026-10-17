@@ -57,7 +57,11 @@ func TestOpenCodePluginRuns(t *testing.T) {
 	writeExecutable(t, fake, "#!/bin/sh\npayload=$(cat)\necho \"$3 $payload\" >> \"$(dirname \"$0\")/calls.log\"\n"+
 		"case \"$3\" in\n"+
 		"  pre-tool-use) case \"$payload\" in *CHEAT*) echo '{\"deny\":true,\"reason\":\"no cheating\",\"message\":\"narc blocked an edit to a.ts\"}';; *) echo '{}';; esac;;\n"+
-		"  stop) echo '{\"block\":true,\"reason\":\"keep going\"}';;\n"+
+		"  stop) case \"$payload\" in\n"+
+		// A reason long enough to arrive in several chunks, all ✗ (3 bytes in UTF-8).
+		"    *'\"s2\"'*) printf '{\"block\":true,\"reason\":\"'; awk 'BEGIN { for (i = 0; i < 50000; i++) printf \"\\342\\234\\227\" }'; printf '\"}\\n';;\n"+
+		"    *) echo '{\"block\":true,\"reason\":\"keep going\"}';;\n"+
+		"  esac;;\n"+
 		"  *) echo '{}';;\n"+
 		"esac\n")
 	if err := os.WriteFile(filepath.Join(dir, "narc.ts"), openCodePluginSource(fake), 0o644); err != nil {
@@ -74,7 +78,13 @@ let denied = null
 try { await hooks["tool.execute.before"]({ tool: "write", sessionID: "s1" }, { args: { filePath: "a.ts", content: "CHEAT" } }) } catch (e) { denied = e.message }
 await hooks["tool.execute.before"]({ tool: "bash", sessionID: "s1" }, { args: { command: "ls" } })
 await hooks.event({ event: { type: "session.idle", properties: { sessionID: "s1" } } })
-console.log(JSON.stringify({ denied, prompts, toasts }))
+await hooks.event({ event: { type: "session.created", properties: { info: { id: "s2" } } } })
+await hooks.event({ event: { type: "session.idle", properties: { sessionID: "s2" } } })
+await hooks.event({ event: { type: "session.created", properties: { info: { id: "s3" } } } })
+await hooks.event({ event: { type: "session.error", properties: { sessionID: "s3", error: { name: "MessageAbortedError", data: {} } } } })
+await hooks.event({ event: { type: "session.idle", properties: { sessionID: "s3" } } })
+const big = prompts.splice(1, 1)[0] ?? ""
+console.log(JSON.stringify({ denied, prompts, toasts, big: { length: big.length, clean: /^✗+$/.test(big) } }))
 `
 	if err := os.WriteFile(filepath.Join(dir, "drive.mjs"), []byte(driver), 0o644); err != nil {
 		t.Fatal(err)
@@ -93,6 +103,10 @@ console.log(JSON.stringify({ denied, prompts, toasts }))
 		Denied  string   `json:"denied"`
 		Prompts []string `json:"prompts"`
 		Toasts  []string `json:"toasts"`
+		Big     struct {
+			Length int  `json:"length"`
+			Clean  bool `json:"clean"`
+		} `json:"big"`
 	}
 	if err := json.Unmarshal([]byte(strings.TrimSpace(lastLine(string(out)))), &got); err != nil {
 		t.Fatalf("driver output %q: %v", out, err)
@@ -101,9 +115,14 @@ console.log(JSON.stringify({ denied, prompts, toasts }))
 		len(got.Toasts) != 1 || got.Toasts[0] != "narc blocked an edit to a.ts" {
 		t.Fatalf("plugin behaviour: %+v", got)
 	}
+	// Multi-byte characters split across stdout chunks arrive intact.
+	if got.Big.Length != 50000 || !got.Big.Clean {
+		t.Fatalf("long reason: %+v", got.Big)
+	}
 	calls, _ := os.ReadFile(filepath.Join(dir, "calls.log"))
 	wantContains(t, "calls", string(calls), `session-start {"session_id":"s1"`, `pre-tool-use {"session_id":"s1","tool":"edit"`, `stop {"session_id":"s1"`, `"loop_count":0`)
-	wantNotContains(t, "calls", string(calls), `"tool":"bash"`)
+	// A turn the user interrupted is not pushed on.
+	wantNotContains(t, "calls", string(calls), `"tool":"bash"`, `stop {"session_id":"s3"`)
 }
 
 func lastLine(s string) string {

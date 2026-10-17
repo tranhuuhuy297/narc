@@ -1,0 +1,13 @@
+# A bare except with an ellipsis body swallows everything, including KeyboardInterrupt.
+expect: error-swallowed
+-- old/app/sync/worker.py --
+def run_once(client, job):
+    client.push(job.payload)
+    job.done()
+-- new/app/sync/worker.py --
+def run_once(client, job):
+    try:
+        client.push(job.payload)
+    except:
+        ...
+    job.done()

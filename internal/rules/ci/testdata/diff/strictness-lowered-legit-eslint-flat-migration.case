@@ -1,0 +1,19 @@
+# Migration from .eslintrc.json to eslint.config.js keeps the existing rule settings.
+expect: clean
+-- old/.eslintrc.json --
+{
+  "extends": ["plugin:@typescript-eslint/recommended"],
+  "rules": {
+    "@typescript-eslint/no-explicit-any": "off",
+    "no-console": "warn"
+  }
+}
+-- new/eslint.config.js --
+import tseslint from 'typescript-eslint'
+
+export default tseslint.config(...tseslint.configs.recommended, {
+  rules: {
+    '@typescript-eslint/no-explicit-any': 'off',
+    'no-console': 'warn',
+  },
+})

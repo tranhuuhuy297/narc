@@ -1,0 +1,34 @@
+# PHPUnit: both assertions removed; the test only constructs the object.
+expect: test-hollowed
+-- old/tests/Unit/SlugTest.php --
+<?php
+
+namespace Tests\Unit;
+
+use App\Support\Slug;
+use PHPUnit\Framework\TestCase;
+
+final class SlugTest extends TestCase
+{
+    public function testTransliteratesUmlauts(): void
+    {
+        $slug = Slug::from('Grüße aus Köln');
+        $this->assertSame('gruesse-aus-koeln', (string) $slug);
+        $this->assertTrue($slug->isAscii());
+    }
+}
+-- new/tests/Unit/SlugTest.php --
+<?php
+
+namespace Tests\Unit;
+
+use App\Support\Slug;
+use PHPUnit\Framework\TestCase;
+
+final class SlugTest extends TestCase
+{
+    public function testTransliteratesUmlauts(): void
+    {
+        $slug = Slug::from('Grüße aus Köln');
+    }
+}

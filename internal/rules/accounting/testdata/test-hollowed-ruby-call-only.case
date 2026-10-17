@@ -1,0 +1,22 @@
+# RSpec: the expectations were removed, leaving only the call under test.
+expect: test-hollowed
+-- old/spec/jobs/invoice_mailer_job_spec.rb --
+require "rails_helper"
+
+RSpec.describe InvoiceMailerJob do
+  it "emails the invoice to the customer" do
+    invoice = create(:invoice)
+    described_class.perform_now(invoice.id)
+    expect(ActionMailer::Base.deliveries.size).to eq(1)
+    expect(ActionMailer::Base.deliveries.last.to).to eq([invoice.customer.email])
+  end
+end
+-- new/spec/jobs/invoice_mailer_job_spec.rb --
+require "rails_helper"
+
+RSpec.describe InvoiceMailerJob do
+  it "emails the invoice to the customer" do
+    invoice = create(:invoice)
+    described_class.perform_now(invoice.id)
+  end
+end

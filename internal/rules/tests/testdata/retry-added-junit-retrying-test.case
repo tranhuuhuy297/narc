@@ -1,0 +1,34 @@
+# JUnit Pioneer: @Test → @RetryingTest(3).
+expect: retry-added
+-- old/src/test/java/com/acme/cache/CacheTest.java --
+package com.acme.cache;
+
+import static org.junit.jupiter.api.Assertions.assertNull;
+
+import org.junit.jupiter.api.Test;
+
+class CacheTest {
+    @Test
+    void expiresEntries() throws Exception {
+        Cache cache = new Cache(Duration.ofMillis(10));
+        cache.put("k", "v");
+        Thread.sleep(20);
+        assertNull(cache.get("k"));
+    }
+}
+-- new/src/test/java/com/acme/cache/CacheTest.java --
+package com.acme.cache;
+
+import static org.junit.jupiter.api.Assertions.assertNull;
+
+import org.junitpioneer.jupiter.RetryingTest;
+
+class CacheTest {
+    @RetryingTest(3)
+    void expiresEntries() throws Exception {
+        Cache cache = new Cache(Duration.ofMillis(10));
+        cache.put("k", "v");
+        Thread.sleep(20);
+        assertNull(cache.get("k"));
+    }
+}

@@ -1,0 +1,19 @@
+# pytest: a bare return as the first statement makes the asserts unreachable.
+expect: test-hollowed
+-- old/tests/test_scheduler.py --
+from app.scheduler import next_run
+
+
+def test_next_run_skips_weekends(frozen_friday):
+    run = next_run(frozen_friday, every="weekday")
+    assert run.weekday() == 0
+    assert run.hour == 9
+-- new/tests/test_scheduler.py --
+from app.scheduler import next_run
+
+
+def test_next_run_skips_weekends(frozen_friday):
+    return
+    run = next_run(frozen_friday, every="weekday")
+    assert run.weekday() == 0
+    assert run.hour == 9

@@ -1,0 +1,49 @@
+# PHPUnit: assertions moved into a trait that the test case uses.
+expect: clean
+-- old/tests/Feature/ProfileTest.php --
+<?php
+
+namespace Tests\Feature;
+
+use Tests\TestCase;
+
+class ProfileTest extends TestCase
+{
+    public function test_updates_display_name(): void
+    {
+        $user = User::factory()->create();
+        $this->actingAs($user)->patch('/profile', ['name' => 'Ann Lee']);
+        $this->assertSame('Ann Lee', $user->fresh()->name);
+    }
+}
+-- new/tests/Feature/ProfileTest.php --
+<?php
+
+namespace Tests\Feature;
+
+use Tests\Concerns\InspectsUsers;
+use Tests\TestCase;
+
+class ProfileTest extends TestCase
+{
+    use InspectsUsers;
+
+    public function test_updates_display_name(): void
+    {
+        $user = User::factory()->create();
+        $this->actingAs($user)->patch('/profile', ['name' => 'Ann Lee']);
+        $this->userNamed($user, 'Ann Lee');
+    }
+}
+-- new/tests/Concerns/InspectsUsers.php --
+<?php
+
+namespace Tests\Concerns;
+
+trait InspectsUsers
+{
+    protected function userNamed($user, string $name): void
+    {
+        $this->assertSame($name, $user->fresh()->name);
+    }
+}

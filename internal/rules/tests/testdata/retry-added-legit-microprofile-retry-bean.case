@@ -1,0 +1,58 @@
+# A Quarkus test declares a bean with MicroProfile Fault Tolerance's @Retry to
+# test the retry interceptor. The test itself is not retried.
+expect: clean
+-- old/src/test/java/com/acme/ft/FaultToleranceTest.java --
+package com.acme.ft;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+
+import io.quarkus.test.junit.QuarkusTest;
+import org.junit.jupiter.api.Test;
+
+@QuarkusTest
+class FaultToleranceTest {
+    @Test
+    void timeoutFallsBack() {
+        assertEquals("fallback", new SlowClient().fetch());
+    }
+}
+-- new/src/test/java/com/acme/ft/FaultToleranceTest.java --
+package com.acme.ft;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+
+import io.quarkus.test.junit.QuarkusTest;
+import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.inject.Inject;
+import org.eclipse.microprofile.faulttolerance.Retry;
+import org.junit.jupiter.api.Test;
+
+@QuarkusTest
+class FaultToleranceTest {
+    @ApplicationScoped
+    static class FlakyGateway {
+        int calls;
+
+        @Retry(maxRetries = 2)
+        public String charge() {
+            if (++calls < 3) {
+                throw new IllegalStateException("busy");
+            }
+            return "ok";
+        }
+    }
+
+    @Inject
+    FlakyGateway gateway;
+
+    @Test
+    void timeoutFallsBack() {
+        assertEquals("fallback", new SlowClient().fetch());
+    }
+
+    @Test
+    void retriesUntilTheGatewayAnswers() {
+        assertEquals("ok", gateway.charge());
+        assertEquals(3, gateway.calls);
+    }
+}

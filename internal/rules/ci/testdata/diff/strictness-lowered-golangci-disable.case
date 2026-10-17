@@ -1,0 +1,15 @@
+# golangci-lint errcheck and govet disabled (info).
+expect: strictness-lowered
+-- old/.golangci.yml --
+linters:
+  enable:
+    - errcheck
+    - govet
+    - staticcheck
+-- new/.golangci.yml --
+linters:
+  enable:
+    - staticcheck
+  disable:
+    - errcheck
+    - govet

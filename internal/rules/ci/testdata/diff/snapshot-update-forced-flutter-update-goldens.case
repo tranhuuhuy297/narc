@@ -1,0 +1,22 @@
+# flutter test --update-goldens in CI.
+expect: snapshot-update-forced
+-- old/.github/workflows/flutter.yml --
+name: Flutter
+on: [pull_request]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+      - run: flutter test
+-- new/.github/workflows/flutter.yml --
+name: Flutter
+on: [pull_request]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+      - run: flutter test --update-goldens

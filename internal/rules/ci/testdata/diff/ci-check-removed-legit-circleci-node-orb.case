@@ -1,0 +1,26 @@
+# A hand-written CircleCI test job is replaced by the node orb's test job.
+expect: clean
+-- old/.circleci/config.yml --
+version: 2.1
+jobs:
+  test:
+    docker:
+      - image: cimg/node:20.11
+    steps:
+      - checkout
+      - run: npm ci
+      - run: npm test
+workflows:
+  main:
+    jobs:
+      - test
+-- new/.circleci/config.yml --
+version: 2.1
+orbs:
+  node: circleci/node@5.2
+workflows:
+  main:
+    jobs:
+      - node/test:
+          version: "20.11"
+          pkg-manager: npm

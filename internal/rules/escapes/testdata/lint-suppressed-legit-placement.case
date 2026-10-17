@@ -1,0 +1,7 @@
+# A trailing eslint-disable-line became an eslint-disable-next-line above the statement: same rule, same reach.
+expect: clean
+-- old/src/cli/log.ts --
+export const log = (m: string) => console.log(m); // eslint-disable-line no-console
+-- new/src/cli/log.ts --
+// eslint-disable-next-line no-console
+export const log = (m: string) => console.log(m);

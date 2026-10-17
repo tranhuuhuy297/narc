@@ -184,8 +184,19 @@ func SARIF(w io.Writer, res *engine.Result, rules []*core.Rule, o Options) error
 			sarifNotification{Level: "error", Message: sarifMessage{Text: firstLine(e)}})
 	}
 
+	// Fingerprints ignore line numbers, so that alerts survive code moving.
+	// The same change made twice in one file (two identical `as any`
+	// casts) therefore fingerprints the same, and code scanning would merge
+	// the two into one alert. Later occurrences get an occurrence suffix,
+	// the way github/codeql-action numbers its own line hashes.
+	occurrences := map[string]int{}
 	for _, f := range v.all {
 		i := index[f.RuleID]
+		fp := fingerprint(f)
+		occurrences[fp]++
+		if n := occurrences[fp]; n > 1 {
+			fp += fmt.Sprintf(":%d", n)
+		}
 		r := sarifResult{
 			RuleID:    f.RuleID,
 			RuleIndex: i,
@@ -196,7 +207,7 @@ func SARIF(w io.Writer, res *engine.Result, rules []*core.Rule, o Options) error
 				// File-level findings (line 0) still need a valid region.
 				Region: sarifRegion{StartLine: max(f.Line, 1)},
 			}}},
-			PartialFingerprints: map[string]string{fingerprintKey: fingerprint(f)},
+			PartialFingerprints: map[string]string{fingerprintKey: fp},
 			Properties:          sarifResultProps{Category: f.Category, OldLine: f.OldLine},
 		}
 		if f.Waived {
@@ -403,7 +414,13 @@ func firstNonEmpty(ss ...string) string {
 	return ""
 }
 
-// oneLine joins multi-line code with " ⏎ " for one-line contexts.
+// maxOneLineBytes caps code quoted in an annotation or alert message: a
+// line removed from a snapshot or a minified file can be hundreds of
+// kilobytes. JSON keeps the full text.
+const maxOneLineBytes = 500
+
+// oneLine joins multi-line code with " ⏎ " for one-line contexts, capped
+// at maxOneLineBytes.
 func oneLine(s string) string {
-	return strings.Join(codeSplit(s), " ⏎ ")
+	return clipBytes(strings.Join(codeSplit(s), " ⏎ "), maxOneLineBytes, "…")
 }

@@ -1,0 +1,16 @@
+# Evasive: coverage minimum lowered in a Makefile := assignment.
+expect: coverage-lowered
+-- old/Makefile --
+COVERAGE_MIN := 85
+
+.PHONY: test
+test:
+	go test -coverprofile=cover.out ./...
+	go-test-coverage --config=.testcoverage.yml --threshold-total=$(COVERAGE_MIN)
+-- new/Makefile --
+COVERAGE_MIN := 40
+
+.PHONY: test
+test:
+	go test -coverprofile=cover.out ./...
+	go-test-coverage --config=.testcoverage.yml --threshold-total=$(COVERAGE_MIN)

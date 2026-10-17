@@ -1,0 +1,24 @@
+# A heredoc with "end"-like lines precedes a real `rescue nil`; the heredoc must not hide it.
+expect: error-swallowed
+-- old/app/services/report_mailer.rb --
+class ReportMailer
+  BODY = <<~TEXT
+    Your report is ready.
+    end of message
+  TEXT
+
+  def deliver(user)
+    Mailer.send(user.email, BODY)
+  end
+end
+-- new/app/services/report_mailer.rb --
+class ReportMailer
+  BODY = <<~TEXT
+    Your report is ready.
+    end of message
+  TEXT
+
+  def deliver(user)
+    Mailer.send(user.email, BODY) rescue nil
+  end
+end

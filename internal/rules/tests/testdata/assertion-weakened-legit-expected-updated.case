@@ -1,0 +1,29 @@
+# The expected value changes to a new specific value (a documented business
+# change); the assertion is still exact.
+expect: clean
+-- old/pricing/tax_test.go --
+package pricing
+
+import (
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+)
+
+func TestReducedRate(t *testing.T) {
+	// Reduced VAT rate for books.
+	assert.Equal(t, 7, ReducedRate("DE"))
+}
+-- new/pricing/tax_test.go --
+package pricing
+
+import (
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+)
+
+func TestReducedRate(t *testing.T) {
+	// Reduced VAT rate for books (temporary 5% rate, see ADR-12).
+	assert.Equal(t, 5, ReducedRate("DE"))
+}

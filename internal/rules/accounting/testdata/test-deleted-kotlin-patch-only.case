@@ -1,0 +1,53 @@
+# Kotlin, analyzed from a bare patch: a backtick-named JUnit test was removed.
+expect: test-deleted
+patch-only: true
+-- old/app/src/test/kotlin/com/acme/cart/CartTest.kt --
+package com.acme.cart
+
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
+
+class CartTest {
+    private val cart = Cart(PriceBook.default())
+
+    @Test
+    fun `adds line items`() {
+        cart.add("apple", 2)
+        assertEquals(2, cart.lines.single().quantity)
+    }
+
+    @Test
+    fun `rejects negative quantities`() {
+        assertFailsWith<IllegalArgumentException> {
+            cart.add("apple", -1)
+        }
+    }
+
+    @Test
+    fun `computes the total`() {
+        cart.add("apple", 3)
+        assertEquals(Money.cents(150), cart.total())
+    }
+}
+-- new/app/src/test/kotlin/com/acme/cart/CartTest.kt --
+package com.acme.cart
+
+import kotlin.test.Test
+import kotlin.test.assertEquals
+
+class CartTest {
+    private val cart = Cart(PriceBook.default())
+
+    @Test
+    fun `adds line items`() {
+        cart.add("apple", 2)
+        assertEquals(2, cart.lines.single().quantity)
+    }
+
+    @Test
+    fun `computes the total`() {
+        cart.add("apple", 3)
+        assertEquals(Money.cents(150), cart.total())
+    }
+}

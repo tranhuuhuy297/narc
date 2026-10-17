@@ -1,0 +1,36 @@
+# Rust: a production function is excluded from coverage in a file that also holds its unit tests.
+expect: coverage-ignored
+-- old/src/parser.rs --
+pub fn parse_port(s: &str) -> Result<u16, String> {
+    s.parse::<u16>().map_err(|e| e.to_string())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parses() {
+        assert_eq!(parse_port("8080"), Ok(8080));
+    }
+}
+-- new/src/parser.rs --
+pub fn parse_port(s: &str) -> Result<u16, String> {
+    s.parse::<u16>().map_err(|e| e.to_string())
+}
+
+#[coverage(off)]
+pub fn parse_range(s: &str) -> Result<(u16, u16), String> {
+    let (a, b) = s.split_once('-').ok_or("missing '-'")?;
+    Ok((parse_port(a)?, parse_port(b)?))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parses() {
+        assert_eq!(parse_port("8080"), Ok(8080));
+    }
+}

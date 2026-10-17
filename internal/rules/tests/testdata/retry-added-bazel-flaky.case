@@ -1,0 +1,32 @@
+# Bazel re-runs a target marked flaky = True up to three times, so an
+# intermittent failure reports as a pass.
+expect: retry-added
+-- old/services/payments/BUILD.bazel --
+load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "payments",
+    srcs = ["charge.go"],
+    importpath = "example.com/services/payments",
+)
+
+go_test(
+    name = "payments_test",
+    srcs = ["charge_test.go"],
+    embed = [":payments"],
+)
+-- new/services/payments/BUILD.bazel --
+load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "payments",
+    srcs = ["charge.go"],
+    importpath = "example.com/services/payments",
+)
+
+go_test(
+    name = "payments_test",
+    srcs = ["charge_test.go"],
+    embed = [":payments"],
+    flaky = True,
+)

@@ -1,0 +1,37 @@
+# One environment gate replaced by another (a GOOS check → an opt-out
+# variable) and the reason reworded: the skip is still conditional.
+expect: clean
+-- old/internal/fsutil/symlink_test.go --
+package fsutil
+
+import (
+	"runtime"
+	"testing"
+)
+
+func TestResolveSymlink(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("symlinks need admin rights on Windows")
+	}
+	dir := t.TempDir()
+	if _, err := Resolve(link(t, dir)); err != nil {
+		t.Fatal(err)
+	}
+}
+-- new/internal/fsutil/symlink_test.go --
+package fsutil
+
+import (
+	"os"
+	"testing"
+)
+
+func TestResolveSymlink(t *testing.T) {
+	if os.Getenv("NO_SYMLINKS") != "" {
+		t.Skip("symlinks are disabled on this machine (NO_SYMLINKS)")
+	}
+	dir := t.TempDir()
+	if _, err := Resolve(link(t, dir)); err != nil {
+		t.Fatal(err)
+	}
+}

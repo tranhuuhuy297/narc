@@ -1,0 +1,31 @@
+# One-line tests that pass `skip`/`only` options to the code under test. The
+# options belong to the parser and the paginator, not to the test runner.
+expect: clean
+-- old/src/csv/parse.test.ts --
+import { parse } from './parse';
+
+it('parses rows', () => expect(parse('a\n1')).toEqual([{ a: '1' }]));
+-- new/src/csv/parse.test.ts --
+import { parse } from './parse';
+
+it('parses rows', () => expect(parse('a\n1')).toEqual([{ a: '1' }]));
+it('drops blank lines', () => expect(parse('a\n\n1', { skip: true })).toEqual([{ a: '1' }]));
+it('keeps only the first column', () => expect(parse('a,b\n1,2', { only: ['a'] })).toEqual([{ a: '1' }]));
+-- old/spec/lib/paginator_spec.rb --
+require "spec_helper"
+
+RSpec.describe Paginator do
+  let(:items) { (1..25).to_a }
+
+  it { expect(Paginator.new(items).page(1).size).to eq(10) }
+end
+-- new/spec/lib/paginator_spec.rb --
+require "spec_helper"
+
+RSpec.describe Paginator do
+  let(:items) { (1..25).to_a }
+
+  it { expect(Paginator.new(items).page(1).size).to eq(10) }
+  it { expect(Paginator.new(items, skip: 20).page(1)).to eq([21, 22, 23, 24, 25]) }
+  it { expect(Paginator.new(items, retry: 3).page(3).size).to eq(5) }
+end

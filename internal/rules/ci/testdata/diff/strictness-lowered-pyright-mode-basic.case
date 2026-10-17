@@ -1,0 +1,12 @@
+# pyright typeCheckingMode lowered from strict to basic.
+expect: strictness-lowered
+-- old/pyrightconfig.json --
+{
+  "include": ["src"],
+  "typeCheckingMode": "strict"
+}
+-- new/pyrightconfig.json --
+{
+  "include": ["src"],
+  "typeCheckingMode": "basic"
+}

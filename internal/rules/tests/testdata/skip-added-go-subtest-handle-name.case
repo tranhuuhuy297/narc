@@ -1,0 +1,48 @@
+# The subtest's *testing.T is not called t, so a search for t.Skip misses
+# the new skip of the failing table case.
+expect: skip-added
+-- old/internal/parse/duration_test.go --
+package parse
+
+import "testing"
+
+func TestDuration(t *testing.T) {
+	cases := []struct {
+		in   string
+		want int64
+	}{
+		{"1s", 1000},
+		{"1m30s", 90000},
+	}
+	for _, tc := range cases {
+		t.Run(tc.in, func(st *testing.T) {
+			got, err := Duration(tc.in)
+			if err != nil || got != tc.want {
+				st.Fatalf("Duration(%q) = %d, %v; want %d", tc.in, got, err, tc.want)
+			}
+		})
+	}
+}
+-- new/internal/parse/duration_test.go --
+package parse
+
+import "testing"
+
+func TestDuration(t *testing.T) {
+	cases := []struct {
+		in   string
+		want int64
+	}{
+		{"1s", 1000},
+		{"1m30s", 90000},
+	}
+	for _, tc := range cases {
+		t.Run(tc.in, func(st *testing.T) {
+			st.Skip("compound durations are not supported yet")
+			got, err := Duration(tc.in)
+			if err != nil || got != tc.want {
+				st.Fatalf("Duration(%q) = %d, %v; want %d", tc.in, got, err, tc.want)
+			}
+		})
+	}
+}

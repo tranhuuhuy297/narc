@@ -1,0 +1,19 @@
+# A cache sub-key "enabled: false" inside a test job does not disable the job.
+expect: clean
+-- old/.woodpecker.yml --
+steps:
+  test:
+    image: node:20
+    commands:
+      - npm ci
+      - npm test
+-- new/.woodpecker.yml --
+steps:
+  test:
+    image: node:20
+    commands:
+      - npm ci
+      - npm test
+    settings:
+      cache:
+        enabled: false

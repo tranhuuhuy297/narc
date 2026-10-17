@@ -1,0 +1,11 @@
+# Buildkite test step skipped.
+expect: ci-check-removed
+-- old/.buildkite/pipeline.yml --
+steps:
+  - label: "Go tests"
+    command: "go test ./..."
+-- new/.buildkite/pipeline.yml --
+steps:
+  - label: "Go tests"
+    command: "go test ./..."
+    skip: true

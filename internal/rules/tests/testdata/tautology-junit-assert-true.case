@@ -1,0 +1,35 @@
+# JUnit: assertTrue(true) in a new test.
+expect: tautology
+-- old/src/test/java/com/acme/mail/TemplateTest.java --
+package com.acme.mail;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+
+import org.junit.jupiter.api.Test;
+
+class TemplateTest {
+    @Test
+    void rendersName() {
+        assertEquals("Hi Ada", Template.of("Hi {name}").render(Map.of("name", "Ada")));
+    }
+}
+-- new/src/test/java/com/acme/mail/TemplateTest.java --
+package com.acme.mail;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import org.junit.jupiter.api.Test;
+
+class TemplateTest {
+    @Test
+    void rendersName() {
+        assertEquals("Hi Ada", Template.of("Hi {name}").render(Map.of("name", "Ada")));
+    }
+
+    @Test
+    void escapesHtml() {
+        Template.of("<b>{name}</b>").render(Map.of("name", "<script>"));
+        assertTrue(true);
+    }
+}

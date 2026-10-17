@@ -1,0 +1,11 @@
+# Patch-only: a workflow that ran tests is deleted.
+expect: ci-check-removed
+patch-only: true
+-- old/.github/workflows/test.yml --
+name: Test
+on: [pull_request]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - run: go test ./...

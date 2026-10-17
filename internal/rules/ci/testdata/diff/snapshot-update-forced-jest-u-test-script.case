@@ -1,0 +1,14 @@
+# jest -u added to the test script: snapshots are rewritten on every run.
+expect: snapshot-update-forced
+-- old/package.json --
+{
+  "scripts": {
+    "test": "jest --ci"
+  }
+}
+-- new/package.json --
+{
+  "scripts": {
+    "test": "jest --ci -u"
+  }
+}

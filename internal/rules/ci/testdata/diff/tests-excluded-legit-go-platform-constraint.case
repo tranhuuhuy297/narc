@@ -1,0 +1,24 @@
+# A test that uses Linux-only syscalls is restricted to linux on non-ARM; two different tags, not a contradiction.
+expect: clean
+-- old/internal/sys/epoll_test.go --
+package sys
+
+import "testing"
+
+func TestEpollWait(t *testing.T) {
+	if err := waitOnce(); err != nil {
+		t.Fatal(err)
+	}
+}
+-- new/internal/sys/epoll_test.go --
+//go:build linux && !arm64
+
+package sys
+
+import "testing"
+
+func TestEpollWait(t *testing.T) {
+	if err := waitOnce(); err != nil {
+		t.Fatal(err)
+	}
+}

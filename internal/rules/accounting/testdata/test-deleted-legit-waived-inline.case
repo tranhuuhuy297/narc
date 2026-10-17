@@ -1,0 +1,21 @@
+# A test deleted on purpose, with an inline waiver left where it was.
+expect: clean
+-- old/tests/test_export.py --
+from app.export import export
+
+
+def test_exports_json(orders):
+    assert export(orders, fmt="json").startswith("[")
+
+
+def test_exports_xml(orders):
+    assert export(orders, fmt="xml").startswith("<")
+-- new/tests/test_export.py --
+from app.export import export
+
+
+def test_exports_json(orders):
+    assert export(orders, fmt="json").startswith("[")
+
+
+# narc:allow test-deleted reason="XML export is served by the legacy gateway now, ticket EXP-77"

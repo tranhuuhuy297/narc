@@ -1,0 +1,15 @@
+# An autofix workflow runs fixers that may leave unfixable issues; a later job lints strictly.
+expect: clean
+-- new/.github/workflows/autofix.yml --
+name: autofix.ci
+on:
+  pull_request:
+jobs:
+  autofix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: npm ci
+      - run: npx eslint --fix . || true
+      - run: npx prettier --write .
+      - uses: autofix-ci/action@v1

@@ -1,0 +1,26 @@
+# Elixir: tests moved into the context's test file under a renamed describe.
+expect: clean
+-- old/test/my_app/billing/plan_price_test.exs --
+defmodule MyApp.Billing.PlanPriceTest do
+  use ExUnit.Case, async: true
+
+  alias MyApp.Billing.Plan
+
+  describe "price/2" do
+    test "charges the monthly rate" do
+      assert Plan.price(:pro, :monthly) == 2_900
+    end
+  end
+end
+-- new/test/my_app/billing_test.exs --
+defmodule MyApp.BillingTest do
+  use ExUnit.Case, async: true
+
+  alias MyApp.Billing.Plan
+
+  describe "Plan.price/2" do
+    test "charges the monthly rate" do
+      assert Plan.price(:pro, :monthly) == 2_900
+    end
+  end
+end

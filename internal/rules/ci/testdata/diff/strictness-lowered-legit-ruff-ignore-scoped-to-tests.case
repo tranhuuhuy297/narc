@@ -1,0 +1,13 @@
+# ruff ignore list reordered and E501 moved into per-file ignores for tests only.
+expect: clean
+-- old/pyproject.toml --
+[tool.ruff.lint]
+select = ["E", "F", "I"]
+ignore = ["E501", "E731"]
+-- new/pyproject.toml --
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP"]
+ignore = ["E731"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["E501"]

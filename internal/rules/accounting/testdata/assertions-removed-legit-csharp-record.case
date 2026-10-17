@@ -1,0 +1,30 @@
+# C#: property asserts replaced by comparing against an expected record.
+expect: clean
+-- old/tests/Shop.Tests/QuoteTests.cs --
+using Xunit;
+
+namespace Shop.Tests;
+
+public class QuoteTests
+{
+    [Fact]
+    public void QuotesShippingForGermany()
+    {
+        var quote = Shipping.Quote(country: "DE", weightGrams: 1200);
+        Assert.Equal("DHL", quote.Carrier);
+        Assert.Equal(590, quote.Cents);
+    }
+}
+-- new/tests/Shop.Tests/QuoteTests.cs --
+using Xunit;
+
+namespace Shop.Tests;
+
+public class QuoteTests
+{
+    [Fact]
+    public void QuotesShippingForGermany()
+    {
+        Assert.Equal(new Quote("DHL", 590), Shipping.Quote(country: "DE", weightGrams: 1200));
+    }
+}

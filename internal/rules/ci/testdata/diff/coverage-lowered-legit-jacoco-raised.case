@@ -1,0 +1,22 @@
+# JaCoCo minimum raised from 0.70 to 0.80.
+expect: clean
+-- old/build.gradle --
+jacocoTestCoverageVerification {
+    violationRules {
+        rule {
+            limit {
+                minimum = 0.70
+            }
+        }
+    }
+}
+-- new/build.gradle --
+jacocoTestCoverageVerification {
+    violationRules {
+        rule {
+            limit {
+                minimum = 0.80
+            }
+        }
+    }
+}

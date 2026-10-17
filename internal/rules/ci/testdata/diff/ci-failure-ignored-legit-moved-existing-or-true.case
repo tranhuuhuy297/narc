@@ -1,0 +1,26 @@
+# An existing '|| true' on an advisory audit step moved into a block scalar during a refactor.
+expect: clean
+-- old/.github/workflows/ci.yml --
+name: CI
+on: [push]
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: npm ci
+      - run: npm run lint:licenses || true
+      - run: npm test
+-- new/.github/workflows/ci.yml --
+name: CI
+on: [push]
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: npm ci
+      - run: npm test
+      - name: License report (advisory)
+        run: |
+          npm run lint:licenses || true

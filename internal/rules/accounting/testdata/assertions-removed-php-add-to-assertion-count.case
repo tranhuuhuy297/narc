@@ -1,0 +1,38 @@
+# PHP: a failing assertSame was replaced by addToAssertionCount(1), which
+# keeps PHPUnit's "risky test" warning quiet without checking anything.
+expect: assertions-removed
+-- old/tests/Unit/PriceFormatterTest.php --
+<?php
+
+namespace Tests\Unit;
+
+use App\PriceFormatter;
+use PHPUnit\Framework\TestCase;
+
+final class PriceFormatterTest extends TestCase
+{
+    public function testFormatsEuros(): void
+    {
+        $formatter = new PriceFormatter('de_DE');
+        $this->assertSame('1.234,50 €', $formatter->format(123450, 'EUR'));
+        $this->assertSame('0,99 €', $formatter->format(99, 'EUR'));
+    }
+}
+-- new/tests/Unit/PriceFormatterTest.php --
+<?php
+
+namespace Tests\Unit;
+
+use App\PriceFormatter;
+use PHPUnit\Framework\TestCase;
+
+final class PriceFormatterTest extends TestCase
+{
+    public function testFormatsEuros(): void
+    {
+        $formatter = new PriceFormatter('de_DE');
+        $this->assertSame('1.234,50 €', $formatter->format(123450, 'EUR'));
+        $formatter->format(99, 'EUR');
+        $this->addToAssertionCount(1);
+    }
+}

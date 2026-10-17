@@ -1,0 +1,28 @@
+# A Jenkinsfile comment that quotes a bad example is not a command.
+expect: clean
+-- old/Jenkinsfile --
+pipeline {
+  agent any
+  stages {
+    stage('Test') {
+      steps {
+        sh 'npm ci'
+        sh 'npm test'
+      }
+    }
+  }
+}
+-- new/Jenkinsfile --
+pipeline {
+  agent any
+  stages {
+    stage('Test') {
+      steps {
+        sh 'npm ci'
+        // Do not write sh 'npm test || true' here: failures must fail the build.
+        /* sh 'npm run lint || true' was removed in #412 */
+        sh 'npm test'
+      }
+    }
+  }
+}

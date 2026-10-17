@@ -1,0 +1,24 @@
+# Prettier split real assertions over several lines; joined, they compare
+# the code under test with expected values (and a call with itself, which
+# checks determinism).
+expect: clean
+-- old/src/crypto/digest.test.ts --
+import { digest } from './digest';
+
+it('hashes', () => {
+  expect(digest('a')).toHaveLength(64);
+});
+-- new/src/crypto/digest.test.ts --
+import { digest } from './digest';
+
+it('hashes', () => {
+  expect(digest('a')).toHaveLength(64);
+});
+
+it('is deterministic and input-sensitive', () => {
+  expect(digest('the quick brown fox jumps over the lazy dog'))
+    .toBe(digest('the quick brown fox jumps over the lazy dog'));
+  expect(
+    digest('a'),
+  ).not.toBe(digest('b'));
+});

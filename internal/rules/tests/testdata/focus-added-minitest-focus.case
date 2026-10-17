@@ -1,0 +1,35 @@
+# minitest-focus: a bare `focus` line runs only the test below it.
+expect: focus-added
+-- old/test/models/subscription_test.rb --
+require "test_helper"
+
+class SubscriptionTest < ActiveSupport::TestCase
+  test "renews at period end" do
+    sub = subscriptions(:monthly)
+    sub.renew!
+    assert_equal Date.new(2024, 2, 1), sub.current_period_end
+  end
+
+  test "cancels immediately when unpaid" do
+    sub = subscriptions(:unpaid)
+    sub.cancel!
+    assert sub.canceled?
+  end
+end
+-- new/test/models/subscription_test.rb --
+require "test_helper"
+
+class SubscriptionTest < ActiveSupport::TestCase
+  focus
+  test "renews at period end" do
+    sub = subscriptions(:monthly)
+    sub.renew!
+    assert_equal Date.new(2024, 2, 1), sub.current_period_end
+  end
+
+  test "cancels immediately when unpaid" do
+    sub = subscriptions(:unpaid)
+    sub.cancel!
+    assert sub.canceled?
+  end
+end

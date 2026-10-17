@@ -1,0 +1,24 @@
+# xUnit: Assert.Throws<ArgumentNullException> → Assert.ThrowsAny<Exception>.
+expect: assertion-weakened
+-- old/tests/Core.Tests/GuardTests.cs --
+using Xunit;
+
+public class GuardTests
+{
+    [Fact]
+    public void RejectsNullName()
+    {
+        Assert.Throws<ArgumentNullException>(() => new Customer(name: null));
+    }
+}
+-- new/tests/Core.Tests/GuardTests.cs --
+using Xunit;
+
+public class GuardTests
+{
+    [Fact]
+    public void RejectsNullName()
+    {
+        Assert.ThrowsAny<Exception>(() => new Customer(name: null));
+    }
+}

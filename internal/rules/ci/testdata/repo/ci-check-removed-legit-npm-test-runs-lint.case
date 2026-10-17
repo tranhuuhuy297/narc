@@ -1,0 +1,34 @@
+# The separate lint step goes away because the unchanged package.json test script already lints first.
+expect: clean
+-- old/.github/workflows/ci.yml --
+name: CI
+on: [pull_request]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+      - run: npm ci
+      - run: npm run lint
+      - run: npm test
+-- new/.github/workflows/ci.yml --
+name: CI
+on: [pull_request]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+      - run: npm ci
+      - run: npm test
+-- both/package.json --
+{
+  "name": "widget",
+  "scripts": {
+    "lint": "eslint . --ext .ts,.tsx",
+    "pretest": "npm run lint",
+    "test": "vitest run"
+  }
+}

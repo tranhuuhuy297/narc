@@ -1,0 +1,19 @@
+# toHaveBeenCalledWith(...) → toHaveBeenCalled(): the arguments are no
+# longer checked.
+expect: assertion-weakened
+-- old/src/notify/notify.test.ts --
+import { notifyOverdue } from './notify';
+
+it('emails the customer about the overdue invoice', async () => {
+  const send = jest.fn();
+  await notifyOverdue({ id: 'inv-1', email: 'ann@example.com' }, { send });
+  expect(send).toHaveBeenCalledWith('ann@example.com', expect.stringContaining('inv-1'));
+});
+-- new/src/notify/notify.test.ts --
+import { notifyOverdue } from './notify';
+
+it('emails the customer about the overdue invoice', async () => {
+  const send = jest.fn();
+  await notifyOverdue({ id: 'inv-1', email: 'ann@example.com' }, { send });
+  expect(send).toHaveBeenCalled();
+});

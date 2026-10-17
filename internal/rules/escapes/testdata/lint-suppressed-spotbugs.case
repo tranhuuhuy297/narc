@@ -1,0 +1,21 @@
+# SpotBugs suppression annotation on new code, with a justification that admits the goal.
+expect: lint-suppressed@warning
+-- old/src/main/java/com/acme/report/Exporter.java --
+package com.acme.report;
+
+public final class Exporter {
+    public byte[] export(Report r) {
+        return r.render();
+    }
+}
+-- new/src/main/java/com/acme/report/Exporter.java --
+package com.acme.report;
+
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+
+public final class Exporter {
+    @SuppressFBWarnings(value = "EI_EXPOSE_REP", justification = "make the build pass")
+    public byte[] export(Report r) {
+        return r.render();
+    }
+}

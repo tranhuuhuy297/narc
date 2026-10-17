@@ -1,0 +1,29 @@
+# Ruby: the matcher was cut from one expectation, leaving expect(...) on its
+# own, which RSpec never evaluates as a check.
+expect: assertions-removed
+-- old/spec/models/subscription_spec.rb --
+require "rails_helper"
+
+RSpec.describe Subscription do
+  describe "#renew!" do
+    it "extends the period and charges the card" do
+      subscription = create(:subscription, ends_on: Date.new(2024, 1, 31))
+      subscription.renew!
+      expect(subscription.ends_on).to eq(Date.new(2024, 2, 29))
+      expect(subscription.charges.count).to eq(1)
+    end
+  end
+end
+-- new/spec/models/subscription_spec.rb --
+require "rails_helper"
+
+RSpec.describe Subscription do
+  describe "#renew!" do
+    it "extends the period and charges the card" do
+      subscription = create(:subscription, ends_on: Date.new(2024, 1, 31))
+      subscription.renew!
+      expect(subscription.ends_on)
+      expect(subscription.charges.count).to eq(1)
+    end
+  end
+end

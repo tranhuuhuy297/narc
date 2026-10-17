@@ -1,0 +1,33 @@
+# A null guard is added in front of the existing exact assertion, which is
+# kept.
+expect: clean
+-- old/src/test/java/com/acme/invoice/InvoiceTest.java --
+package com.acme.invoice;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+
+import org.junit.jupiter.api.Test;
+
+class InvoiceTest {
+    @Test
+    void totalIncludesVat() {
+        Invoice invoice = Invoice.issue(order());
+        assertEquals(new BigDecimal("107.00"), invoice.getTotal());
+    }
+}
+-- new/src/test/java/com/acme/invoice/InvoiceTest.java --
+package com.acme.invoice;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+
+import org.junit.jupiter.api.Test;
+
+class InvoiceTest {
+    @Test
+    void totalIncludesVat() {
+        Invoice invoice = Invoice.issue(order());
+        assertNotNull(invoice.getTotal());
+        assertEquals(new BigDecimal("107.00"), invoice.getTotal());
+    }
+}

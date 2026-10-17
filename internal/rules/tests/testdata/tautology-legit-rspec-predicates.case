@@ -1,0 +1,25 @@
+# RSpec expectations on predicates and literals compared with results.
+expect: clean
+-- old/spec/models/user_spec.rb --
+require "rails_helper"
+
+RSpec.describe User do
+  it "requires an email" do
+    expect(User.new(email: nil)).not_to be_valid
+  end
+end
+-- new/spec/models/user_spec.rb --
+require "rails_helper"
+
+RSpec.describe User do
+  it "requires an email" do
+    expect(User.new(email: nil)).not_to be_valid
+  end
+
+  it "accepts a well-formed email" do
+    user = User.new(email: "ada@example.com")
+    expect(user.valid?).to be true
+    expect(user.errors).to be_empty
+    expect("ada@example.com").to eq(user.email)
+  end
+end

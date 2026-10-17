@@ -1,0 +1,10 @@
+# Thresholds raised after adding tests.
+expect: clean
+-- old/jest.config.js --
+module.exports = {
+  coverageThreshold: { global: { lines: 70, branches: 60 } },
+};
+-- new/jest.config.js --
+module.exports = {
+  coverageThreshold: { global: { lines: 85, branches: 75 } },
+};

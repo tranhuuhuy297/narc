@@ -1,0 +1,27 @@
+# TypeScript: the assertions were wrapped in `if (false)`, so they still
+# read as checks but can never run.
+expect: test-hollowed
+-- old/src/auth/session.test.ts --
+import { describe, expect, it } from 'vitest'
+import { createSession } from './session'
+
+describe('createSession', () => {
+  it('expires after the configured TTL', () => {
+    const session = createSession({ userId: 'u_1', ttlSeconds: 60 }, 1_000)
+    expect(session.expiresAt).toBe(61_000)
+    expect(session.isExpired(61_001)).toBe(true)
+  })
+})
+-- new/src/auth/session.test.ts --
+import { describe, expect, it } from 'vitest'
+import { createSession } from './session'
+
+describe('createSession', () => {
+  it('expires after the configured TTL', () => {
+    const session = createSession({ userId: 'u_1', ttlSeconds: 60 }, 1_000)
+    if (false) {
+      expect(session.expiresAt).toBe(61_000)
+      expect(session.isExpired(61_001)).toBe(true)
+    }
+  })
+})

@@ -1,0 +1,19 @@
+# toMatchObject({}) passes for any object: the exact response check was
+# replaced by one that accepts anything.
+expect: assertion-weakened
+-- old/src/users/api.test.ts --
+import request from 'supertest';
+import { app } from '../app';
+
+it('returns the created user', async () => {
+  const res = await request(app).post('/users').send({ name: 'Ann' });
+  expect(res.body).toEqual({ id: expect.any(Number), name: 'Ann', role: 'member' });
+});
+-- new/src/users/api.test.ts --
+import request from 'supertest';
+import { app } from '../app';
+
+it('returns the created user', async () => {
+  const res = await request(app).post('/users').send({ name: 'Ann' });
+  expect(res.body).toMatchObject({});
+});

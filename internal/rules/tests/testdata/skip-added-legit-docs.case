@@ -1,0 +1,14 @@
+# Contributor docs that explain how to skip tests are not test code.
+expect: clean
+-- old/CONTRIBUTING.md --
+# Contributing
+
+Run `npm test` before opening a pull request.
+-- new/CONTRIBUTING.md --
+# Contributing
+
+Run `npm test` before opening a pull request.
+
+Never commit `it.skip`, `xit`, `@pytest.mark.skip` or `t.Skip()` to make CI
+pass. If a test is genuinely blocked, open an issue and link it in the skip
+reason, e.g. `@pytest.mark.skip(reason="see #123")`.

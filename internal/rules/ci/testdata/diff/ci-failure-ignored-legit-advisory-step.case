@@ -1,0 +1,22 @@
+# A step explicitly named advisory runs a markdown linter that may fail.
+expect: clean
+-- old/.github/workflows/docs.yml --
+name: Docs
+on: [pull_request]
+jobs:
+  docs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: mkdocs build --strict
+-- new/.github/workflows/docs.yml --
+name: Docs
+on: [pull_request]
+jobs:
+  docs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: mkdocs build --strict
+      - name: Prose lint (advisory)
+        run: npx markdownlint-cli2 "docs/**/*.md" || true

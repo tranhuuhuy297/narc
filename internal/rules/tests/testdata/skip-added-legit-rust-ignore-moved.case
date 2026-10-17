@@ -1,0 +1,32 @@
+# An #[ignore]d benchmark-style test moves from lib.rs into tests/; it was
+# ignored before and after.
+expect: clean
+-- old/src/lib.rs --
+pub fn checksum(data: &[u8]) -> u32 {
+    data.iter().map(|&b| b as u32).sum()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    #[ignore = "takes ~30s, run with --ignored"]
+    fn checksum_of_a_gigabyte() {
+        let data = vec![1u8; 1 << 30];
+        assert_eq!(checksum(&data), 1 << 30);
+    }
+}
+-- new/src/lib.rs --
+pub fn checksum(data: &[u8]) -> u32 {
+    data.iter().map(|&b| b as u32).sum()
+}
+-- new/tests/large_inputs.rs --
+use mylib::checksum;
+
+#[test]
+#[ignore = "takes ~30s, run with --ignored"]
+fn checksum_of_a_gigabyte() {
+    let data = vec![1u8; 1 << 30];
+    assert_eq!(checksum(&data), 1 << 30);
+}

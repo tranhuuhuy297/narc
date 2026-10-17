@@ -1,0 +1,25 @@
+# Rust: removing a test that was already #[ignore]d does not lose any running check.
+expect: clean
+-- old/tests/http_client.rs --
+use client::Client;
+
+#[tokio::test]
+async fn fetches_status() {
+    let c = Client::new(mock_server().await.uri());
+    assert_eq!(c.status().await.unwrap(), 200);
+}
+
+#[tokio::test]
+#[ignore = "talks to the real staging API"]
+async fn fetches_from_staging() {
+    let c = Client::new("https://staging.example.com");
+    assert!(c.status().await.is_ok());
+}
+-- new/tests/http_client.rs --
+use client::Client;
+
+#[tokio::test]
+async fn fetches_status() {
+    let c = Client::new(mock_server().await.uri());
+    assert_eq!(c.status().await.unwrap(), 200);
+}

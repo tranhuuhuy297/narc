@@ -1,0 +1,16 @@
+# GitLab runs bash scripts with pipefail, so piping the tests into tee keeps their exit status.
+expect: clean
+-- old/.gitlab-ci.yml --
+test:
+  image: node:20
+  script:
+    - npm ci
+    - npm test
+-- new/.gitlab-ci.yml --
+test:
+  image: node:20
+  script:
+    - npm ci
+    - npm test 2>&1 | tee test-output.txt
+  artifacts:
+    paths: [test-output.txt]

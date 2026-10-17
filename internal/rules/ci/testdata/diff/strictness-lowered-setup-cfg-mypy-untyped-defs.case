@@ -1,0 +1,10 @@
+# setup.cfg mypy disallow_untyped_defs turned off.
+expect: strictness-lowered
+-- old/setup.cfg --
+[mypy]
+disallow_untyped_defs = True
+warn_return_any = True
+-- new/setup.cfg --
+[mypy]
+disallow_untyped_defs = False
+warn_return_any = True

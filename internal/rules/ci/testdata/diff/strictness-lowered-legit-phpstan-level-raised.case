@@ -1,0 +1,8 @@
+# PHPStan level raised to max.
+expect: clean
+-- old/phpstan.neon --
+parameters:
+    level: 6
+-- new/phpstan.neon --
+parameters:
+    level: max

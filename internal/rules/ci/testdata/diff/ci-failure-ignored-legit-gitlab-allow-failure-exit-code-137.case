@@ -1,0 +1,16 @@
+# allow_failure only tolerates exit code 137 (the runner killed the container for memory); test failures still fail the job.
+expect: clean
+-- old/.gitlab-ci.yml --
+e2e:
+  image: mcr.microsoft.com/playwright:v1.47.0
+  script:
+    - npm ci
+    - npx playwright test
+-- new/.gitlab-ci.yml --
+e2e:
+  image: mcr.microsoft.com/playwright:v1.47.0
+  script:
+    - npm ci
+    - npx playwright test
+  allow_failure:
+    exit_codes: [137]

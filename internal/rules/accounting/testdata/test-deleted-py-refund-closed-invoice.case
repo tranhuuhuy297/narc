@@ -1,0 +1,69 @@
+# The refund guard was loosened and the pytest case covering it removed.
+expect: test-deleted
+-- old/billing/refunds.py --
+from .models import Invoice, InvoiceState
+
+
+class RefundError(Exception):
+    pass
+
+
+def refund(invoice: Invoice, amount: int) -> int:
+    if invoice.state is InvoiceState.CLOSED:
+        raise RefundError("invoice is closed")
+    if amount > invoice.paid:
+        raise RefundError("refund exceeds payment")
+    invoice.paid -= amount
+    return invoice.paid
+-- new/billing/refunds.py --
+from .models import Invoice
+
+
+class RefundError(Exception):
+    pass
+
+
+def refund(invoice: Invoice, amount: int) -> int:
+    if amount > invoice.paid:
+        raise RefundError("refund exceeds payment")
+    invoice.paid -= amount
+    return invoice.paid
+-- old/tests/test_refunds.py --
+import pytest
+
+from billing.models import Invoice, InvoiceState
+from billing.refunds import RefundError, refund
+
+
+def test_partial_refund_reduces_paid_amount():
+    invoice = Invoice(paid=100, state=InvoiceState.OPEN)
+    assert refund(invoice, 40) == 60
+
+
+def test_refund_rejects_closed_invoice():
+    invoice = Invoice(paid=100, state=InvoiceState.CLOSED)
+    with pytest.raises(RefundError, match="closed"):
+        refund(invoice, 10)
+    assert invoice.paid == 100
+
+
+def test_refund_cannot_exceed_payment():
+    invoice = Invoice(paid=100, state=InvoiceState.OPEN)
+    with pytest.raises(RefundError):
+        refund(invoice, 101)
+-- new/tests/test_refunds.py --
+import pytest
+
+from billing.models import Invoice, InvoiceState
+from billing.refunds import RefundError, refund
+
+
+def test_partial_refund_reduces_paid_amount():
+    invoice = Invoice(paid=100, state=InvoiceState.OPEN)
+    assert refund(invoice, 40) == 60
+
+
+def test_refund_cannot_exceed_payment():
+    invoice = Invoice(paid=100, state=InvoiceState.OPEN)
+    with pytest.raises(RefundError):
+        refund(invoice, 101)

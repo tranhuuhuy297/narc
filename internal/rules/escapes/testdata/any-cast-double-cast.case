@@ -1,0 +1,15 @@
+# A double cast through unknown forces an API payload into the domain type.
+expect: any-cast
+-- old/src/orders/mapper.ts --
+import type { Order } from "./types";
+import { parseOrder } from "./schema";
+
+export function toOrder(payload: unknown): Order {
+  return parseOrder(payload);
+}
+-- new/src/orders/mapper.ts --
+import type { Order } from "./types";
+
+export function toOrder(payload: ApiOrder): Order {
+  return payload as unknown as Order;
+}

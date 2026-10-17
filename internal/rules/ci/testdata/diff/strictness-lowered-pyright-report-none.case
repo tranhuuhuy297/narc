@@ -1,0 +1,11 @@
+# pyright stops reporting optional member access errors.
+expect: strictness-lowered
+-- old/pyproject.toml --
+[tool.pyright]
+include = ["app"]
+typeCheckingMode = "standard"
+-- new/pyproject.toml --
+[tool.pyright]
+include = ["app"]
+typeCheckingMode = "standard"
+reportOptionalMemberAccess = "none"

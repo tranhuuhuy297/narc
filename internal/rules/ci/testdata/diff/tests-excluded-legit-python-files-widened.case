@@ -1,0 +1,11 @@
+# pytest now also collects *_test.py modules; nothing is dropped.
+expect: clean
+-- old/setup.cfg --
+[tool:pytest]
+testpaths = tests
+python_files = test_*.py
+-- new/setup.cfg --
+[tool:pytest]
+testpaths = tests
+python_files = test_*.py *_test.py
+python_functions = test_* should_*

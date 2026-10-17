@@ -1,0 +1,8 @@
+# The Makefile test target gains -race and -count=1.
+expect: clean
+-- old/Makefile --
+test:
+	go test ./...
+-- new/Makefile --
+test:
+	go test -race -count=1 ./...

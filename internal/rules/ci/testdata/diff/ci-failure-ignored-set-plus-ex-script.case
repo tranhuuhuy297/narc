@@ -1,0 +1,14 @@
+# Evasive: `set +ex` (errexit off, tracing off) before the tests, status never checked.
+expect: ci-failure-ignored
+-- old/scripts/ci.sh --
+#!/usr/bin/env bash
+set -ex
+npm ci
+npm test
+-- new/scripts/ci.sh --
+#!/usr/bin/env bash
+set -ex
+npm ci
+set +ex
+npm test
+echo "done"

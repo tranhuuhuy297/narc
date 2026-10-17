@@ -1,0 +1,30 @@
+# Test runs share the development mail transport: the "test" arm falls through, so tests get no behavior of their own.
+expect: clean
+-- old/src/mail/transport.ts --
+import { smtp } from "./smtp";
+
+export function transport(): Transport {
+  return smtp(process.env.SMTP_URL!);
+}
+-- new/src/mail/transport.ts --
+import { smtp } from "./smtp";
+import { fileTransport } from "./file";
+
+export function transport(): Transport {
+  switch (process.env.NODE_ENV) {
+    case "test":
+    case "development":
+      return fileTransport("tmp/mail");
+    default:
+      return smtp(process.env.SMTP_URL!);
+  }
+}
+-- new/app/mailers/delivery.rb --
+module Delivery
+  def self.method_for_env
+    case Rails.env
+    when "test", "development" then :file
+    else :smtp
+    end
+  end
+end

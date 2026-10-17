@@ -1,0 +1,20 @@
+# RSpec: it → fit.
+expect: focus-added
+-- old/spec/services/importer_spec.rb --
+require "rails_helper"
+
+RSpec.describe Importer do
+  it "skips rows without an email" do
+    result = described_class.call(csv_fixture("missing_email.csv"))
+    expect(result.imported).to eq(2)
+  end
+end
+-- new/spec/services/importer_spec.rb --
+require "rails_helper"
+
+RSpec.describe Importer do
+  fit "skips rows without an email" do
+    result = described_class.call(csv_fixture("missing_email.csv"))
+    expect(result.imported).to eq(2)
+  end
+end

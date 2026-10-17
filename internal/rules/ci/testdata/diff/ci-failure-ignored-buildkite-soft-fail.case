@@ -1,0 +1,25 @@
+# Buildkite test step marked soft_fail.
+expect: ci-failure-ignored
+-- old/.buildkite/pipeline.yml --
+steps:
+  - label: ":jest: Unit tests"
+    command: "yarn test --ci"
+    plugins:
+      - docker#v5.10.0:
+          image: "node:20"
+  - wait
+  - label: ":rocket: Deploy"
+    command: "scripts/deploy.sh"
+    branches: main
+-- new/.buildkite/pipeline.yml --
+steps:
+  - label: ":jest: Unit tests"
+    command: "yarn test --ci"
+    soft_fail: true
+    plugins:
+      - docker#v5.10.0:
+          image: "node:20"
+  - wait
+  - label: ":rocket: Deploy"
+    command: "scripts/deploy.sh"
+    branches: main

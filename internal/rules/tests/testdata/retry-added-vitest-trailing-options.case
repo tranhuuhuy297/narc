@@ -1,0 +1,31 @@
+# Evasive: Vitest's options are passed after the callback, on the line that
+# closes the test (`}, { retry: 3 });`), far from the test's name.
+expect: retry-added
+-- old/src/sync/sync.test.ts --
+import { describe, expect, test } from 'vitest';
+import { startServer } from '../../test/server';
+import { syncAll } from './sync';
+
+describe('syncAll', () => {
+  test('uploads pending changes', async () => {
+    const server = await startServer();
+    const result = await syncAll({ endpoint: server.url, batchSize: 10 });
+    expect(result.uploaded).toBe(3);
+    expect(server.received()).toHaveLength(3);
+    await server.close();
+  });
+});
+-- new/src/sync/sync.test.ts --
+import { describe, expect, test } from 'vitest';
+import { startServer } from '../../test/server';
+import { syncAll } from './sync';
+
+describe('syncAll', () => {
+  test('uploads pending changes', async () => {
+    const server = await startServer();
+    const result = await syncAll({ endpoint: server.url, batchSize: 10 });
+    expect(result.uploaded).toBe(3);
+    expect(server.received()).toHaveLength(3);
+    await server.close();
+  }, { retry: 3 });
+});

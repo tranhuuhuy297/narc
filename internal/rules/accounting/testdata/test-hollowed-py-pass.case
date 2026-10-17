@@ -1,0 +1,23 @@
+# The body of a failing pytest was replaced with `pass`.
+expect: test-hollowed
+-- old/tests/test_tax.py --
+from shop.tax import vat
+
+
+def test_reduced_rate_for_books():
+    assert vat(category="books", net=1000) == 70
+    assert vat(category="food", net=1000) == 70
+
+
+def test_standard_rate():
+    assert vat(category="electronics", net=1000) == 190
+-- new/tests/test_tax.py --
+from shop.tax import vat
+
+
+def test_reduced_rate_for_books():
+    pass
+
+
+def test_standard_rate():
+    assert vat(category="electronics", net=1000) == 190

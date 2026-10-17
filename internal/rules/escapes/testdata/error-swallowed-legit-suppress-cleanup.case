@@ -1,0 +1,29 @@
+# Best-effort removal of a temp file inside suppress(Exception) is an idiom, not a swallowed failure.
+expect: clean
+-- old/app/render.py --
+import os
+import tempfile
+
+
+def render_pdf(html: str) -> bytes:
+    fd, tmp = tempfile.mkstemp(suffix=".pdf")
+    os.close(fd)
+    convert(html, tmp)
+    with open(tmp, "rb") as fh:
+        return fh.read()
+-- new/app/render.py --
+import os
+import tempfile
+from contextlib import suppress
+
+
+def render_pdf(html: str) -> bytes:
+    fd, tmp = tempfile.mkstemp(suffix=".pdf")
+    os.close(fd)
+    try:
+        convert(html, tmp)
+        with open(tmp, "rb") as fh:
+            return fh.read()
+    finally:
+        with suppress(Exception):
+            os.remove(tmp)

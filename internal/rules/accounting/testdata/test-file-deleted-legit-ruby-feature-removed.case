@@ -1,0 +1,32 @@
+# Rails: the CSV importer feature was removed; its spec goes with it.
+expect: clean
+-- old/app/services/csv_importer.rb --
+require "csv"
+
+class CsvImporter
+  def initialize(io)
+    @io = io
+  end
+
+  def call
+    CSV.new(@io, headers: true).map { |row| Product.create!(row.to_h) }
+  end
+end
+-- old/spec/services/csv_importer_spec.rb --
+require "rails_helper"
+
+RSpec.describe CsvImporter do
+  it "creates a product per row" do
+    io = StringIO.new("name,price\nTee,20\nCap,15\n")
+    expect { described_class.new(io).call }.to change(Product, :count).by(2)
+  end
+end
+-- old/config/routes.rb --
+Rails.application.routes.draw do
+  resources :products
+  post "/imports", to: "imports#create"
+end
+-- new/config/routes.rb --
+Rails.application.routes.draw do
+  resources :products
+end

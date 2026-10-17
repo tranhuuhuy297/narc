@@ -1,0 +1,22 @@
+# mypy settings moved from setup.cfg to pyproject.toml.
+expect: clean
+-- old/setup.cfg --
+[metadata]
+name = ledger
+
+[mypy]
+strict = True
+warn_unreachable = True
+-- new/setup.cfg --
+[metadata]
+name = ledger
+-- old/pyproject.toml --
+[project]
+name = "ledger"
+-- new/pyproject.toml --
+[project]
+name = "ledger"
+
+[tool.mypy]
+strict = true
+warn_unreachable = true

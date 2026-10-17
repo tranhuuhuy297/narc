@@ -1,0 +1,15 @@
+# A contributor script explains --no-verify in its help text and never runs it.
+expect: clean
+-- old/scripts/commit.sh --
+#!/usr/bin/env bash
+set -euo pipefail
+git commit "$@"
+-- new/scripts/commit.sh --
+#!/usr/bin/env bash
+set -euo pipefail
+if [[ "${1:-}" == "--help" ]]; then
+  echo "usage: scripts/commit.sh [git commit options]"
+  echo "Hooks always run; do not pass --no-verify or set HUSKY=0."
+  exit 0
+fi
+git commit "$@"

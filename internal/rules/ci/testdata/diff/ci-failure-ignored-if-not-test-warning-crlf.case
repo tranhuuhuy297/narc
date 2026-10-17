@@ -1,0 +1,26 @@
+# The test step is wrapped in `if ! ...; then` that only prints a warning, so a failing suite passes.
+expect: ci-failure-ignored
+-- old/.github/workflows/ci.yml --
+name: CI
+on: [pull_request]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: pip install -e .[test]
+      - run: pytest -q
+-- new/.github/workflows/ci.yml --
+name: CI
+on: [pull_request]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: pip install -e .[test]
+      - run: |
+          if ! pytest -q; then
+            echo "::warning::some tests failed, see logs"
+          fi
+

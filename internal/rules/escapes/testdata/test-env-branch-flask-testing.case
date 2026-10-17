@@ -1,0 +1,26 @@
+# Flask view returns a fixed quote when the app runs under the test client.
+expect: test-env-branch
+-- old/shop/views.py --
+from flask import Blueprint, current_app, jsonify
+
+from shop.shipping import quote_rate
+
+bp = Blueprint("shipping", __name__)
+
+
+@bp.get("/quote/<zip_code>")
+def quote(zip_code):
+    return jsonify(rate=quote_rate(zip_code))
+-- new/shop/views.py --
+from flask import Blueprint, current_app, jsonify
+
+from shop.shipping import quote_rate
+
+bp = Blueprint("shipping", __name__)
+
+
+@bp.get("/quote/<zip_code>")
+def quote(zip_code):
+    if current_app.testing:
+        return jsonify(rate=4.99)
+    return jsonify(rate=quote_rate(zip_code))

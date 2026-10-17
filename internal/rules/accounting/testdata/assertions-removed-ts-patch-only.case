@@ -1,0 +1,28 @@
+# Bare patch: an expectation removed from a Jest test.
+expect: assertions-removed
+patch-only: true
+-- old/src/date/range.test.ts --
+import { overlaps } from './range'
+
+describe('overlaps', () => {
+  it('detects overlapping ranges', () => {
+    expect(overlaps([1, 5], [4, 8])).toBe(true)
+    expect(overlaps([4, 8], [1, 5])).toBe(true)
+  })
+
+  it('treats touching ranges as disjoint', () => {
+    expect(overlaps([1, 4], [4, 8])).toBe(false)
+  })
+})
+-- new/src/date/range.test.ts --
+import { overlaps } from './range'
+
+describe('overlaps', () => {
+  it('detects overlapping ranges', () => {
+    expect(overlaps([1, 5], [4, 8])).toBe(true)
+  })
+
+  it('treats touching ranges as disjoint', () => {
+    expect(overlaps([1, 4], [4, 8])).toBe(false)
+  })
+})

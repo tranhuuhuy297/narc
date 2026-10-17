@@ -1,0 +1,33 @@
+# assert_eq! with the same expression on both sides.
+expect: tautology
+-- old/src/cart.rs --
+pub fn total(items: &[(u32, u32)]) -> u32 {
+    items.iter().map(|(price, qty)| price * qty).sum()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn sums_line_items() {
+        let items = [(250, 2), (100, 1)];
+        assert_eq!(total(&items), 600);
+    }
+}
+-- new/src/cart.rs --
+pub fn total(items: &[(u32, u32)]) -> u32 {
+    items.iter().map(|(price, qty)| price * qty).sum()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn sums_line_items() {
+        let items = [(250, 2), (100, 1)];
+        let total = total(&items);
+        assert_eq!(total, total);
+    }
+}

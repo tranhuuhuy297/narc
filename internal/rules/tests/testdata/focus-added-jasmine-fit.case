@@ -1,0 +1,18 @@
+# Jasmine/Jest: it → fit.
+expect: focus-added
+-- old/spec/formatters.spec.js --
+const { formatBytes } = require('../src/formatters');
+
+describe('formatBytes', () => {
+  it('uses binary units', () => {
+    expect(formatBytes(1536)).toBe('1.5 KiB');
+  });
+});
+-- new/spec/formatters.spec.js --
+const { formatBytes } = require('../src/formatters');
+
+describe('formatBytes', () => {
+  fit('uses binary units', () => {
+    expect(formatBytes(1536)).toBe('1.5 KiB');
+  });
+});

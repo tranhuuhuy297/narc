@@ -1,0 +1,18 @@
+# `|| true` makes the condition always true.
+expect: tautology
+-- old/test/permissions.test.js --
+const { can } = require('../src/permissions');
+
+test('admins can delete posts', () => {
+  expect(can(admin, 'delete', post)).toBe(true);
+});
+-- new/test/permissions.test.js --
+const { can } = require('../src/permissions');
+
+test('admins can delete posts', () => {
+  expect(can(admin, 'delete', post)).toBe(true);
+});
+
+test('moderators can delete posts', () => {
+  expect(can(moderator, 'delete', post) || true).toBeTruthy();
+});

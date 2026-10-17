@@ -1,0 +1,18 @@
+# A new test for unchanged source code.
+expect: clean
+-- old/tests/test_factorial.py --
+from mathlib.factorial import factorial
+
+
+def test_one():
+    assert factorial(1) == 1
+-- new/tests/test_factorial.py --
+from mathlib.factorial import factorial
+
+
+def test_one():
+    assert factorial(1) == 1
+
+
+def test_seven():
+    assert factorial(7) == 5040

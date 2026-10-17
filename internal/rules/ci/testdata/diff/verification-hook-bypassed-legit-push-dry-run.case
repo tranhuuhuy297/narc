@@ -1,0 +1,9 @@
+# git push -n is a dry run, not --no-verify.
+expect: clean
+-- old/scripts/check-remote.sh --
+#!/bin/sh
+git fetch origin
+-- new/scripts/check-remote.sh --
+#!/bin/sh
+git fetch origin
+git push -n origin HEAD

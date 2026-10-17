@@ -1,0 +1,42 @@
+# A legacy Python 3.8 test workflow is deleted; the main CI workflow (unchanged) still runs pytest on every PR.
+expect: clean
+-- old/.github/workflows/py38.yml --
+name: Python 3.8
+on: [pull_request]
+jobs:
+  test:
+    runs-on: ubuntu-20.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.8"
+      - run: pip install -e .[test]
+      - run: pytest -q
+-- old/pyproject.toml --
+[project]
+name = "geo"
+requires-python = ">=3.8"
+-- new/pyproject.toml --
+[project]
+name = "geo"
+requires-python = ">=3.10"
+-- both/.github/workflows/ci.yml --
+name: CI
+on:
+  pull_request:
+  push:
+    branches: [main]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python: ["3.10", "3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - run: pip install -e .[test]
+      - run: pytest -q

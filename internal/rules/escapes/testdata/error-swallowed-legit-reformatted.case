@@ -1,0 +1,14 @@
+# A one-line handler was reformatted onto several lines; it was already there.
+expect: clean
+-- old/app/cache.py --
+def warm(cache, keys):
+    for k in keys:
+        try: cache.get(k)
+        except Exception: pass
+-- new/app/cache.py --
+def warm(cache, keys):
+    for k in keys:
+        try:
+            cache.get(k)
+        except Exception:
+            pass

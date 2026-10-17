@@ -1,0 +1,18 @@
+# Scala MUnit: test("...".only).
+expect: focus-added
+-- old/src/test/scala/com/acme/CsvSuite.scala --
+package com.acme
+
+class CsvSuite extends munit.FunSuite {
+  test("splits quoted fields") {
+    assertEquals(Csv.split("a,\"b,c\""), List("a", "b,c"))
+  }
+}
+-- new/src/test/scala/com/acme/CsvSuite.scala --
+package com.acme
+
+class CsvSuite extends munit.FunSuite {
+  test("splits quoted fields".only) {
+    assertEquals(Csv.split("a,\"b,c\""), List("a", "b,c"))
+  }
+}

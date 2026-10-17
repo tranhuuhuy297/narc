@@ -1,0 +1,9 @@
+# exit 0 added at the top of the pre-commit hook.
+expect: verification-hook-bypassed
+-- old/.husky/pre-commit --
+npx lint-staged
+npm run typecheck
+-- new/.husky/pre-commit --
+exit 0
+npx lint-staged
+npm run typecheck

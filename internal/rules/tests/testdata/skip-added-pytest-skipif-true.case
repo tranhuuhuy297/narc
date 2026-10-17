@@ -1,0 +1,17 @@
+# skipif with a constant condition is an unconditional skip in disguise.
+expect: skip-added
+-- old/tests/test_export.py --
+from reports.export import to_csv
+
+
+def test_csv_escapes_quotes():
+    assert to_csv([['a "b"']]) == '"a ""b"""\r\n'
+-- new/tests/test_export.py --
+import pytest
+
+from reports.export import to_csv
+
+
+@pytest.mark.skipif(True, reason="csv quoting is being reworked")
+def test_csv_escapes_quotes():
+    assert to_csv([['a "b"']]) == '"a ""b"""\r\n'

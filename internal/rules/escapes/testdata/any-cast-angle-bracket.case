@@ -1,0 +1,11 @@
+# Old-style <any> cast in a .ts file.
+expect: any-cast
+-- old/src/legacy/settings.ts --
+export function readSettings(raw: string): Settings {
+  return validateSettings(JSON.parse(raw));
+}
+-- new/src/legacy/settings.ts --
+export function readSettings(raw: string): Settings {
+  const parsed = <any>JSON.parse(raw);
+  return { theme: parsed.theme, locale: parsed.locale };
+}

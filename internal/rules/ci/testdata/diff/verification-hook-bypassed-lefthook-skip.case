@@ -1,0 +1,15 @@
+# lefthook pre-commit hook set to skip.
+expect: verification-hook-bypassed
+-- old/lefthook.yml --
+pre-commit:
+  parallel: true
+  commands:
+    typecheck:
+      run: npx tsc --noEmit
+-- new/lefthook.yml --
+pre-commit:
+  parallel: true
+  skip: true
+  commands:
+    typecheck:
+      run: npx tsc --noEmit

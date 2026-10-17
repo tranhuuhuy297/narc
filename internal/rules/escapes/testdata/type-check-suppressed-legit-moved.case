@@ -1,0 +1,20 @@
+# Functions were reordered; the existing @ts-ignore moved with its function and is not new.
+expect: clean
+-- old/src/legacy/bridge.ts --
+export function toLegacy(input: Input) {
+  // @ts-ignore
+  return window.LegacyApp.convert(input);
+}
+
+export function fromLegacy(raw: unknown) {
+  return decode(raw);
+}
+-- new/src/legacy/bridge.ts --
+export function fromLegacy(raw: unknown) {
+  return decode(raw);
+}
+
+export function toLegacy(input: Input) {
+  // @ts-ignore
+  return window.LegacyApp.convert(input);
+}

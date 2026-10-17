@@ -1,0 +1,23 @@
+# The core module gets a stricter per-path threshold on top of the unchanged global one.
+expect: clean
+-- old/jest.config.ts --
+import type { Config } from 'jest';
+
+const config: Config = {
+  coverageThreshold: {
+    global: { branches: 80, lines: 85 },
+  },
+};
+
+export default config;
+-- new/jest.config.ts --
+import type { Config } from 'jest';
+
+const config: Config = {
+  coverageThreshold: {
+    global: { branches: 80, lines: 85 },
+    './src/core/': { branches: 95, lines: 100 },
+  },
+};
+
+export default config;

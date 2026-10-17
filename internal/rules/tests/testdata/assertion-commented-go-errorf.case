@@ -1,0 +1,36 @@
+# Go: the hand-written check (if ... { t.Errorf }) is commented out.
+expect: assertion-commented, assertions-removed
+-- old/internal/router/match_test.go --
+package router
+
+import "testing"
+
+func TestMatchWildcard(t *testing.T) {
+	route, params := Match("/files/*path", "/files/a/b.txt")
+	if route == nil {
+		t.Fatal("no match")
+	}
+	if len(params) != 1 {
+		t.Fatalf("params = %v, want one", params)
+	}
+	if got := params["path"]; got != "a/b.txt" {
+		t.Errorf("path = %q, want %q", got, "a/b.txt")
+	}
+}
+-- new/internal/router/match_test.go --
+package router
+
+import "testing"
+
+func TestMatchWildcard(t *testing.T) {
+	route, params := Match("/files/*path", "/files/a/b.txt")
+	if route == nil {
+		t.Fatal("no match")
+	}
+	if len(params) != 1 {
+		t.Fatalf("params = %v, want one", params)
+	}
+	// if got := params["path"]; got != "a/b.txt" {
+	// 	t.Errorf("path = %q, want %q", got, "a/b.txt")
+	// }
+}

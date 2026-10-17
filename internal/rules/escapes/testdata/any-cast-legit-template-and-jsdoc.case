@@ -1,0 +1,15 @@
+# Codegen writes "as any" into generated source text and documents it in JSDoc; no cast in this code.
+expect: clean
+-- old/src/codegen/emit.ts --
+export function emitAccessor(name: string): string {
+  return `export const ${name} = (o) => o.${name};`;
+}
+-- new/src/codegen/emit.ts --
+/**
+ * Emits an untyped accessor. The generated code uses `(o as any)` because
+ * the target object shape is only known at runtime.
+ */
+export function emitAccessor(name: string, typed: boolean): string {
+  const target = typed ? "o" : "(o as any)";
+  return `export const ${name} = (o: unknown) => ${target}.${name} as unknown as Value;`;
+}

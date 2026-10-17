@@ -1,0 +1,8 @@
+# jest ignores fixture folders and the Playwright e2e suite, which has its own runner.
+expect: clean
+-- old/jest.config.js --
+module.exports = { testPathIgnorePatterns: ['/node_modules/'] };
+-- new/jest.config.js --
+module.exports = {
+  testPathIgnorePatterns: ['/node_modules/', '<rootDir>/test/fixtures/', '<rootDir>/tests/e2e/'],
+};

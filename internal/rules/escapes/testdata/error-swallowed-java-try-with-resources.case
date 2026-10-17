@@ -1,0 +1,23 @@
+# Java try-with-resources whose IOException is silently dropped.
+expect: error-swallowed
+-- old/src/main/java/com/acme/io/Snapshot.java --
+package com.acme.io;
+
+final class Snapshot {
+    void write(Path path, byte[] data) throws IOException {
+        try (OutputStream out = Files.newOutputStream(path)) {
+            out.write(data);
+        }
+    }
+}
+-- new/src/main/java/com/acme/io/Snapshot.java --
+package com.acme.io;
+
+final class Snapshot {
+    void write(Path path, byte[] data) {
+        try (OutputStream out = Files.newOutputStream(path)) {
+            out.write(data);
+        } catch (IOException e) {
+        }
+    }
+}

@@ -1,0 +1,20 @@
+# vitest replaced by exit 0.
+expect: test-script-neutered
+-- old/package.json --
+{
+  "name": "@acme/api",
+  "version": "1.4.0",
+  "scripts": {
+    "dev": "vite",
+    "test": "vitest run"
+  }
+}
+-- new/package.json --
+{
+  "name": "@acme/api",
+  "version": "1.4.0",
+  "scripts": {
+    "dev": "vite",
+    "test": "exit 0"
+  }
+}

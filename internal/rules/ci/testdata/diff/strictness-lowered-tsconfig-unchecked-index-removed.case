@@ -1,0 +1,17 @@
+# noUncheckedIndexedAccess removed from tsconfig.
+expect: strictness-lowered
+-- old/tsconfig.json --
+{
+  "compilerOptions": {
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "noImplicitReturns": true
+  }
+}
+-- new/tsconfig.json --
+{
+  "compilerOptions": {
+    "strict": true,
+    "noImplicitReturns": true
+  }
+}

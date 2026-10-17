@@ -1,0 +1,22 @@
+# ExUnit: asserts removed from a test that still calls the context function.
+expect: test-hollowed
+-- old/test/my_app/orders_test.exs --
+defmodule MyApp.OrdersTest do
+  use MyApp.DataCase, async: true
+
+  test "cancel/1 releases reserved stock" do
+    order = insert(:order, status: :reserved, qty: 2)
+    assert {:ok, order} = MyApp.Orders.cancel(order)
+    assert order.status == :cancelled
+    assert MyApp.Stock.available("tee") == 10
+  end
+end
+-- new/test/my_app/orders_test.exs --
+defmodule MyApp.OrdersTest do
+  use MyApp.DataCase, async: true
+
+  test "cancel/1 releases reserved stock" do
+    order = insert(:order, status: :reserved, qty: 2)
+    MyApp.Orders.cancel(order)
+  end
+end

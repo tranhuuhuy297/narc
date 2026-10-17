@@ -1,0 +1,22 @@
+# The test script now only prints a message.
+expect: test-script-neutered
+-- old/package.json --
+{
+  "name": "@acme/api",
+  "version": "1.4.0",
+  "scripts": {
+    "build": "tsc -p .",
+    "test": "jest --ci",
+    "lint": "eslint src"
+  }
+}
+-- new/package.json --
+{
+  "name": "@acme/api",
+  "version": "1.4.0",
+  "scripts": {
+    "build": "tsc -p .",
+    "test": "echo \"tests temporarily disabled\"",
+    "lint": "eslint src"
+  }
+}

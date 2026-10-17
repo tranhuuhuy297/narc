@@ -1,0 +1,18 @@
+# tox ignores the exit code of commands prefixed with '-'.
+expect: ci-failure-ignored
+-- old/tox.ini --
+[tox]
+envlist = py311, py312
+
+[testenv]
+deps = -r requirements-dev.txt
+commands =
+    pytest {posargs:tests}
+-- new/tox.ini --
+[tox]
+envlist = py311, py312
+
+[testenv]
+deps = -r requirements-dev.txt
+commands =
+    - pytest {posargs:tests}

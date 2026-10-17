@@ -1,0 +1,28 @@
+# Evasive: catchError buildResult changed from UNSTABLE to SUCCESS.
+expect: ci-failure-ignored
+-- old/Jenkinsfile --
+pipeline {
+  agent any
+  stages {
+    stage('Test') {
+      steps {
+        catchError(buildResult: 'UNSTABLE', stageResult: 'FAILURE') {
+          sh 'mvn -B test'
+        }
+      }
+    }
+  }
+}
+-- new/Jenkinsfile --
+pipeline {
+  agent any
+  stages {
+    stage('Test') {
+      steps {
+        catchError(buildResult: 'SUCCESS', stageResult: 'FAILURE') {
+          sh 'mvn -B test'
+        }
+      }
+    }
+  }
+}

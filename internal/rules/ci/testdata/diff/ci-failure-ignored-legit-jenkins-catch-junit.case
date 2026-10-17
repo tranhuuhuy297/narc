@@ -1,0 +1,18 @@
+# The catch publishes the JUnit reports, and the junit step marks the build unstable when tests failed.
+expect: clean
+-- old/Jenkinsfile --
+node {
+  stage('Test') {
+    sh './gradlew test'
+  }
+}
+-- new/Jenkinsfile --
+node {
+  stage('Test') {
+    try {
+      sh './gradlew test'
+    } catch (e) {
+      junit 'build/test-results/test/*.xml'
+    }
+  }
+}

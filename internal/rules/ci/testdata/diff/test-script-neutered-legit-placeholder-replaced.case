@@ -1,0 +1,18 @@
+# npm's placeholder test script replaced with a real runner.
+expect: clean
+-- old/package.json --
+{
+  "name": "@acme/api",
+  "version": "1.4.0",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  }
+}
+-- new/package.json --
+{
+  "name": "@acme/api",
+  "version": "1.4.0",
+  "scripts": {
+    "test": "node --test test/"
+  }
+}

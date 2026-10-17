@@ -1,0 +1,31 @@
+# Kotest matchers: the check on the remaining stock was deleted.
+expect: assertions-removed
+-- old/src/test/kotlin/com/acme/stock/StockTest.kt --
+package com.acme.stock
+
+import io.kotest.matchers.shouldBe
+import org.junit.jupiter.api.Test
+
+class StockTest {
+    @Test
+    fun `selling reduces stock`() {
+        val stock = Stock(onHand = 10)
+        val sale = stock.sell(3)
+        sale.quantity shouldBe 3
+        stock.onHand shouldBe 7
+    }
+}
+-- new/src/test/kotlin/com/acme/stock/StockTest.kt --
+package com.acme.stock
+
+import io.kotest.matchers.shouldBe
+import org.junit.jupiter.api.Test
+
+class StockTest {
+    @Test
+    fun `selling reduces stock`() {
+        val stock = Stock(onHand = 10)
+        val sale = stock.sell(3)
+        sale.quantity shouldBe 3
+    }
+}

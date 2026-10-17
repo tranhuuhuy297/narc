@@ -1,0 +1,19 @@
+# The Gradle test task is disabled in the build script.
+expect: test-script-neutered
+-- old/build.gradle --
+plugins {
+    id 'java'
+}
+
+test {
+    useJUnitPlatform()
+}
+-- new/build.gradle --
+plugins {
+    id 'java'
+}
+
+test {
+    useJUnitPlatform()
+    enabled = false
+}

@@ -92,17 +92,36 @@ func (w *workspace) run(cs *core.Changeset) *engine.Result {
 	return engine.Run(cs, engine.Options{Config: w.cfg})
 }
 
+// neverSeverity is above every finding's severity: nothing reaches it.
+const neverSeverity = core.Error + 1
+
+// blockThreshold is the severity at which hooks block the agent.
+// config.ParseSeverity reads "off" (and "none", "false", ...) as core.Off,
+// which sorts below info, so `block_on: off` would block on every finding;
+// it means "never block".
+func (w *workspace) blockThreshold() core.Severity {
+	return effectiveThreshold(w.cfg.BlockThreshold())
+}
+
+func effectiveThreshold(s core.Severity) core.Severity {
+	if s == core.Off {
+		return neverSeverity
+	}
+	return s
+}
+
 // checkPreEdit judges a tool call before it runs.
 func checkPreEdit(req *request, env Env) (verdict, error) {
 	if len(req.ops) == 0 {
 		return verdict{}, nil
 	}
-	w, err := openWorkspace(req.dir(env), false)
+	base := absDir(req.dir(env))
+	w, err := openWorkspace(editRoot(req.ops, base), false)
 	if err != nil {
 		return verdict{}, err
 	}
 	defer w.close()
-	edits := w.replay(req.ops, req.cwd)
+	edits := w.replay(req.ops, base)
 	if len(edits) == 0 {
 		return verdict{}, nil
 	}
@@ -115,6 +134,65 @@ func checkPreEdit(req *request, env Env) (verdict, error) {
 		return verdict{}, nil
 	}
 	return verdict{action: deny, reason: coach(editCoach, found, false), notice: editNotice(found)}, nil
+}
+
+// absDir makes dir absolute ("" stays "": the directory is unknown).
+func absDir(dir string) string {
+	if dir == "" {
+		return ""
+	}
+	if abs, err := filepath.Abs(dir); err == nil {
+		return abs
+	}
+	return dir
+}
+
+// editRoot returns the directory to open the workspace in for an edit:
+// the agent's directory, unless the first file the edit touches belongs to
+// another git repository (a session started in a parent folder of the
+// project, a nested repository, a submodule). That repository's
+// .narc.yml, session and history then apply, and paths are relative to
+// its root, as `narc scan` there would see them.
+func editRoot(ops []fileOp, base string) string {
+	if len(ops) == 0 || base == "" {
+		return base
+	}
+	p := ops[0].path
+	if !filepath.IsAbs(p) {
+		p = filepath.Join(base, p)
+	}
+	owner := enclosingRepo(filepath.Dir(p))
+	if owner == "" || sameDir(owner, enclosingRepo(base)) {
+		return base
+	}
+	return owner
+}
+
+// enclosingRepo returns the nearest directory at or above dir that has a
+// .git entry (a directory, or a file in worktrees and submodules), or "".
+// dir itself need not exist (a new file in a new folder).
+func enclosingRepo(dir string) string {
+	for d := filepath.Clean(dir); ; {
+		if _, err := os.Lstat(filepath.Join(d, ".git")); err == nil {
+			return d
+		}
+		parent := filepath.Dir(d)
+		if parent == d {
+			return ""
+		}
+		d = parent
+	}
+}
+
+// sameDir reports whether a and b are the same directory, symlinks
+// resolved (macOS reports /var/... for /private/var/...).
+func sameDir(a, b string) bool {
+	if a == b {
+		return true
+	}
+	ra, errA := filepath.EvalSymlinks(a)
+	rb, errB := filepath.EvalSymlinks(b)
+	return errA == nil && errB == nil && ra == rb
 }
 
 // brokenConfigEdit denies an edit that would leave narc's configuration
@@ -201,21 +279,25 @@ func checkPostEdit(req *request, env Env) (verdict, error) {
 	if len(req.ops) == 0 {
 		return verdict{}, nil
 	}
-	w, err := openWorkspace(req.dir(env), true)
+	base := absDir(req.dir(env))
+	w, err := openWorkspace(editRoot(req.ops, base), true)
 	if err != nil {
 		return verdict{}, err
 	}
 	defer w.close()
-	paths := w.touched(req.ops, req.cwd)
+	paths := w.touched(req.ops, base)
 	if len(paths) == 0 {
 		return verdict{}, nil
 	}
 	s := loadSession(w.repo, req.sessionID)
+	if s != nil && w.syncHead(s) {
+		_ = s.save(env.Now())
+	}
 	cs, err := w.repo.WorkingChangeset(w.baselineFor(s), true)
 	if err != nil {
 		return verdict{}, err
 	}
-	found := unknown(inPaths(w.run(cs).AtLeast(w.cfg.BlockThreshold()), paths), s.known())
+	found := unknown(inPaths(w.run(cs).AtLeast(w.blockThreshold()), paths), s.known())
 	if len(found) == 0 {
 		return verdict{}, nil
 	}
@@ -233,17 +315,23 @@ func checkStop(req *request, env Env) (verdict, error) {
 	}
 	defer w.close()
 	s := loadSession(w.repo, req.sessionID)
+	// dirty: the state changed and must be saved even if the stop is clean.
+	dirty := false
 	if s == nil {
 		// No session-start hook ran: blame everything since HEAD, and
 		// remember HEAD so later commits by the agent still count.
 		s = newSession(w.repo, req.sessionID, req.harness, env)
-		s.Baseline = w.headBaseline()
+		s.Baseline, s.Head = w.headBaseline(), w.headCommit()
+	} else {
+		// A pull, merge or rebase since the last look brings in work
+		// that is not the agent's.
+		dirty = w.syncHead(s)
 	}
 	cs, err := w.repo.WorkingChangeset(w.baselineFor(s), true)
 	if err != nil {
 		return verdict{}, err
 	}
-	threshold := w.cfg.BlockThreshold()
+	threshold := w.blockThreshold()
 	res := w.run(cs)
 	found := unknown(res.AtLeast(threshold), s.known())
 	// review tells the human, once, about waivers and narc settings that
@@ -265,7 +353,7 @@ func checkStop(req *request, env Env) (verdict, error) {
 		if notice := review(); notice != "" {
 			v = verdict{action: release, notice: notice}
 		}
-		if v.action == release || *rec != (stopRecord{}) {
+		if dirty || v.action == release || *rec != (stopRecord{}) {
 			*rec = stopRecord{}
 			_ = s.save(env.Now())
 		}

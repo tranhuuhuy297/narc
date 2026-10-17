@@ -1,0 +1,8 @@
+# --cov-fail-under removed from the Makefile (warning: the threshold might live in config).
+expect: coverage-lowered
+-- old/Makefile --
+test:
+	pytest --cov=api --cov-fail-under=90
+-- new/Makefile --
+test:
+	pytest --cov=api

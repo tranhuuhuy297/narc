@@ -1,0 +1,20 @@
+# Kotlin: a failing network call is swallowed in an empty catch.
+expect: error-swallowed
+-- old/app/src/main/kotlin/com/acme/sync/Uploader.kt --
+package com.acme.sync
+
+class Uploader(private val api: Api) {
+    suspend fun upload(batch: Batch) {
+        api.upload(batch)
+    }
+}
+-- new/app/src/main/kotlin/com/acme/sync/Uploader.kt --
+package com.acme.sync
+
+class Uploader(private val api: Api) {
+    suspend fun upload(batch: Batch) {
+        try {
+            api.upload(batch)
+        } catch (e: Exception) {}
+    }
+}

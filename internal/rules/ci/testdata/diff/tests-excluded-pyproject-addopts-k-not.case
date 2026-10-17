@@ -1,0 +1,8 @@
+# pytest addopts in pyproject deselects the slow database tests by name.
+expect: tests-excluded
+-- old/pyproject.toml --
+[tool.pytest.ini_options]
+addopts = "-q"
+-- new/pyproject.toml --
+[tool.pytest.ini_options]
+addopts = "-q -k 'not test_migrations and not slow_db'"

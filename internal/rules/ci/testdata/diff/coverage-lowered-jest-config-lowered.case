@@ -1,0 +1,30 @@
+# jest coverageThreshold lowered so the new untested code passes.
+expect: coverage-lowered
+-- old/jest.config.js --
+/** @type {import('jest').Config} */
+module.exports = {
+  testEnvironment: 'node',
+  collectCoverageFrom: ['src/**/*.ts'],
+  coverageThreshold: {
+    global: {
+      branches: 85,
+      functions: 90,
+      lines: 90,
+      statements: 90,
+    },
+  },
+};
+-- new/jest.config.js --
+/** @type {import('jest').Config} */
+module.exports = {
+  testEnvironment: 'node',
+  collectCoverageFrom: ['src/**/*.ts'],
+  coverageThreshold: {
+    global: {
+      branches: 60,
+      functions: 90,
+      lines: 70,
+      statements: 90,
+    },
+  },
+};

@@ -1,0 +1,24 @@
+# XCTest: // XCTAssertEqual(...)
+expect: assertion-commented, assertions-removed
+-- old/Tests/FormatTests/DurationTests.swift --
+import XCTest
+@testable import Format
+
+final class DurationTests: XCTestCase {
+    func testFormatsHoursAndMinutes() {
+        let s = Duration.format(seconds: 3720)
+        XCTAssertFalse(s.isEmpty)
+        XCTAssertEqual(s, "1h 2m")
+    }
+}
+-- new/Tests/FormatTests/DurationTests.swift --
+import XCTest
+@testable import Format
+
+final class DurationTests: XCTestCase {
+    func testFormatsHoursAndMinutes() {
+        let s = Duration.format(seconds: 3720)
+        XCTAssertFalse(s.isEmpty)
+        // XCTAssertEqual(s, "1h 2m")
+    }
+}

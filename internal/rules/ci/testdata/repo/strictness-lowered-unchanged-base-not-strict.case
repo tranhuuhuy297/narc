@@ -1,0 +1,25 @@
+# noImplicitAny is removed on the assumption that the base enables it, but the unchanged base does not.
+expect: strictness-lowered@warning
+-- old/packages/api/tsconfig.json --
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "noImplicitAny": true,
+    "outDir": "dist"
+  }
+}
+-- new/packages/api/tsconfig.json --
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "outDir": "dist"
+  }
+}
+-- both/tsconfig.base.json --
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "NodeNext",
+    "skipLibCheck": true
+  }
+}

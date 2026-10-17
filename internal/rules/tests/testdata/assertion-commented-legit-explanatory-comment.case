@@ -1,0 +1,20 @@
+# An assertion is replaced by a more precise one, with a comment explaining
+# why (prose, not commented-out code).
+expect: clean
+-- old/src/cart/cart.test.ts --
+import { Cart } from './cart';
+
+it('adds items', () => {
+  const cart = new Cart().add('A', 2);
+  expect(cart.count('A')).toBe(2);
+  expect(cart.total()).toBe(20);
+});
+-- new/src/cart/cart.test.ts --
+import { Cart } from './cart';
+
+it('adds items', () => {
+  const cart = new Cart().add('A', 2);
+  expect(cart.count('A')).toBe(2);
+  // total() now includes shipping, so check the subtotal here.
+  expect(cart.subtotal()).toBe(20);
+});

@@ -1,0 +1,35 @@
+# TypeScript: a code generator's test embeds the spec it expects as a
+# template literal. The it(...) blocks inside the string changed; they are
+# data, not tests of this file.
+expect: clean
+-- old/src/codegen/spec-writer.test.ts --
+import { writeSpec } from './spec-writer'
+
+describe('writeSpec', () => {
+  it('emits one test per endpoint', () => {
+    const out = writeSpec([{ method: 'GET', path: '/users' }, { method: 'DELETE', path: '/users/:id' }])
+    expect(out).toBe(`describe('users API', () => {
+  it('GET /users', async () => {
+    expect((await call('GET', '/users')).status).toBe(200)
+  })
+  it('DELETE /users/:id', async () => {
+    expect((await call('DELETE', '/users/1')).status).toBe(204)
+  })
+})
+`)
+  })
+})
+-- new/src/codegen/spec-writer.test.ts --
+import { writeSpec } from './spec-writer'
+
+describe('writeSpec', () => {
+  it('emits one test per endpoint', () => {
+    const out = writeSpec([{ method: 'GET', path: '/users' }])
+    expect(out).toBe(`describe('users API', () => {
+  it('GET /users', async () => {
+    expect((await call('GET', '/users')).status).toBe(200)
+  })
+})
+`)
+  })
+})

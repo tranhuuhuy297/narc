@@ -1,0 +1,18 @@
+# The strict flag replaced by every individual strict check, plus one more.
+expect: clean
+-- old/tsconfig.json --
+{ "compilerOptions": { "strict": true } }
+-- new/tsconfig.json --
+{
+  "compilerOptions": {
+    "noImplicitAny": true,
+    "strictNullChecks": true,
+    "strictFunctionTypes": true,
+    "strictBindCallApply": true,
+    "strictPropertyInitialization": true,
+    "noImplicitThis": true,
+    "alwaysStrict": true,
+    "useUnknownInCatchVariables": true,
+    "noUncheckedIndexedAccess": true
+  }
+}

@@ -1,0 +1,24 @@
+# lefthook's documented `skip: [merge, rebase]` only skips the lint hook while git is merging or rebasing.
+expect: clean
+-- old/lefthook.yml --
+pre-commit:
+  parallel: true
+  commands:
+    eslint:
+      glob: "*.{js,ts,tsx}"
+      run: npx eslint {staged_files}
+    types:
+      run: npx tsc --noEmit
+-- new/lefthook.yml --
+pre-commit:
+  parallel: true
+  commands:
+    eslint:
+      glob: "*.{js,ts,tsx}"
+      run: npx eslint {staged_files}
+      skip:
+        - merge
+        - rebase
+    types:
+      run: npx tsc --noEmit
+      skip: [merge, rebase]

@@ -1,0 +1,32 @@
+# The file is re-indented and its imports sorted; an existing @Disabled test
+# is untouched apart from whitespace.
+expect: clean
+-- old/src/test/java/com/acme/report/PdfExportTest.java --
+package com.acme.report;
+
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Disabled;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+class PdfExportTest {
+  @Test
+  @Disabled("requires a headless browser, see BUILD.md")
+  void rendersCharts() {
+    assertTrue(PdfExport.render(sampleReport()).hasImages());
+  }
+}
+-- new/src/test/java/com/acme/report/PdfExportTest.java --
+package com.acme.report;
+
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import org.junit.jupiter.api.Disabled;
+import org.junit.jupiter.api.Test;
+
+class PdfExportTest {
+    @Test
+    @Disabled("requires a headless browser, see BUILD.md")
+    void rendersCharts() {
+        assertTrue(PdfExport.render(sampleReport()).hasImages());
+    }
+}

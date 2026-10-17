@@ -5,6 +5,9 @@ import (
 	"fmt"
 	"io"
 	"regexp"
+	"slices"
+	"sort"
+	"strconv"
 	"strings"
 	"unicode"
 	"unicode/utf8"
@@ -84,14 +87,18 @@ func RulesMarkdown(w io.Writer, rules []*core.Rule) error {
 	b.WriteString("| " + mdSevEmoji[core.Info] + " info | NOTE | Worth knowing. Never fails a build by default. |\n\n")
 	b.WriteString("Change a rule's severity, or turn it off, under `rules:` in `.narc.yml` (for example `any-cast: error` or `retry-added: off`).\n\n")
 
+	// The index lists rules in the same order as the sections below.
+	cats := byCategory(rules)
 	b.WriteString("## Index\n\n| Rule | Severity | Category | Summary |\n| --- | --- | --- | --- |\n")
-	for _, r := range rules {
-		fmt.Fprintf(&b, "| [%s](#%s) | %s %s | %s | %s |\n", mdCell(mdCode(r.ID)), r.ID, mdSev(r.Severity), r.Severity,
-			mdCell(r.Category), mdTableText(firstNonEmpty(r.Summary, r.Title)))
+	for _, c := range cats {
+		for _, r := range c.rules {
+			fmt.Fprintf(&b, "| [%s](#%s) | %s %s | %s | %s |\n", mdCell(mdCode(r.ID)), r.ID, mdSev(r.Severity), r.Severity,
+				mdCell(r.Category), mdTableText(firstNonEmpty(r.Summary, r.Title)))
+		}
 	}
 	b.WriteString("\n")
 
-	for _, c := range byCategory(rules) {
+	for _, c := range cats {
 		fmt.Fprintf(&b, "## %s\n\n", categoryTitle(c.name))
 		for _, r := range c.rules {
 			fmt.Fprintf(&b, "### %s\n\n", r.ID)
@@ -248,20 +255,38 @@ func (t *term) markdown(md, indent string) {
 
 // mdPlain reduces inline Markdown to terminal text: [text](url) becomes
 // "text (url)", **strong** loses its markers and backslash escapes are
-// resolved. Code spans keep their backticks so they can be highlighted.
+// resolved. Code spans are literal in Markdown and stay exactly as
+// written, backticks included so they can be highlighted: `__init__.py`,
+// `tests/**` or `\d+` must not lose characters to the rules above. They
+// are swapped for placeholders while the rules run, so a link whose text
+// is code still becomes "code (url)".
 func mdPlain(s string) string {
+	var spans []string
+	s = mapCodeSpans(strings.ReplaceAll(s, "\x00", ""), func(text string) string { return text }, func(span string) string {
+		spans = append(spans, span)
+		return fmt.Sprintf("\x00%d\x00", len(spans)-1)
+	})
 	s = mdLinkRe.ReplaceAllString(s, "$1 ($2)")
 	s = mdStrongRe.ReplaceAllString(s, "$1$2")
-	return mdEscapeRe.ReplaceAllString(s, "$1")
+	s = mdEscapeRe.ReplaceAllString(s, "$1")
+	return mdSpanSlotRe.ReplaceAllStringFunc(s, func(slot string) string {
+		i, _ := strconv.Atoi(strings.Trim(slot, "\x00"))
+		return spans[i]
+	})
 }
+
+// mdSpanSlotRe matches the code-span placeholders mdPlain puts in.
+var mdSpanSlotRe = regexp.MustCompile("\x00[0-9]+\x00")
 
 type category struct {
 	name  string
 	rules []*core.Rule
 }
 
-// byCategory groups rules by category in order of first appearance
-// (core.Rules() already sorts by category).
+// byCategory groups rules by category, in core's category order whatever
+// order the rules come in; categories core does not know follow in order
+// of first appearance. Rules keep their order within a category
+// (core.Rules() sorts them by ID).
 func byCategory(rules []*core.Rule) []category {
 	var out []category
 	pos := map[string]int{}
@@ -274,6 +299,14 @@ func byCategory(rules []*core.Rule) []category {
 		}
 		out[i].rules = append(out[i].rules, r)
 	}
+	known := core.Categories()
+	rank := func(name string) int {
+		if i := slices.Index(known, name); i >= 0 {
+			return i
+		}
+		return len(known)
+	}
+	sort.SliceStable(out, func(i, j int) bool { return rank(out[i].name) < rank(out[j].name) })
 	return out
 }
 

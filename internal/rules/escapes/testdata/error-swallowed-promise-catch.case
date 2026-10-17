@@ -1,0 +1,12 @@
+# A rejected save is silently ignored with .catch(() => {}).
+expect: error-swallowed@warning
+-- old/src/profile/save.ts --
+export async function saveProfile(api: Api, profile: Profile) {
+  await api.put("/profile", profile);
+  toast("Saved");
+}
+-- new/src/profile/save.ts --
+export async function saveProfile(api: Api, profile: Profile) {
+  await api.put("/profile", profile).catch(() => {});
+  toast("Saved");
+}

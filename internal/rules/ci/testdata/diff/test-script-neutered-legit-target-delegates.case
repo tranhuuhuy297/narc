@@ -1,0 +1,15 @@
+# The test target now delegates to unit and integration targets through prerequisites.
+expect: clean
+-- old/Makefile --
+.PHONY: test
+test:
+	go test ./...
+-- new/Makefile --
+.PHONY: test unit integration
+test: unit integration
+
+unit:
+	go test -short ./...
+
+integration:
+	go test -run Integration -tags integration ./...

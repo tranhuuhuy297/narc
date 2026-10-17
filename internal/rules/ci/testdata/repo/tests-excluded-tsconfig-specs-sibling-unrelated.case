@@ -1,0 +1,24 @@
+# Spec files are excluded from tsconfig.json; the sibling tsconfig only builds the CLI entry point, so nothing type-checks them.
+expect: tests-excluded
+-- old/tsconfig.json --
+{
+  "compilerOptions": {
+    "strict": true,
+    "outDir": "dist"
+  },
+  "include": ["src"]
+}
+-- new/tsconfig.json --
+{
+  "compilerOptions": {
+    "strict": true,
+    "outDir": "dist"
+  },
+  "include": ["src"],
+  "exclude": ["src/**/*.spec.ts"]
+}
+-- both/tsconfig.cli.json --
+{
+  "extends": "./tsconfig.json",
+  "include": ["src/cli/main.ts"]
+}

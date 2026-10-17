@@ -1,0 +1,33 @@
+# pytest is replaced by an existing composite action that only sets Python up and installs dependencies.
+expect: ci-check-removed@error
+-- old/.github/workflows/ci.yml --
+name: CI
+on: [pull_request]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/python-ci
+      - run: pytest -q
+-- new/.github/workflows/ci.yml --
+name: CI
+on: [pull_request]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/python-ci
+-- both/.github/actions/python-ci/action.yml --
+name: Python CI setup
+description: Set up Python and install the project
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-python@v5
+      with:
+        python-version: "3.12"
+        cache: pip
+    - run: pip install -e .[dev]
+      shell: bash

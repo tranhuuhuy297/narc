@@ -1,0 +1,23 @@
+# Validating NODE_ENV against every known environment is configuration hygiene, not test detection.
+expect: clean
+-- old/src/env.ts --
+export const env = {
+  nodeEnv: process.env.NODE_ENV ?? "development",
+  port: Number(process.env.PORT ?? 3000),
+};
+-- new/src/env.ts --
+const ENVIRONMENTS = ["development", "test", "production"] as const;
+type Environment = (typeof ENVIRONMENTS)[number];
+
+const nodeEnv = process.env.NODE_ENV ?? "development";
+if (!["development", "test", "production"].includes(nodeEnv)) {
+  throw new Error(`NODE_ENV must be one of ${ENVIRONMENTS.join(", ")}, got ${nodeEnv}`);
+}
+if (!["development", "test", "production"].includes(process.env.NODE_ENV ?? "development")) {
+  process.exitCode = 1;
+}
+
+export const env = {
+  nodeEnv: nodeEnv as Environment,
+  port: Number(process.env.PORT ?? 3000),
+};

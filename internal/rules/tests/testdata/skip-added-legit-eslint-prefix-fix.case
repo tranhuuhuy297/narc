@@ -1,0 +1,41 @@
+# `eslint --fix` with eslint-plugin-jest's no-test-prefixes rule rewrites the
+# existing xit/xdescribe into it.skip/describe.skip. No test was newly skipped.
+expect: clean
+-- old/src/legacy/importer.test.js --
+const { importCsv } = require('./importer');
+
+describe('importCsv', () => {
+  it('parses a header row', () => {
+    expect(importCsv('a,b\n1,2')).toEqual([{ a: '1', b: '2' }]);
+  });
+
+  // Quoted fields are not supported yet, see #418.
+  xit('keeps commas inside quoted fields', () => {
+    expect(importCsv('a\n"x,y"')).toEqual([{ a: 'x,y' }]);
+  });
+});
+
+xdescribe('importCsv with Excel exports', () => {
+  it('strips the BOM', () => {
+    expect(importCsv('﻿a\n1')).toEqual([{ a: '1' }]);
+  });
+});
+-- new/src/legacy/importer.test.js --
+const { importCsv } = require('./importer');
+
+describe('importCsv', () => {
+  it('parses a header row', () => {
+    expect(importCsv('a,b\n1,2')).toEqual([{ a: '1', b: '2' }]);
+  });
+
+  // Quoted fields are not supported yet, see #418.
+  it.skip('keeps commas inside quoted fields', () => {
+    expect(importCsv('a\n"x,y"')).toEqual([{ a: 'x,y' }]);
+  });
+});
+
+describe.skip('importCsv with Excel exports', () => {
+  it('strips the BOM', () => {
+    expect(importCsv('﻿a\n1')).toEqual([{ a: '1' }]);
+  });
+});

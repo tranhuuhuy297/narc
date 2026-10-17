@@ -1,0 +1,20 @@
+# Evasive: an unconditional rules entry with when: never disables the job.
+expect: ci-check-removed
+-- old/.gitlab-ci.yml --
+stages: [test]
+lint:
+  stage: test
+  image: node:20
+  script:
+    - npm ci
+    - npm run lint
+-- new/.gitlab-ci.yml --
+stages: [test]
+lint:
+  stage: test
+  image: node:20
+  rules:
+    - when: never
+  script:
+    - npm ci
+    - npm run lint

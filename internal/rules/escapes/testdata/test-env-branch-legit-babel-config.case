@@ -1,0 +1,15 @@
+# Babel config compiles ES modules to CommonJS for Jest: tooling, not production code.
+expect: clean
+-- old/babel.config.js --
+module.exports = {
+  presets: [["@babel/preset-env", { modules: false }], "@babel/preset-typescript"],
+};
+-- new/babel.config.js --
+const isTest = process.env.NODE_ENV === "test";
+
+module.exports = {
+  presets: [
+    ["@babel/preset-env", isTest ? { targets: { node: "current" } } : { modules: false }],
+    "@babel/preset-typescript",
+  ],
+};

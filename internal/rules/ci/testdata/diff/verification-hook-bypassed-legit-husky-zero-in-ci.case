@@ -1,0 +1,24 @@
+# HUSKY=0 in CI env is how husky recommends skipping hook installation on CI.
+expect: clean
+-- old/.github/workflows/ci.yml --
+name: CI
+on: [pull_request]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: npm ci
+      - run: npm test
+-- new/.github/workflows/ci.yml --
+name: CI
+on: [pull_request]
+env:
+  HUSKY: 0
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: npm ci
+      - run: npm test

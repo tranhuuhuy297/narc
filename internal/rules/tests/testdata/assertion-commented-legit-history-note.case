@@ -1,0 +1,24 @@
+# The weak assertion was replaced by a stronger one; a note records what it
+# used to be ("previously: ...") — the old check is not being disabled.
+expect: clean
+-- old/spec/models/account_spec.rb --
+require "rails_helper"
+
+RSpec.describe Account do
+  it "is activated by the token" do
+    account = create(:account)
+    account.activate!(account.token)
+    expect(account.active?).to be_truthy
+  end
+end
+-- new/spec/models/account_spec.rb --
+require "rails_helper"
+
+RSpec.describe Account do
+  it "is activated by the token" do
+    account = create(:account)
+    account.activate!(account.token)
+    # previously: expect(account.active?).to be_truthy
+    expect(account.reload.activated_at).to be_within(1.second).of(Time.current)
+  end
+end

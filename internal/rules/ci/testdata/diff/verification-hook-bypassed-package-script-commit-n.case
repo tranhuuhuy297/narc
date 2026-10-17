@@ -1,0 +1,14 @@
+# git commit -nm in a package script (-n is --no-verify).
+expect: verification-hook-bypassed
+-- old/package.json --
+{
+  "scripts": {
+    "save": "git add -A && git commit -m wip"
+  }
+}
+-- new/package.json --
+{
+  "scripts": {
+    "save": "git add -A && git commit -nm wip"
+  }
+}

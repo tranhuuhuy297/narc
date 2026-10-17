@@ -1,0 +1,26 @@
+# Dart: the expectation was removed from a unit test.
+expect: test-hollowed
+-- old/test/money_test.dart --
+import 'package:test/test.dart';
+import 'package:shop/money.dart';
+
+void main() {
+  group('Money', () {
+    test('adds amounts in the same currency', () {
+      final sum = Money.eur(150) + Money.eur(250);
+      expect(sum, equals(Money.eur(400)));
+    });
+  });
+}
+-- new/test/money_test.dart --
+import 'package:test/test.dart';
+import 'package:shop/money.dart';
+
+void main() {
+  group('Money', () {
+    test('adds amounts in the same currency', () {
+      final sum = Money.eur(150) + Money.eur(250);
+      print(sum);
+    });
+  });
+}

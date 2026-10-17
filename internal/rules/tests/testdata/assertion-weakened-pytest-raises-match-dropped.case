@@ -1,0 +1,21 @@
+# pytest.raises keeps the type but drops match=, so the wrong ValueError
+# (any ValueError) now passes.
+expect: assertion-weakened
+-- old/tests/test_dates.py --
+import pytest
+
+from tool.dates import parse_date
+
+
+def test_rejects_february_30():
+    with pytest.raises(ValueError, match="day is out of range"):
+        parse_date("2023-02-30")
+-- new/tests/test_dates.py --
+import pytest
+
+from tool.dates import parse_date
+
+
+def test_rejects_february_30():
+    with pytest.raises(ValueError):
+        parse_date("2023-02-30")

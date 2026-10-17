@@ -1,0 +1,10 @@
+# The Elixir test alias now excludes the :payments tag.
+expect: test-script-neutered@warning
+-- old/Makefile --
+.PHONY: test
+test:
+	mix test --warnings-as-errors
+-- new/Makefile --
+.PHONY: test
+test:
+	mix test --warnings-as-errors --exclude payments

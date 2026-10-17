@@ -1,0 +1,26 @@
+# The test workflow no longer runs on pull requests (warning).
+expect: ci-check-removed
+-- old/.github/workflows/test.yml --
+name: Test
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: cargo test --all-features
+-- new/.github/workflows/test.yml --
+name: Test
+on:
+  push:
+    branches: [main]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: cargo test --all-features

@@ -1,0 +1,52 @@
+# PHP: two small PHPUnit classes merged into one.
+expect: clean
+-- old/tests/Unit/Money/AddTest.php --
+<?php
+
+namespace Tests\Unit\Money;
+
+use App\Money\Money;
+use PHPUnit\Framework\TestCase;
+
+final class AddTest extends TestCase
+{
+    public function testAddsAmounts(): void
+    {
+        $this->assertEquals(Money::eur(300), Money::eur(100)->add(Money::eur(200)));
+    }
+}
+-- old/tests/Unit/Money/SubtractTest.php --
+<?php
+
+namespace Tests\Unit\Money;
+
+use App\Money\Money;
+use PHPUnit\Framework\TestCase;
+
+final class SubtractTest extends TestCase
+{
+    public function testSubtractsAmounts(): void
+    {
+        $this->assertEquals(Money::eur(100), Money::eur(300)->subtract(Money::eur(200)));
+    }
+}
+-- new/tests/Unit/Money/MoneyArithmeticTest.php --
+<?php
+
+namespace Tests\Unit\Money;
+
+use App\Money\Money;
+use PHPUnit\Framework\TestCase;
+
+final class MoneyArithmeticTest extends TestCase
+{
+    public function testAddsAmounts(): void
+    {
+        $this->assertEquals(Money::eur(300), Money::eur(100)->add(Money::eur(200)));
+    }
+
+    public function testSubtractsAmounts(): void
+    {
+        $this->assertEquals(Money::eur(100), Money::eur(300)->subtract(Money::eur(200)));
+    }
+}

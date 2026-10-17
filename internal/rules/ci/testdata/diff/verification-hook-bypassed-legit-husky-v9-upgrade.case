@@ -1,0 +1,27 @@
+# husky v9 drops the husky.sh header from hooks; lint-staged still runs on every commit.
+expect: clean
+-- old/.husky/pre-commit --
+#!/usr/bin/env sh
+. "$(dirname -- "$0")/_/husky.sh"
+
+npx lint-staged
+-- new/.husky/pre-commit --
+npx lint-staged
+-- old/package.json --
+{
+  "scripts": {
+    "prepare": "husky install"
+  },
+  "devDependencies": {
+    "husky": "^8.0.3"
+  }
+}
+-- new/package.json --
+{
+  "scripts": {
+    "prepare": "husky"
+  },
+  "devDependencies": {
+    "husky": "^9.1.6"
+  }
+}

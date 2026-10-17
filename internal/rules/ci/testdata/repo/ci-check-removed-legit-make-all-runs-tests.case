@@ -1,0 +1,39 @@
+# Separate lint and test steps collapse into `make all`; the unchanged Makefile's all target runs both.
+expect: clean
+-- old/.github/workflows/ci.yml --
+name: CI
+on: [pull_request]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+      - run: pip install -e .[dev]
+      - run: ruff check .
+      - run: python -m pytest -q tests/
+-- new/.github/workflows/ci.yml --
+name: CI
+on: [pull_request]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+      - run: make all
+-- both/Makefile --
+PYTHON ?= python3
+
+.PHONY: all install lint test
+
+all: install lint test
+
+install:
+	$(PYTHON) -m pip install -e .[dev]
+
+lint:
+	ruff check .
+
+test:
+	$(PYTHON) -m pytest -q tests/

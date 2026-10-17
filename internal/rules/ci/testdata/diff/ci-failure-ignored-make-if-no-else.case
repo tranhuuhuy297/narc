@@ -1,0 +1,10 @@
+# The recipe only reports success; a failing go test leaves the if with status 0.
+expect: ci-failure-ignored
+-- old/Makefile --
+.PHONY: test
+test:
+	go test ./...
+-- new/Makefile --
+.PHONY: test
+test:
+	@if go test ./...; then echo "tests ok"; fi

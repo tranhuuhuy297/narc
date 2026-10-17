@@ -1,0 +1,28 @@
+# Tests run without backoff delays; the retry logic itself is unchanged.
+expect: clean
+-- old/src/http/retry.ts --
+const RETRY_DELAY_MS = 500;
+
+export async function withRetry<T>(fn: () => Promise<T>, attempts = 3): Promise<T> {
+  for (let i = 0; ; i++) {
+    try {
+      return await fn();
+    } catch (err) {
+      if (i + 1 >= attempts) throw err;
+      await sleep(RETRY_DELAY_MS * 2 ** i);
+    }
+  }
+}
+-- new/src/http/retry.ts --
+const RETRY_DELAY_MS = process.env.NODE_ENV === "test" ? 0 : 500;
+
+export async function withRetry<T>(fn: () => Promise<T>, attempts = 3): Promise<T> {
+  for (let i = 0; ; i++) {
+    try {
+      return await fn();
+    } catch (err) {
+      if (i + 1 >= attempts) throw err;
+      await sleep(RETRY_DELAY_MS * 2 ** i);
+    }
+  }
+}

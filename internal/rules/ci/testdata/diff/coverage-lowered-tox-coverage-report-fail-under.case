@@ -1,0 +1,12 @@
+# coverage report --fail-under lowered in tox.
+expect: coverage-lowered
+-- old/tox.ini --
+[testenv]
+commands =
+    coverage run -m pytest
+    coverage report --fail-under=95
+-- new/tox.ini --
+[testenv]
+commands =
+    coverage run -m pytest
+    coverage report --fail-under=80

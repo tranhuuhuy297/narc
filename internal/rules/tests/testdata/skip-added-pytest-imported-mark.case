@@ -1,0 +1,44 @@
+# Evasive: with `from pytest import mark` the skip is written @mark.skip,
+# which a search for "pytest.mark.skip" misses.
+expect: skip-added
+-- old/tests/test_scheduler.py --
+from datetime import datetime, timezone
+
+from pytest import mark
+
+from scheduler import next_run
+
+
+@mark.parametrize("cron, expected", [
+    ("0 * * * *", datetime(2024, 3, 1, 11, 0, tzinfo=timezone.utc)),
+    ("30 9 * * 1", datetime(2024, 3, 4, 9, 30, tzinfo=timezone.utc)),
+])
+def test_next_run(cron, expected):
+    now = datetime(2024, 3, 1, 10, 15, tzinfo=timezone.utc)
+    assert next_run(cron, now) == expected
+
+
+def test_next_run_across_dst():
+    now = datetime(2024, 3, 31, 0, 30, tzinfo=timezone.utc)
+    assert next_run("0 2 * * *", now, tz="Europe/Berlin").hour == 0
+-- new/tests/test_scheduler.py --
+from datetime import datetime, timezone
+
+from pytest import mark
+
+from scheduler import next_run
+
+
+@mark.parametrize("cron, expected", [
+    ("0 * * * *", datetime(2024, 3, 1, 11, 0, tzinfo=timezone.utc)),
+    ("30 9 * * 1", datetime(2024, 3, 4, 9, 30, tzinfo=timezone.utc)),
+])
+def test_next_run(cron, expected):
+    now = datetime(2024, 3, 1, 10, 15, tzinfo=timezone.utc)
+    assert next_run(cron, now) == expected
+
+
+@mark.skip(reason="DST handling is tricky")
+def test_next_run_across_dst():
+    now = datetime(2024, 3, 31, 0, 30, tzinfo=timezone.utc)
+    assert next_run("0 2 * * *", now, tz="Europe/Berlin").hour == 0

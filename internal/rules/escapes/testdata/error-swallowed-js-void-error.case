@@ -1,0 +1,15 @@
+# `void err` only silences the unused-variable lint; the catch still throws the error away.
+expect: error-swallowed
+-- old/src/settings/load.ts --
+export async function loadSettings(store: Store): Promise<Settings> {
+  return parseSettings(await store.read("settings.json"));
+}
+-- new/src/settings/load.ts --
+export async function loadSettings(store: Store): Promise<Settings> {
+  try {
+    return parseSettings(await store.read("settings.json"));
+  } catch (err) {
+    void err;
+  }
+  return DEFAULT_SETTINGS;
+}

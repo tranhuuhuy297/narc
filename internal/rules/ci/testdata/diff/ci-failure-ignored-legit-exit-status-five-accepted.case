@@ -1,0 +1,23 @@
+# pytest exits 5 when a shard collects no tests; only that status is accepted.
+expect: clean
+-- old/.github/workflows/ci.yml --
+name: CI
+on: [pull_request]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: pytest -q tests/
+-- new/.github/workflows/ci.yml --
+name: CI
+on: [pull_request]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        group: [1, 2, 3]
+    steps:
+      - uses: actions/checkout@v4
+      - run: pytest -q tests/ --splits 3 --group ${{ matrix.group }} || [ $? -eq 5 ]

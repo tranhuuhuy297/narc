@@ -1,0 +1,29 @@
+# A Psalm suppression added in a docblock to get past a null-reference report.
+expect: type-check-suppressed
+-- old/src/Orders/Repository.php --
+<?php
+
+namespace App\Orders;
+
+class Repository
+{
+    public function latestFor(int $customerId): Order
+    {
+        return $this->query()->where('customer_id', $customerId)->latest()->first();
+    }
+}
+-- new/src/Orders/Repository.php --
+<?php
+
+namespace App\Orders;
+
+class Repository
+{
+    /**
+     * @psalm-suppress NullableReturnStatement
+     */
+    public function latestFor(int $customerId): Order
+    {
+        return $this->query()->where('customer_id', $customerId)->latest()->first();
+    }
+}

@@ -1,0 +1,15 @@
+# NODE_ENV destructured first, compared later: the same test check split over two lines.
+expect: test-env-branch@error
+-- old/src/billing/charge.ts --
+export async function charge(card: Card, cents: number): Promise<Receipt> {
+  return gateway.charge(card, cents);
+}
+-- new/src/billing/charge.ts --
+const { NODE_ENV } = process.env;
+
+export async function charge(card: Card, cents: number): Promise<Receipt> {
+  if (NODE_ENV === "test") {
+    return { id: "rcpt_test", cents, status: "succeeded" };
+  }
+  return gateway.charge(card, cents);
+}

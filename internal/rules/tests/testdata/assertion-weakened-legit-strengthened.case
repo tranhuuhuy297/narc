@@ -1,0 +1,17 @@
+# The opposite direction: a vague assertion becomes a specific one.
+expect: clean
+-- old/tests/test_tokens.py --
+from auth.tokens import issue
+
+
+def test_issue_returns_token():
+    token = issue(user_id=7)
+    assert token
+-- new/tests/test_tokens.py --
+from auth.tokens import issue
+
+
+def test_issue_returns_token():
+    token = issue(user_id=7)
+    assert token.user_id == 7
+    assert token.expires_in == 3600

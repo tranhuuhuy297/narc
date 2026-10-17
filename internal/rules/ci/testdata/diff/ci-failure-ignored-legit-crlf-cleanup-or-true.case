@@ -1,0 +1,9 @@
+# CRLF line endings: `|| true` on a cleanup command next to an unchanged test command.
+expect: clean
+-- old/scripts/ci.sh --
+#!/usr/bin/env bash
+pytest -q
+-- new/scripts/ci.sh --
+#!/usr/bin/env bash
+pytest -q
+rm -rf .pytest_cache || true

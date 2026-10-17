@@ -1,0 +1,24 @@
+# go vet was commented out of the workflow.
+expect: ci-check-removed
+-- old/.github/workflows/go.yml --
+name: Go
+on: [push, pull_request]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+      - run: go vet ./...
+      - run: go test ./...
+-- new/.github/workflows/go.yml --
+name: Go
+on: [push, pull_request]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+      # - run: go vet ./...
+      - run: go test ./...

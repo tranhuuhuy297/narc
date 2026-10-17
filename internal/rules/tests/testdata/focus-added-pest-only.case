@@ -1,0 +1,18 @@
+# Pest (PHP): ->only() on one test.
+expect: focus-added
+-- old/tests/Feature/CheckoutTest.php --
+<?php
+
+it('charges the saved card', function () {
+    $order = Order::factory()->create();
+    $this->post("/orders/{$order->id}/pay")->assertOk();
+    expect($order->fresh()->paid)->toBeTrue();
+});
+-- new/tests/Feature/CheckoutTest.php --
+<?php
+
+it('charges the saved card', function () {
+    $order = Order::factory()->create();
+    $this->post("/orders/{$order->id}/pay")->assertOk();
+    expect($order->fresh()->paid)->toBeTrue();
+})->only();

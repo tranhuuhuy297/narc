@@ -1,0 +1,31 @@
+# Rust: an assert on is_err() replaced by #[should_panic] on an unwrap.
+expect: clean
+-- old/src/ring.rs --
+pub struct Ring<T> {
+    items: Vec<T>,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn rejects_zero_capacity() {
+        assert!(Ring::<u8>::with_capacity(0).is_err());
+    }
+}
+-- new/src/ring.rs --
+pub struct Ring<T> {
+    items: Vec<T>,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    #[should_panic(expected = "capacity must be positive")]
+    fn rejects_zero_capacity() {
+        Ring::<u8>::with_capacity(0).unwrap();
+    }
+}

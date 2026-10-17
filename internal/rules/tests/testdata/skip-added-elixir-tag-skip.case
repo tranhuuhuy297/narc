@@ -1,0 +1,21 @@
+# ExUnit: @tag :skip on the failing test.
+expect: skip-added
+-- old/test/ledger_test.exs --
+defmodule LedgerTest do
+  use ExUnit.Case, async: true
+
+  test "balance is the sum of entries" do
+    ledger = Ledger.new() |> Ledger.add(10) |> Ledger.add(-3)
+    assert Ledger.balance(ledger) == 7
+  end
+end
+-- new/test/ledger_test.exs --
+defmodule LedgerTest do
+  use ExUnit.Case, async: true
+
+  @tag :skip
+  test "balance is the sum of entries" do
+    ledger = Ledger.new() |> Ledger.add(10) |> Ledger.add(-3)
+    assert Ledger.balance(ledger) == 7
+  end
+end

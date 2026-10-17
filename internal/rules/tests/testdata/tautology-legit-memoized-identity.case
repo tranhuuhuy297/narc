@@ -1,0 +1,32 @@
+# Memoization specs compare a method call with itself on purpose: RSpec's
+# equal checks object identity, and Ruby's f.executable is a method call, so
+# the expectation fails if the value is rebuilt on every call.
+expect: clean
+-- old/spec/models/toolchain_spec.rb --
+require "spec_helper"
+
+RSpec.describe Toolchain do
+  it "finds the compiler" do
+    t = described_class.new(prefix: "/opt/cc")
+    expect(t.compiler).to eq(Pathname("/opt/cc/bin/cc"))
+  end
+end
+-- new/spec/models/toolchain_spec.rb --
+require "spec_helper"
+
+RSpec.describe Toolchain do
+  it "finds the compiler" do
+    t = described_class.new(prefix: "/opt/cc")
+    expect(t.compiler).to eq(Pathname("/opt/cc/bin/cc"))
+  end
+
+  it "builds the compiler path once" do
+    t = described_class.new(prefix: "/opt/cc")
+    expect(t.compiler).to equal(t.compiler)
+  end
+
+  it "returns the cached linker" do
+    t = described_class.new(prefix: "/opt/cc")
+    expect(t.linker).to eq(t.linker)
+  end
+end

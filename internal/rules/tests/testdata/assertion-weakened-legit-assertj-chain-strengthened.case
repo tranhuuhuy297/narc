@@ -1,0 +1,34 @@
+# AssertJ, split over lines: isNotEmpty() became containsExactly(...) — a
+# stronger check on the same list.
+expect: clean
+-- old/src/test/java/com/acme/search/RankerTest.java --
+package com.acme.search;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+import org.junit.jupiter.api.Test;
+
+class RankerTest {
+    @Test
+    void ranksExactMatchesFirst() {
+        var results = new Ranker().rank("invoice", Docs.sample());
+        assertThat(results)
+            .isNotEmpty();
+    }
+}
+-- new/src/test/java/com/acme/search/RankerTest.java --
+package com.acme.search;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+import org.junit.jupiter.api.Test;
+
+class RankerTest {
+    @Test
+    void ranksExactMatchesFirst() {
+        var results = new Ranker().rank("invoice", Docs.sample());
+        assertThat(results)
+            .extracting(Doc::id)
+            .containsExactly("invoice-guide", "invoice-api");
+    }
+}

@@ -1,0 +1,32 @@
+# Java: getter-by-getter assertions replaced by one recursive comparison.
+expect: clean
+-- old/src/test/java/com/acme/users/UserMapperTest.java --
+package com.acme.users;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+
+import org.junit.jupiter.api.Test;
+
+class UserMapperTest {
+    @Test
+    void mapsEntityToDto() {
+        UserDto dto = UserMapper.toDto(new UserEntity(7L, "Ann", "ann@example.com"));
+        assertEquals(7L, dto.getId());
+        assertEquals("Ann", dto.getName());
+        assertEquals("ann@example.com", dto.getEmail());
+    }
+}
+-- new/src/test/java/com/acme/users/UserMapperTest.java --
+package com.acme.users;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+import org.junit.jupiter.api.Test;
+
+class UserMapperTest {
+    @Test
+    void mapsEntityToDto() {
+        UserDto dto = UserMapper.toDto(new UserEntity(7L, "Ann", "ann@example.com"));
+        assertThat(dto).usingRecursiveComparison().isEqualTo(new UserDto(7L, "Ann", "ann@example.com"));
+    }
+}

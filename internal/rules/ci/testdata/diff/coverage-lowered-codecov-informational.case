@@ -1,0 +1,15 @@
+# codecov project status made informational, so it never blocks (warning).
+expect: coverage-lowered
+-- old/codecov.yml --
+coverage:
+  status:
+    project:
+      default:
+        target: 85%
+-- new/codecov.yml --
+coverage:
+  status:
+    project:
+      default:
+        target: 85%
+        informational: true

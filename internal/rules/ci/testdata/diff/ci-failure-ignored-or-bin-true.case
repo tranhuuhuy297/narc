@@ -1,0 +1,10 @@
+# The failure of the test target is swallowed with `|| /bin/true` instead of the usual `|| true`.
+expect: ci-failure-ignored
+-- old/Makefile --
+.PHONY: test
+test:
+	go test ./...
+-- new/Makefile --
+.PHONY: test
+test:
+	go test ./... || /bin/true

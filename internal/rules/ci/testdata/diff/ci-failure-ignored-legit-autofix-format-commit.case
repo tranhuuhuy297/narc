@@ -1,0 +1,30 @@
+# An autofix workflow formats the branch when the check fails and pushes the fix, which re-runs CI.
+expect: clean
+-- old/.github/workflows/format.yml --
+name: Format
+on: [pull_request]
+jobs:
+  prettier:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: npx prettier --check .
+-- new/.github/workflows/format.yml --
+name: Format
+on: [pull_request]
+permissions:
+  contents: write
+jobs:
+  prettier:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
+      - run: |
+          if ! npx prettier --check .; then
+            npx prettier --write .
+            git config user.name "github-actions[bot]"
+            git commit -am "style: apply prettier"
+            git push
+          fi

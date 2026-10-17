@@ -1,0 +1,23 @@
+# CI: curl --retry downloads a tool; the test command itself has no retries.
+expect: clean
+-- old/.github/workflows/ci.yml --
+name: ci
+on: [push]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: npm ci
+      - run: npm test
+-- new/.github/workflows/ci.yml --
+name: ci
+on: [push]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: curl --retry 3 -sSL -o /tmp/protoc.zip https://example.com/protoc.zip && unzip /tmp/protoc.zip -d /usr/local
+      - run: npm ci
+      - run: npm test

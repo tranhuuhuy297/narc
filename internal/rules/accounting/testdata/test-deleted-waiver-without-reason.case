@@ -1,0 +1,21 @@
+# A waiver without a reason does not apply; the deletion is still reported.
+expect: test-deleted, waiver-missing-reason
+-- old/tests/test_export.py --
+from app.export import export
+
+
+def test_exports_json(orders):
+    assert export(orders, fmt="json").startswith("[")
+
+
+def test_exports_xml(orders):
+    assert export(orders, fmt="xml").startswith("<")
+-- new/tests/test_export.py --
+from app.export import export
+
+
+def test_exports_json(orders):
+    assert export(orders, fmt="json").startswith("[")
+
+
+# narc:allow test-deleted

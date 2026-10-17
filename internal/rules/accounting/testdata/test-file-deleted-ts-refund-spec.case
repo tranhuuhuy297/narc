@@ -1,0 +1,31 @@
+# The refund spec was deleted in the same change that rewrote refund().
+expect: test-file-deleted
+-- old/src/payments/refund.ts --
+import { Payment } from './types'
+
+export function refund(payment: Payment, cents: number): Payment {
+  if (cents > payment.captured - payment.refunded) {
+    throw new RangeError('refund exceeds captured amount')
+  }
+  return { ...payment, refunded: payment.refunded + cents }
+}
+-- new/src/payments/refund.ts --
+import { Payment } from './types'
+
+export function refund(payment: Payment, cents: number): Payment {
+  return { ...payment, refunded: payment.refunded + cents }
+}
+-- old/src/payments/__tests__/refund.test.ts --
+import { refund } from '../refund'
+
+const payment = { id: 'pay_1', captured: 5000, refunded: 0 }
+
+describe('refund', () => {
+  it('records a partial refund', () => {
+    expect(refund(payment, 2000).refunded).toBe(2000)
+  })
+
+  it('refuses to refund more than was captured', () => {
+    expect(() => refund(payment, 6000)).toThrow(RangeError)
+  })
+})

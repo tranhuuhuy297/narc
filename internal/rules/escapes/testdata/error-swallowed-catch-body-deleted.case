@@ -1,0 +1,18 @@
+# The handler used to log and rethrow; its body was deleted, leaving an empty catch.
+expect: error-swallowed@warning
+-- old/src/jobs/send-digest.ts --
+export async function sendDigest(user: User) {
+  try {
+    await mailer.send(digestFor(user));
+  } catch (err) {
+    logger.error({ err, userId: user.id }, "digest failed");
+    throw err;
+  }
+}
+-- new/src/jobs/send-digest.ts --
+export async function sendDigest(user: User) {
+  try {
+    await mailer.send(digestFor(user));
+  } catch (err) {
+  }
+}

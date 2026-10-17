@@ -1,0 +1,42 @@
+# A unit test next to the code (Rust #[cfg(test)] module) is marked
+# #[ignore]; the overflow bug it catches is left in place.
+expect: skip-added
+-- old/src/money.rs --
+pub fn add_cents(a: u64, b: u64) -> Option<u64> {
+    a.checked_add(b)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn adds() {
+        assert_eq!(add_cents(1, 2), Some(3));
+    }
+
+    #[test]
+    fn detects_overflow() {
+        assert_eq!(add_cents(u64::MAX, 1), None);
+    }
+}
+-- new/src/money.rs --
+pub fn add_cents(a: u64, b: u64) -> Option<u64> {
+    Some(a.wrapping_add(b))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn adds() {
+        assert_eq!(add_cents(1, 2), Some(3));
+    }
+
+    #[test]
+    #[ignore]
+    fn detects_overflow() {
+        assert_eq!(add_cents(u64::MAX, 1), None);
+    }
+}

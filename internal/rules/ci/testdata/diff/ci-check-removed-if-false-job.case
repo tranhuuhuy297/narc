@@ -1,0 +1,21 @@
+# The test job was switched off with if: false.
+expect: ci-check-removed
+-- old/.github/workflows/ci.yml --
+name: CI
+on: [push, pull_request]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: go test -race ./...
+-- new/.github/workflows/ci.yml --
+name: CI
+on: [push, pull_request]
+jobs:
+  test:
+    if: false
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: go test -race ./...

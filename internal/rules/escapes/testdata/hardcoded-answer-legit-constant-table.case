@@ -1,0 +1,22 @@
+# Constants and enums are data, not conditionals.
+expect: clean
+-- old/src/billing/plans.ts --
+export const PLANS = {} as const;
+-- new/src/billing/plans.ts --
+export enum Plan {
+  Basic = "basic",
+  Pro = "pro",
+}
+
+export const PRICES: Record<Plan, number> = {
+  [Plan.Basic]: 999,
+  [Plan.Pro]: 4999,
+};
+
+export const priceOf = (plan: Plan) => PRICES[plan];
+-- new/src/billing/plans.test.ts --
+import { Plan, priceOf } from "./plans";
+
+test("pro price", () => {
+  expect(priceOf(Plan.Pro)).toBe(4999);
+});

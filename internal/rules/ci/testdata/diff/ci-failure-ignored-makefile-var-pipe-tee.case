@@ -1,0 +1,14 @@
+# Evasive: the verification command runs through a Makefile variable and a pipe to tee.
+expect: ci-failure-ignored
+-- old/Makefile --
+PYTEST ?= python -m pytest
+
+.PHONY: test
+test:
+	$(PYTEST) tests/ | tee test.log
+-- new/Makefile --
+PYTEST ?= python -m pytest
+
+.PHONY: test
+test:
+	$(PYTEST) tests/ | tee test.log || true

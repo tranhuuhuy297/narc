@@ -1,0 +1,28 @@
+# Go: the failure message is improved and a comment mentions t.Errorf in
+# prose; the check itself stays live.
+expect: clean
+-- old/internal/money/round_test.go --
+package money
+
+import "testing"
+
+func TestRoundHalfUp(t *testing.T) {
+	for _, c := range []struct{ in, want float64 }{{2.345, 2.35}, {2.344, 2.34}} {
+		if got := Round(c.in, 2); got != c.want {
+			t.Errorf("Round = %v, want %v", got, c.want)
+		}
+	}
+}
+-- new/internal/money/round_test.go --
+package money
+
+import "testing"
+
+func TestRoundHalfUp(t *testing.T) {
+	for _, c := range []struct{ in, want float64 }{{2.345, 2.35}, {2.344, 2.34}} {
+		if got := Round(c.in, 2); got != c.want {
+			// t.Errorf rather than t.Fatalf, so every case is reported.
+			t.Errorf("Round(%v, 2) = %v, want %v", c.in, got, c.want)
+		}
+	}
+}

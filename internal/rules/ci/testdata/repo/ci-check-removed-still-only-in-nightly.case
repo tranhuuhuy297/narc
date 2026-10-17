@@ -1,0 +1,35 @@
+# pytest leaves the PR workflow; the only other workflow that runs it is a nightly schedule.
+expect: ci-check-removed@error
+-- old/.github/workflows/ci.yml --
+name: CI
+on: [pull_request]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: pip install -e .[test]
+      - run: ruff check .
+      - run: pytest tests/
+-- new/.github/workflows/ci.yml --
+name: CI
+on: [pull_request]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: pip install -e .[test]
+      - run: ruff check .
+-- both/.github/workflows/nightly.yml --
+name: Nightly
+on:
+  schedule:
+    - cron: "0 3 * * *"
+jobs:
+  full:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: pip install -e .[test]
+      - run: pytest tests/ --runslow

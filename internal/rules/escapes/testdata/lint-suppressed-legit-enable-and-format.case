@@ -1,0 +1,12 @@
+# Re-enabling rules and formatter directives are not lint suppressions.
+expect: clean
+-- old/src/matrix.ts --
+export const identity = [[1, 0], [0, 1]];
+-- new/src/matrix.ts --
+// prettier-ignore
+export const identity = [
+  [1, 0, 0],
+  [0, 1, 0],
+  [0, 0, 1],
+];
+/* eslint-enable no-magic-numbers */

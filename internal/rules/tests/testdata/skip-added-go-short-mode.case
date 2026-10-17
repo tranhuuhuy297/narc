@@ -1,0 +1,36 @@
+# A new integration test is gated on -short. Environment-gated skips are
+# usually deliberate, so this is reported as a warning, not an error.
+expect: skip-added
+-- old/store/store_test.go --
+package store
+
+import "testing"
+
+func TestKeyEncoding(t *testing.T) {
+	if got := encodeKey("a/b"); got != "a%2Fb" {
+		t.Errorf("encodeKey = %q", got)
+	}
+}
+-- new/store/store_test.go --
+package store
+
+import "testing"
+
+func TestKeyEncoding(t *testing.T) {
+	if got := encodeKey("a/b"); got != "a%2Fb" {
+		t.Errorf("encodeKey = %q", got)
+	}
+}
+
+func TestPostgresRoundTrip(t *testing.T) {
+	if testing.Short() {
+		t.Skip("integration test")
+	}
+	db := openTestDB(t)
+	if err := db.Put("k", []byte("v")); err != nil {
+		t.Fatal(err)
+	}
+	if v, _ := db.Get("k"); string(v) != "v" {
+		t.Errorf("Get = %q, want v", v)
+	}
+}

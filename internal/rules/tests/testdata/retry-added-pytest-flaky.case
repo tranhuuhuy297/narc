@@ -1,0 +1,19 @@
+# pytest-rerunfailures: @pytest.mark.flaky(reruns=3).
+expect: retry-added
+-- old/tests/test_webhooks.py --
+from app.webhooks import deliver
+
+
+def test_webhook_delivery(httpserver):
+    httpserver.expect_request("/hook").respond_with_data("ok")
+    assert deliver(httpserver.url_for("/hook"), {"a": 1}).status == 200
+-- new/tests/test_webhooks.py --
+import pytest
+
+from app.webhooks import deliver
+
+
+@pytest.mark.flaky(reruns=3)
+def test_webhook_delivery(httpserver):
+    httpserver.expect_request("/hook").respond_with_data("ok")
+    assert deliver(httpserver.url_for("/hook"), {"a": 1}).status == 200

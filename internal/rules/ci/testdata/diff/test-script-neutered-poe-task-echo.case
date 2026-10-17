@@ -1,0 +1,18 @@
+# The poethepoet test task in pyproject.toml now echoes.
+expect: test-script-neutered
+-- old/pyproject.toml --
+[project]
+name = "ledger"
+version = "0.3.0"
+
+[tool.poe.tasks]
+test = "pytest -q"
+lint = "ruff check ."
+-- new/pyproject.toml --
+[project]
+name = "ledger"
+version = "0.3.0"
+
+[tool.poe.tasks]
+test = "echo 'tests are flaky, skipping'"
+lint = "ruff check ."

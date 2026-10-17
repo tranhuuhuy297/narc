@@ -1,0 +1,37 @@
+# Numbers that look like thresholds but are not: flake8 line length and a report path variable.
+expect: clean
+-- old/setup.cfg --
+[flake8]
+max-line-length = 88
+
+[coverage:report]
+fail_under = 80
+-- new/setup.cfg --
+[flake8]
+max-line-length = 79
+
+[coverage:report]
+fail_under = 80
+precision = 2
+-- old/.github/workflows/ci.yml --
+name: CI
+on: [pull_request]
+env:
+  COVERAGE_REPORT_DIR: reports/coverage
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - run: pytest --cov --cov-report=xml
+-- new/.github/workflows/ci.yml --
+name: CI
+on: [pull_request]
+env:
+  COVERAGE_REPORT_DIR: build/coverage
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - run: pytest --cov --cov-report=xml

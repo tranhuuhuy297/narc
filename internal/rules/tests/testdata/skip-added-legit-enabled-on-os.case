@@ -1,0 +1,35 @@
+# A new Windows-only test is restricted with @EnabledOnOs: it adds coverage
+# on one platform rather than switching an existing test off.
+expect: clean
+-- old/src/test/kotlin/com/acme/fs/PathsTest.kt --
+package com.acme.fs
+
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Test
+
+class PathsTest {
+    @Test
+    fun `joins segments`() {
+        assertEquals("a/b", Paths.join("a", "b"))
+    }
+}
+-- new/src/test/kotlin/com/acme/fs/PathsTest.kt --
+package com.acme.fs
+
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.condition.EnabledOnOs
+import org.junit.jupiter.api.condition.OS
+
+class PathsTest {
+    @Test
+    fun `joins segments`() {
+        assertEquals("a/b", Paths.join("a", "b"))
+    }
+
+    @Test
+    @EnabledOnOs(OS.WINDOWS)
+    fun `normalizes drive letters`() {
+        assertEquals("C:/a", Paths.normalize("c:\\a"))
+    }
+}

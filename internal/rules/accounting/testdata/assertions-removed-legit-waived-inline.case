@@ -1,0 +1,18 @@
+# An assertion removed on purpose, with an inline waiver where it used to be.
+expect: clean
+-- old/src/feed/feed.test.ts --
+import { buildFeed } from './feed'
+
+it('builds the home feed', async () => {
+  const feed = await buildFeed('u_1')
+  expect(feed.items).toHaveLength(20)
+  expect(feed.ads).toHaveLength(2)
+})
+-- new/src/feed/feed.test.ts --
+import { buildFeed } from './feed'
+
+it('builds the home feed', async () => {
+  const feed = await buildFeed('u_1')
+  expect(feed.items).toHaveLength(20)
+  // narc:allow assertions-removed reason="ads were removed from the product, see PROD-482"
+})

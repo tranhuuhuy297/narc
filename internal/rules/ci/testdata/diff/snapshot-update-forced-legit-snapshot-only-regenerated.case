@@ -1,0 +1,18 @@
+# Snapshots regenerated after a formatter upgrade, with no source changes.
+expect: clean
+-- old/package.json --
+{
+  "devDependencies": {
+    "prettier": "3.2.5"
+  }
+}
+-- new/package.json --
+{
+  "devDependencies": {
+    "prettier": "3.3.3"
+  }
+}
+-- old/src/__snapshots__/render.test.ts.snap --
+exports[`renders 1`] = `"<p>a</p>"`;
+-- new/src/__snapshots__/render.test.ts.snap --
+exports[`renders 1`] = `"<p>a</p>\n"`;

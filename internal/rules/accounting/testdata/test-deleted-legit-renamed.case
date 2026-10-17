@@ -1,0 +1,20 @@
+# Renaming a pytest function while keeping its body is not a deletion.
+expect: clean
+-- old/tests/test_invoice.py --
+from shop.invoice import Invoice, Line
+
+
+def test_total():
+    invoice = Invoice([Line("tee", 2000, qty=2), Line("cap", 1500)])
+    assert invoice.subtotal == 5500
+    assert invoice.tax == 1045
+    assert invoice.total == 6545
+-- new/tests/test_invoice.py --
+from shop.invoice import Invoice, Line
+
+
+def test_total_includes_19_percent_vat():
+    invoice = Invoice([Line("tee", 2000, qty=2), Line("cap", 1500)])
+    assert invoice.subtotal == 5500
+    assert invoice.tax == 1045
+    assert invoice.total == 6545

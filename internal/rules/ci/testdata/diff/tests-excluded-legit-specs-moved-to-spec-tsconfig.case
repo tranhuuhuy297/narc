@@ -1,0 +1,19 @@
+# Specs excluded from the app tsconfig because a new tsconfig.spec.json type-checks them.
+expect: clean
+-- old/tsconfig.json --
+{
+  "compilerOptions": { "strict": true },
+  "include": ["src"]
+}
+-- new/tsconfig.json --
+{
+  "compilerOptions": { "strict": true },
+  "include": ["src"],
+  "exclude": ["src/**/*.spec.ts"]
+}
+-- new/tsconfig.spec.json --
+{
+  "extends": "./tsconfig.json",
+  "include": ["src/**/*.spec.ts"],
+  "exclude": []
+}

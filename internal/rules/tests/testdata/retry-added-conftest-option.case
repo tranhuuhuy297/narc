@@ -1,0 +1,30 @@
+# Evasive: pytest-rerunfailures is switched on for the whole run from
+# conftest.py instead of pytest.ini or the command line.
+expect: retry-added
+-- old/tests/conftest.py --
+import pytest
+
+from app import create_app
+
+
+def pytest_configure(config):
+    config.addinivalue_line("markers", "e2e: end-to-end tests")
+
+
+@pytest.fixture
+def client():
+    return create_app(testing=True).test_client()
+-- new/tests/conftest.py --
+import pytest
+
+from app import create_app
+
+
+def pytest_configure(config):
+    config.addinivalue_line("markers", "e2e: end-to-end tests")
+    config.option.reruns = 3
+
+
+@pytest.fixture
+def client():
+    return create_app(testing=True).test_client()

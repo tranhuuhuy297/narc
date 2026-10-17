@@ -1,0 +1,20 @@
+# cfg_attr(all(), ignore) looks like a configuration gate, but all() is
+# always true: the test is ignored in every build.
+expect: skip-added@error
+-- old/tests/roundtrip.rs --
+use codec::{decode, encode};
+
+#[test]
+fn roundtrips_unicode() {
+    let s = "héllo wörld";
+    assert_eq!(decode(&encode(s)).unwrap(), s);
+}
+-- new/tests/roundtrip.rs --
+use codec::{decode, encode};
+
+#[test]
+#[cfg_attr(all(), ignore)]
+fn roundtrips_unicode() {
+    let s = "héllo wörld";
+    assert_eq!(decode(&encode(s)).unwrap(), s);
+}

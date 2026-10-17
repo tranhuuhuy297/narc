@@ -1,0 +1,18 @@
+# A testing library registers its own cleanup hook when the host test framework provides one.
+expect: clean
+-- old/src/index.ts --
+import { cleanup } from "./cleanup";
+
+export * from "./render";
+export { cleanup };
+-- new/src/index.ts --
+import { cleanup } from "./cleanup";
+
+export * from "./render";
+export { cleanup };
+
+if (typeof afterEach === "function" && !process.env.UI_TEST_SKIP_AUTO_CLEANUP) {
+  afterEach(() => {
+    cleanup();
+  });
+}

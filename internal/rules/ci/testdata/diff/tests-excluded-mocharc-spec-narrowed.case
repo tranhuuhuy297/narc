@@ -1,0 +1,11 @@
+# mocha spec narrowed to the unit tests only.
+expect: tests-excluded
+-- old/.mocharc.yml --
+require: ts-node/register
+spec:
+  - test/unit/**/*.spec.ts
+  - test/api/**/*.spec.ts
+-- new/.mocharc.yml --
+require: ts-node/register
+spec:
+  - test/unit/**/*.spec.ts

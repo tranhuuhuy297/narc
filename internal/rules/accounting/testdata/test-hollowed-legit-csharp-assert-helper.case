@@ -1,0 +1,44 @@
+# C#: asserts extracted into a static helper in a shared test utilities file.
+expect: clean
+-- old/tests/Shop.Tests/CheckoutTests.cs --
+using Xunit;
+
+namespace Shop.Tests;
+
+public class CheckoutTests
+{
+    [Fact]
+    public void CheckoutCreatesPaidOrder()
+    {
+        var order = new Checkout(TestCarts.WithTwoItems()).Complete();
+        Assert.Equal(OrderStatus.Paid, order.Status);
+        Assert.Equal(2, order.Lines.Count);
+    }
+}
+-- new/tests/Shop.Tests/CheckoutTests.cs --
+using Xunit;
+
+namespace Shop.Tests;
+
+public class CheckoutTests
+{
+    [Fact]
+    public void CheckoutCreatesPaidOrder()
+    {
+        var order = new Checkout(TestCarts.WithTwoItems()).Complete();
+        OrderShould.BePaidWithLines(order, 2);
+    }
+}
+-- new/tests/Shop.Tests/OrderShould.cs --
+using Xunit;
+
+namespace Shop.Tests;
+
+public static class OrderShould
+{
+    public static void BePaidWithLines(Order order, int lines)
+    {
+        Assert.Equal(OrderStatus.Paid, order.Status);
+        Assert.Equal(lines, order.Lines.Count);
+    }
+}

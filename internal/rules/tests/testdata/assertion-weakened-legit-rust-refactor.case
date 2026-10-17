@@ -1,0 +1,32 @@
+# Rust: an unwrap-then-compare becomes a direct comparison on the Result.
+expect: clean
+-- old/src/parse.rs --
+pub fn parse_level(s: &str) -> Result<u8, String> {
+    s.parse::<u8>().map_err(|e| e.to_string())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parses_levels() {
+        assert_eq!(parse_level("3").unwrap(), 3);
+        assert!(parse_level("x").is_err());
+    }
+}
+-- new/src/parse.rs --
+pub fn parse_level(s: &str) -> Result<u8, String> {
+    s.parse::<u8>().map_err(|e| e.to_string())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parses_levels() {
+        assert_eq!(parse_level("3"), Ok(3));
+        assert!(parse_level("x").is_err());
+    }
+}

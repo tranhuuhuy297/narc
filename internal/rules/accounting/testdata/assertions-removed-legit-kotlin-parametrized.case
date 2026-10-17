@@ -1,0 +1,30 @@
+# JUnit 5: repeated assertions in one test turned into a parameterized test.
+expect: clean
+-- old/src/test/kotlin/com/acme/text/SlugTest.kt --
+package com.acme.text
+
+import kotlin.test.assertEquals
+import org.junit.jupiter.api.Test
+
+class SlugTest {
+    @Test
+    fun slugifies() {
+        assertEquals("hello-world", slugify("Hello World"))
+        assertEquals("creme-brulee", slugify("Crème Brûlée"))
+        assertEquals("a-b", slugify("a -- b"))
+    }
+}
+-- new/src/test/kotlin/com/acme/text/SlugTest.kt --
+package com.acme.text
+
+import kotlin.test.assertEquals
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.CsvSource
+
+class SlugTest {
+    @ParameterizedTest
+    @CsvSource("Hello World, hello-world", "Crème Brûlée, creme-brulee", "a -- b, a-b")
+    fun slugifies(title: String, slug: String) {
+        assertEquals(slug, slugify(title))
+    }
+}

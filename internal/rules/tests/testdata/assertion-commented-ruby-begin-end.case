@@ -1,0 +1,24 @@
+# Ruby's =begin/=end block comment around an unchanged expectation.
+expect: assertion-commented, assertions-removed
+-- old/spec/services/invoice_builder_spec.rb --
+require "rails_helper"
+
+RSpec.describe InvoiceBuilder do
+  it "computes totals with VAT" do
+    invoice = described_class.call(net: 100, vat_rate: 0.07)
+    expect(invoice.net).to eq(100)
+    expect(invoice.total).to eq(107)
+  end
+end
+-- new/spec/services/invoice_builder_spec.rb --
+require "rails_helper"
+
+RSpec.describe InvoiceBuilder do
+  it "computes totals with VAT" do
+    invoice = described_class.call(net: 100, vat_rate: 0.07)
+    expect(invoice.net).to eq(100)
+=begin
+    expect(invoice.total).to eq(107)
+=end
+  end
+end

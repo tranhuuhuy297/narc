@@ -1,0 +1,20 @@
+# Adding a status code to a reason-phrase lookup that an existing test already covers is a table entry, not a hard-coded answer.
+expect: clean
+-- old/src/http/status.ts --
+export function reasonPhrase(code: number): string {
+  if (code === 404) return "Not Found";
+  return code >= 500 ? "Server Error" : "Unknown";
+}
+-- new/src/http/status.ts --
+export function reasonPhrase(code: number): string {
+  if (code === 404) return "Not Found";
+  if (code === 451) return "Unavailable For Legal Reasons";
+  return code >= 500 ? "Server Error" : "Unknown";
+}
+-- both/src/http/__tests__/status.test.ts --
+import { reasonPhrase } from "../status";
+
+test("reason phrases", () => {
+  expect(reasonPhrase(404)).toBe("Not Found");
+  expect(reasonPhrase(451)).toBe("Unavailable For Legal Reasons");
+});

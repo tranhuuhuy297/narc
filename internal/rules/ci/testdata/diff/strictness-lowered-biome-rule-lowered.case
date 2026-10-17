@@ -1,0 +1,20 @@
+# Biome rule lowered from error to off.
+expect: strictness-lowered
+-- old/biome.json --
+{
+  "linter": {
+    "enabled": true,
+    "rules": {
+      "suspicious": { "noExplicitAny": "error" }
+    }
+  }
+}
+-- new/biome.json --
+{
+  "linter": {
+    "enabled": true,
+    "rules": {
+      "suspicious": { "noExplicitAny": "off" }
+    }
+  }
+}

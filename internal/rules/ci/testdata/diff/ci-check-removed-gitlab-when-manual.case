@@ -1,0 +1,13 @@
+# The e2e job now only runs when someone clicks it (warning).
+expect: ci-check-removed
+-- old/.gitlab-ci.yml --
+e2e:
+  stage: test
+  script:
+    - npx playwright test
+-- new/.gitlab-ci.yml --
+e2e:
+  stage: test
+  when: manual
+  script:
+    - npx playwright test

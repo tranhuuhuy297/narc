@@ -1,0 +1,52 @@
+# Evasive: the test is disabled with a fully qualified annotation,
+# @org.junit.jupiter.api.Disabled, instead of an imported @Disabled.
+expect: skip-added
+-- old/src/test/java/com/acme/billing/InvoiceServiceTest.java --
+package com.acme.billing;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+import java.math.BigDecimal;
+import org.junit.jupiter.api.Test;
+
+class InvoiceServiceTest {
+    private final InvoiceService service = new InvoiceService(new FixedTaxTable());
+
+    @Test
+    void addsVatToNetAmount() {
+        Invoice invoice = service.create(new BigDecimal("100.00"));
+        assertThat(invoice.gross()).isEqualByComparingTo("119.00");
+    }
+
+    @Test
+    void creditNoteNegatesTheInvoice() {
+        Invoice invoice = service.create(new BigDecimal("100.00"));
+        Invoice credit = service.credit(invoice);
+        assertThat(credit.gross()).isEqualByComparingTo("-119.00");
+    }
+}
+-- new/src/test/java/com/acme/billing/InvoiceServiceTest.java --
+package com.acme.billing;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+import java.math.BigDecimal;
+import org.junit.jupiter.api.Test;
+
+class InvoiceServiceTest {
+    private final InvoiceService service = new InvoiceService(new FixedTaxTable());
+
+    @Test
+    void addsVatToNetAmount() {
+        Invoice invoice = service.create(new BigDecimal("100.00"));
+        assertThat(invoice.gross()).isEqualByComparingTo("119.00");
+    }
+
+    @org.junit.jupiter.api.Disabled
+    @Test
+    void creditNoteNegatesTheInvoice() {
+        Invoice invoice = service.create(new BigDecimal("100.00"));
+        Invoice credit = service.credit(invoice);
+        assertThat(credit.gross()).isEqualByComparingTo("-119.00");
+    }
+}

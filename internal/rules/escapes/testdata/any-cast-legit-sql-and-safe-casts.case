@@ -1,0 +1,24 @@
+# "AS any_value" in SQL, a single widening cast to unknown, `as const` and `satisfies` are not escapes.
+expect: clean
+-- old/src/db/report.ts --
+export async function topCustomers(db: Db) {
+  return db.query("SELECT id FROM customers LIMIT 10");
+}
+-- new/src/db/report.ts --
+const SQL = `
+  SELECT c.id, any_value(c.name) AS any_name, sum(o.total) as anytotal
+  FROM customers c JOIN orders o ON o.customer_id = c.id
+  GROUP BY c.id
+`;
+
+const config = { limit: 10, order: "desc" } as const satisfies ReportConfig;
+
+export async function topCustomers(db: Db): Promise<Row[]> {
+  const raw: unknown = await db.query(SQL, [config.limit]);
+  if (!isRowArray(raw)) throw new TypeError("unexpected report shape");
+  return raw;
+}
+
+function isRowArray(x: unknown): x is Row[] {
+  return Array.isArray(x as unknown);
+}

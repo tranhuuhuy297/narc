@@ -1,0 +1,12 @@
+# The rule list of an existing directive is re-ordered and its reason reworded.
+expect: clean
+-- old/src/cli/prompt.js --
+export function confirm(message) {
+  // eslint-disable-next-line no-alert, no-restricted-globals
+  return confirm(message);
+}
+-- new/src/cli/prompt.js --
+export function confirm(message) {
+  // eslint-disable-next-line no-restricted-globals, no-alert -- browser-only CLI shim
+  return confirm(message);
+}

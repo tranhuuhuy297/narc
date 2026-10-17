@@ -1,0 +1,12 @@
+# A testing guide mentions focus markers; Markdown is not test code.
+expect: clean
+-- old/docs/testing.md --
+# Testing
+
+Use `npm test` to run the suite.
+-- new/docs/testing.md --
+# Testing
+
+Use `npm test` to run the suite. To run a single test while debugging, use
+`it.only` or `fit` locally, but never commit them: CI runs with
+`--forbid-only` and will fail.

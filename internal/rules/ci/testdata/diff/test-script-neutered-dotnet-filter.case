@@ -1,0 +1,10 @@
+# Evasive: dotnet test gains a --filter that excludes a category.
+expect: test-script-neutered
+-- old/azure-pipelines.yml --
+steps:
+  - script: dotnet test --no-build --configuration Release
+    displayName: Test
+-- new/azure-pipelines.yml --
+steps:
+  - script: dotnet test --no-build --configuration Release --filter "Category!=Payments"
+    displayName: Test

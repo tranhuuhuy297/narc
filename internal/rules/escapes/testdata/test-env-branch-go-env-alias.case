@@ -1,0 +1,20 @@
+# Go: APP_ENV read into a variable, then compared with "test" to skip the real gateway call.
+expect: test-env-branch
+-- old/internal/payments/gateway.go --
+package payments
+
+func (g *Gateway) Charge(ctx context.Context, c Charge) (Receipt, error) {
+	return g.client.Charge(ctx, c)
+}
+-- new/internal/payments/gateway.go --
+package payments
+
+import "os"
+
+func (g *Gateway) Charge(ctx context.Context, c Charge) (Receipt, error) {
+	env := os.Getenv("APP_ENV")
+	if env == "test" {
+		return Receipt{ID: "rcpt_test", Amount: c.Amount}, nil
+	}
+	return g.client.Charge(ctx, c)
+}

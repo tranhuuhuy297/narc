@@ -1,0 +1,13 @@
+# A test flag whose only use is quieting logs.
+expect: clean
+-- old/app/logging_setup.py --
+import logging
+
+logging.basicConfig(level=logging.INFO)
+-- new/app/bootstrap_logging.py --
+import logging
+import os
+
+UNDER_PYTEST = "PYTEST_CURRENT_TEST" in os.environ
+
+logging.basicConfig(level=logging.WARNING if UNDER_PYTEST else logging.INFO)

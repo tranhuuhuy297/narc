@@ -1,0 +1,41 @@
+# Rust: #[should_panic(expected = ...)] loses its message check, so any
+# panic (even an unrelated one) passes.
+expect: assertion-weakened
+-- old/src/stack.rs --
+pub struct Stack(Vec<i32>);
+
+impl Stack {
+    pub fn pop(&mut self) -> i32 {
+        self.0.pop().expect("pop from empty stack")
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    #[should_panic(expected = "pop from empty stack")]
+    fn pop_empty_panics() {
+        Stack(vec![]).pop();
+    }
+}
+-- new/src/stack.rs --
+pub struct Stack(Vec<i32>);
+
+impl Stack {
+    pub fn pop(&mut self) -> i32 {
+        self.0.pop().unwrap()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    #[should_panic]
+    fn pop_empty_panics() {
+        Stack(vec![]).pop();
+    }
+}

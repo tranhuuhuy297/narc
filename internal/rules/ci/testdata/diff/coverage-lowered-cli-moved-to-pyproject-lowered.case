@@ -1,0 +1,27 @@
+# Evasive: --cov-fail-under moved from CI into pyproject.toml and lowered on the way.
+expect: coverage-lowered
+-- old/.github/workflows/ci.yml --
+name: CI
+on: [pull_request]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - run: pytest --cov=acme --cov-fail-under=95
+-- new/.github/workflows/ci.yml --
+name: CI
+on: [pull_request]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - run: pytest --cov=acme
+-- old/pyproject.toml --
+[project]
+name = "acme"
+-- new/pyproject.toml --
+[project]
+name = "acme"
+
+[tool.coverage.report]
+fail_under = 70

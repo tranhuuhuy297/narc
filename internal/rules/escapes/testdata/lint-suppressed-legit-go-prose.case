@@ -1,0 +1,9 @@
+# A Go comment that talks about nolint is not a nolint directive.
+expect: clean
+-- old/internal/lint/doc.go --
+package lint
+-- new/internal/lint/doc.go --
+// Package lint wraps golangci-lint.
+//
+// nolint directives are reviewed in CI; see docs/linting.md.
+package lint

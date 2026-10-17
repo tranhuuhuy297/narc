@@ -1,0 +1,18 @@
+# An existing check moved within the file; nothing new detects tests.
+expect: clean
+-- old/src/server.js --
+const app = require("./app");
+
+if (process.env.NODE_ENV !== "test") {
+  app.listen(process.env.PORT);
+}
+
+module.exports = app;
+-- new/src/server.js --
+const app = require("./app");
+
+module.exports = app;
+
+if (process.env.NODE_ENV !== "test") {
+  app.listen(process.env.PORT);
+}

@@ -140,6 +140,7 @@
       "hint": "Fix the code under test so the test passes instead of skipping it. If the test itself is wrong, fix the test and say why in the commit.",
       "waived": true,
       "waiver_reason": "flaky upstream API, see #812",
+      "waiver_source": "inline",
       "fingerprint": "e6df33fa20422a5e"
     },
     {
@@ -180,6 +181,7 @@
       "hint": "Revert the change to the protected file. If it really must change, a human should make or approve that change.",
       "waived": true,
       "waiver_reason": "tax rate changed by finance, ticket FIN-12",
+      "waiver_source": "config",
       "fingerprint": "d582ba541f59b105"
     },
     {

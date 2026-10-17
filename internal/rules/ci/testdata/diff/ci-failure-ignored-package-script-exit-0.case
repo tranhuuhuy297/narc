@@ -1,0 +1,22 @@
+# The test script swallows vitest failures with '|| exit 0'.
+expect: ci-failure-ignored
+-- old/package.json --
+{
+  "name": "@acme/web",
+  "private": true,
+  "scripts": {
+    "build": "vite build",
+    "test": "vitest run",
+    "lint": "eslint ."
+  }
+}
+-- new/package.json --
+{
+  "name": "@acme/web",
+  "private": true,
+  "scripts": {
+    "build": "vite build",
+    "test": "vitest run || exit 0",
+    "lint": "eslint ."
+  }
+}

@@ -1,0 +1,33 @@
+# The condition only checks whether the package has a test script; the test itself still fails the step.
+expect: clean
+-- old/.github/workflows/packages.yml --
+name: Packages
+on: [pull_request]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        pkg: [core, cli, web]
+    steps:
+      - uses: actions/checkout@v4
+      - run: npm ci
+      - run: npm test --workspace packages/${{ matrix.pkg }}
+-- new/.github/workflows/packages.yml --
+name: Packages
+on: [pull_request]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        pkg: [core, cli, web, docs]
+    steps:
+      - uses: actions/checkout@v4
+      - run: npm ci
+      - run: |
+          if jq -e '.scripts.test' "packages/${{ matrix.pkg }}/package.json" >/dev/null; then
+            npm test --workspace "packages/${{ matrix.pkg }}"
+          else
+            echo "packages/${{ matrix.pkg }} has no tests"
+          fi

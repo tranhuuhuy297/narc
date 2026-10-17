@@ -1,0 +1,12 @@
+# A RuboCop cop disabled (info).
+expect: strictness-lowered
+-- old/.rubocop.yml --
+AllCops:
+  TargetRubyVersion: 3.3
+Lint/UselessAssignment:
+  Enabled: true
+-- new/.rubocop.yml --
+AllCops:
+  TargetRubyVersion: 3.3
+Lint/UselessAssignment:
+  Enabled: false

@@ -1,0 +1,10 @@
+# ruff now ignores bare-except and unused-import codes (info).
+expect: strictness-lowered
+-- old/pyproject.toml --
+[tool.ruff.lint]
+select = ["E", "F", "B"]
+ignore = ["E501"]
+-- new/pyproject.toml --
+[tool.ruff.lint]
+select = ["E", "F", "B"]
+ignore = ["E501", "E722", "F401"]

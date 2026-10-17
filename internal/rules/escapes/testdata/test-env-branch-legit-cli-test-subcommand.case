@@ -1,0 +1,28 @@
+# A developer CLI with a "test" subcommand that runs the user's test suite is dispatching, not detecting tests.
+expect: clean
+-- old/src/devkit/cli.py --
+import sys
+
+from devkit import build
+
+
+def main() -> int:
+    if len(sys.argv) > 1 and sys.argv[1] == "build":
+        return build.run(sys.argv[2:])
+    print("usage: devkit {build}")
+    return 2
+-- new/src/devkit/cli.py --
+import sys
+
+import pytest
+
+from devkit import build
+
+
+def main() -> int:
+    if len(sys.argv) > 1 and sys.argv[1] == "build":
+        return build.run(sys.argv[2:])
+    if len(sys.argv) > 1 and sys.argv[1] == "test":
+        return pytest.main(sys.argv[2:])
+    print("usage: devkit {build,test}")
+    return 2

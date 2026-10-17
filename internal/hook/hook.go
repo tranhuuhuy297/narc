@@ -25,7 +25,9 @@
 //     picture, but only findings in the edited files count, and only ones
 //     the edit itself introduces. The edit is denied when such a finding
 //     reaches hook.block_on, and also when it would leave .narc.yml
-//     unparseable (which would turn narc off).
+//     unparseable (which would turn narc off). The edit is judged in the
+//     repository that owns the file, with its .narc.yml, even when the
+//     session started in a parent folder or another repository.
 //   - Post-edit (post-tool-use, after-tool): the edit already happened.
 //     Changes to the touched files since the session baseline are checked
 //     and, when a finding reaches the threshold, fed back to the model as
@@ -33,7 +35,10 @@
 //     only annotates the tool result).
 //   - Stop (stop, subagent-stop, after-agent): everything changed since the
 //     session baseline, untracked files included, is scanned. Findings that
-//     already existed when the session started are ignored. When new
+//     already existed when the session started are ignored, and so are
+//     findings that git brought in from other people's work since then (a
+//     pull, merge, rebase onto another branch, cherry-pick or checkout, read
+//     from the reflog); the agent's own commits still count. When new
 //     findings reach the threshold the agent is told to keep working. After
 //     hook.max_blocks consecutive blocks narc lets the agent stop, warns the
 //     human, and stops raising those findings for the rest of the session.
@@ -45,7 +50,11 @@
 //     harness has no session-start hook, the first pre-edit event of a
 //     session records the same snapshot.
 //   - git pre-commit: scans the staged changes, prints a report on stderr
-//     and exits 1 when findings reach fail_on.
+//     and exits 1 when findings reach fail_on. Concluding a merge, only
+//     what the merge itself changes counts, not what the merged branch
+//     brings in.
+//
+// `hook.block_on: off` (or `fail_on: off`) means narc never blocks.
 //
 // Hooks fail open: bad input, a missing repository, a broken .narc.yml or
 // any internal error lets the agent continue (exit 0, the harness's "allow"

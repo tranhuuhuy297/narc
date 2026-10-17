@@ -1,0 +1,12 @@
+# ./gradlew build -x test skips the test task.
+expect: test-script-neutered
+-- old/.gitlab-ci.yml --
+build:
+  image: gradle:8-jdk21
+  script:
+    - ./gradlew build --no-daemon
+-- new/.gitlab-ci.yml --
+build:
+  image: gradle:8-jdk21
+  script:
+    - ./gradlew build --no-daemon -x test

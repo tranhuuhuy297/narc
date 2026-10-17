@@ -1,0 +1,33 @@
+# The resumable-upload test broke; the agent added an unconditional t.Skip.
+expect: skip-added
+-- old/internal/upload/upload_test.go --
+package upload
+
+import "testing"
+
+func TestUploadResumes(t *testing.T) {
+	srv := newTestServer(t)
+	u := New(srv.URL)
+	if err := u.Upload("big.bin", interruptAfter(3)); err != nil {
+		t.Fatalf("upload: %v", err)
+	}
+	if got := srv.Chunks(); got != 8 {
+		t.Errorf("chunks = %d, want 8", got)
+	}
+}
+-- new/internal/upload/upload_test.go --
+package upload
+
+import "testing"
+
+func TestUploadResumes(t *testing.T) {
+	t.Skip("TODO: fix resume logic later")
+	srv := newTestServer(t)
+	u := New(srv.URL)
+	if err := u.Upload("big.bin", interruptAfter(3)); err != nil {
+		t.Fatalf("upload: %v", err)
+	}
+	if got := srv.Chunks(); got != 8 {
+		t.Errorf("chunks = %d, want 8", got)
+	}
+}

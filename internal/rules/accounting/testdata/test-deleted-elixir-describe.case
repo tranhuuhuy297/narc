@@ -1,0 +1,67 @@
+# Elixir: an ExUnit test inside a describe block was deleted after the changeset validation changed.
+expect: test-deleted
+-- old/lib/my_app/accounts/user.ex --
+defmodule MyApp.Accounts.User do
+  use Ecto.Schema
+  import Ecto.Changeset
+
+  schema "users" do
+    field :email, :string
+    field :age, :integer
+  end
+
+  def changeset(user, attrs) do
+    user
+    |> cast(attrs, [:email, :age])
+    |> validate_required([:email])
+    |> validate_number(:age, greater_than_or_equal_to: 13)
+  end
+end
+-- new/lib/my_app/accounts/user.ex --
+defmodule MyApp.Accounts.User do
+  use Ecto.Schema
+  import Ecto.Changeset
+
+  schema "users" do
+    field :email, :string
+    field :age, :integer
+  end
+
+  def changeset(user, attrs) do
+    user
+    |> cast(attrs, [:email, :age])
+    |> validate_required([:email])
+  end
+end
+-- old/test/my_app/accounts/user_test.exs --
+defmodule MyApp.Accounts.UserTest do
+  use MyApp.DataCase, async: true
+
+  alias MyApp.Accounts.User
+
+  describe "changeset/2" do
+    test "requires an email" do
+      changeset = User.changeset(%User{}, %{})
+      assert "can't be blank" in errors_on(changeset).email
+    end
+
+    test "rejects users younger than 13" do
+      changeset = User.changeset(%User{}, %{email: "kid@example.com", age: 12})
+      refute changeset.valid?
+      assert %{age: ["must be greater than or equal to 13"]} = errors_on(changeset)
+    end
+  end
+end
+-- new/test/my_app/accounts/user_test.exs --
+defmodule MyApp.Accounts.UserTest do
+  use MyApp.DataCase, async: true
+
+  alias MyApp.Accounts.User
+
+  describe "changeset/2" do
+    test "requires an email" do
+      changeset = User.changeset(%User{}, %{})
+      assert "can't be blank" in errors_on(changeset).email
+    end
+  end
+end

@@ -1,0 +1,25 @@
+# pytest moves from script to after_script, where GitLab ignores its exit status.
+expect: ci-check-removed
+-- old/.gitlab-ci.yml --
+stages: [test]
+test:
+  stage: test
+  image: python:3.12
+  script:
+    - pip install -e .[test]
+    - pytest --junitxml=report.xml
+  artifacts:
+    reports:
+      junit: report.xml
+-- new/.gitlab-ci.yml --
+stages: [test]
+test:
+  stage: test
+  image: python:3.12
+  script:
+    - pip install -e .[test]
+  after_script:
+    - pytest --junitxml=report.xml
+  artifacts:
+    reports:
+      junit: report.xml

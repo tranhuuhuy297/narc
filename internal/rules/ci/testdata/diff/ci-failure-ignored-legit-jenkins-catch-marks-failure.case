@@ -1,0 +1,32 @@
+# The catch block archives logs and then marks the build failed and rethrows.
+expect: clean
+-- old/Jenkinsfile --
+pipeline {
+  agent any
+  stages {
+    stage('Test') {
+      steps {
+        sh 'mvn -B verify'
+      }
+    }
+  }
+}
+-- new/Jenkinsfile --
+pipeline {
+  agent any
+  stages {
+    stage('Test') {
+      steps {
+        script {
+          try {
+            sh 'mvn -B verify'
+          } catch (err) {
+            archiveArtifacts artifacts: '**/surefire-reports/*.txt', allowEmptyArchive: true
+            currentBuild.result = 'FAILURE'
+            throw err
+          }
+        }
+      }
+    }
+  }
+}

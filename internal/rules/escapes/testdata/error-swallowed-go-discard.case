@@ -1,0 +1,19 @@
+# The error is assigned to the blank identifier to silence "declared and not used".
+expect: error-swallowed
+-- old/internal/export/export.go --
+package export
+
+func Write(path string, data []byte) error {
+	if err := os.WriteFile(path, data, 0o644); err != nil {
+		return fmt.Errorf("write %s: %w", path, err)
+	}
+	return nil
+}
+-- new/internal/export/export.go --
+package export
+
+func Write(path string, data []byte) error {
+	err := os.WriteFile(path, data, 0o644)
+	_ = err
+	return nil
+}

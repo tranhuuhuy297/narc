@@ -1,0 +1,12 @@
+# Deleting a spec file whose tests were all already skipped removes no running check.
+expect: clean
+-- old/e2e/legacy-checkout.spec.ts --
+import { test, expect } from '@playwright/test'
+
+test.describe.skip('legacy checkout (replaced by one-page checkout)', () => {
+  test('pays with a saved card', async ({ page }) => {
+    await page.goto('/legacy/checkout')
+    await page.getByRole('button', { name: 'Pay' }).click()
+    await expect(page.getByText('Thank you')).toBeVisible()
+  })
+})

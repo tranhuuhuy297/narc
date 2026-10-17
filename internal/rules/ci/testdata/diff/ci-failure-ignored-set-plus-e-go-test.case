@@ -1,0 +1,33 @@
+# set +e before go test, and the exit status is never checked.
+expect: ci-failure-ignored
+-- old/.github/workflows/go.yml --
+name: Go
+on: [push, pull_request]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.23"
+      - name: Test
+        run: |
+          go test -race ./...
+          go tool cover -func=coverage.out
+-- new/.github/workflows/go.yml --
+name: Go
+on: [push, pull_request]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.23"
+      - name: Test
+        run: |
+          set +e
+          go test -race ./...
+          go tool cover -func=coverage.out

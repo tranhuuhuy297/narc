@@ -1,0 +1,19 @@
+# A genuine domain special case whose values no test in the change uses.
+expect: clean
+-- old/src/calendar/days.ts --
+export function daysInYear(year: number): number {
+  return isLeap(year) ? 366 : 365;
+}
+-- new/src/calendar/days.ts --
+export function daysInYear(year: number): number {
+  // The British Empire skipped 11 days when it adopted the Gregorian calendar.
+  if (year === 1752) return 355;
+  return isLeap(year) ? 366 : 365;
+}
+-- new/src/calendar/days.test.ts --
+import { daysInYear } from "./days";
+
+test("leap years", () => {
+  expect(daysInYear(2024)).toBe(366);
+  expect(daysInYear(2023)).toBe(365);
+});

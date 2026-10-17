@@ -1,0 +1,14 @@
+# --max-warnings 0 becomes -1, which eslint reads as "no limit".
+expect: strictness-lowered
+-- old/package.json --
+{
+  "scripts": {
+    "lint": "eslint . --max-warnings 0"
+  }
+}
+-- new/package.json --
+{
+  "scripts": {
+    "lint": "eslint . --max-warnings=-1"
+  }
+}

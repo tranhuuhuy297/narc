@@ -1,0 +1,26 @@
+# RSpec: the checkout service spec was deleted outright.
+expect: test-file-deleted
+-- old/spec/services/checkout_spec.rb --
+require "rails_helper"
+
+RSpec.describe Checkout do
+  let(:cart) { create(:cart, :with_items) }
+
+  it "creates an order from the cart" do
+    order = described_class.new(cart).call
+    expect(order).to be_persisted
+    expect(order.line_items.count).to eq(cart.items.count)
+  end
+
+  it "empties the cart" do
+    described_class.new(cart).call
+    expect(cart.reload.items).to be_empty
+  end
+
+  context "when an item is out of stock" do
+    it "raises and keeps the cart" do
+      cart.items.first.product.update!(stock: 0)
+      expect { described_class.new(cart).call }.to raise_error(Checkout::OutOfStock)
+    end
+  end
+end

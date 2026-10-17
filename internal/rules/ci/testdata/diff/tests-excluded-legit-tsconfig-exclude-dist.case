@@ -1,0 +1,6 @@
+# tsconfig.json excludes build output only.
+expect: clean
+-- old/tsconfig.json --
+{ "compilerOptions": { "strict": true }, "exclude": ["node_modules"] }
+-- new/tsconfig.json --
+{ "compilerOptions": { "strict": true }, "exclude": ["node_modules", "dist", "coverage"] }

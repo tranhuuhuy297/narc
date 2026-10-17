@@ -1,0 +1,29 @@
+# Travis allow_failures now lists the integration test job.
+expect: ci-failure-ignored
+-- old/.travis.yml --
+language: python
+python:
+  - "3.11"
+  - "3.12"
+jobs:
+  include:
+    - name: "Integration tests"
+      script: pytest tests/integration
+  allow_failures:
+    - python: "3.13-dev"
+script:
+  - pytest tests/unit
+-- new/.travis.yml --
+language: python
+python:
+  - "3.11"
+  - "3.12"
+jobs:
+  include:
+    - name: "Integration tests"
+      script: pytest tests/integration
+  allow_failures:
+    - python: "3.13-dev"
+    - name: "Integration tests"
+script:
+  - pytest tests/unit

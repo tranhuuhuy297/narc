@@ -1,0 +1,36 @@
+# The integration test used to skip only under -short. The agent deleted the
+# guard so the test now always skips, including in CI: a new unconditional
+# skip, not an edit of the old gated one.
+expect: skip-added@error
+-- old/internal/store/postgres_test.go --
+package store
+
+import "testing"
+
+func TestPostgresRoundTrip(t *testing.T) {
+	if testing.Short() {
+		t.Skip("integration test, needs postgres")
+	}
+	db := openTestDB(t)
+	if err := db.Put("k", []byte("v")); err != nil {
+		t.Fatal(err)
+	}
+	if v, _ := db.Get("k"); string(v) != "v" {
+		t.Errorf("Get = %q, want v", v)
+	}
+}
+-- new/internal/store/postgres_test.go --
+package store
+
+import "testing"
+
+func TestPostgresRoundTrip(t *testing.T) {
+	t.Skip("integration test, needs postgres")
+	db := openTestDB(t)
+	if err := db.Put("k", []byte("v")); err != nil {
+		t.Fatal(err)
+	}
+	if v, _ := db.Get("k"); string(v) != "v" {
+		t.Errorf("Get = %q, want v", v)
+	}
+}

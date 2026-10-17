@@ -1,0 +1,12 @@
+# Inline ESLint comments that set an environment and tighten a rule do not suppress anything.
+expect: clean
+-- old/src/workers/thumbnail.js --
+self.onmessage = (event) => {
+  self.postMessage(resize(event.data));
+};
+-- new/src/workers/thumbnail.js --
+/* eslint-env worker */
+/* eslint complexity: ["error", 8], max-depth: ["error", 3] */
+self.onmessage = (event) => {
+  self.postMessage(resize(event.data));
+};

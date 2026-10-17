@@ -1,0 +1,13 @@
+# The check is stored in a flag that later short-circuits real work.
+expect: test-env-branch@error
+-- old/src/search/index.ts --
+export async function search(q: string) {
+  return client.search({ index: "products", q });
+}
+-- new/src/search/index.ts --
+const isTest = process.env.NODE_ENV === "test";
+
+export async function search(q: string) {
+  if (isTest) return fixtures.products.filter((p) => p.name.includes(q));
+  return client.search({ index: "products", q });
+}

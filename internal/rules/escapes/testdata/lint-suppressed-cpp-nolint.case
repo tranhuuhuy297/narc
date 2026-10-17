@@ -1,0 +1,15 @@
+# clang-tidy narrowing warning suppressed on the line.
+expect: lint-suppressed
+-- old/src/audio/mixer.cpp --
+#include "mixer.h"
+
+int16_t Mixer::sample(float v) const {
+    return static_cast<int16_t>(std::clamp(v, -1.0f, 1.0f) * 32767.0f);
+}
+-- new/src/audio/mixer.cpp --
+#include "mixer.h"
+
+int16_t Mixer::sample(float v) const {
+    int16_t s = v * 32767.0f;  // NOLINT(bugprone-narrowing-conversions)
+    return s;
+}

@@ -1,0 +1,31 @@
+# PHPUnit: markTestSkipped() at the top of a failing test.
+expect: skip-added
+-- old/tests/Unit/InvoiceNumberTest.php --
+<?php
+
+use PHPUnit\Framework\TestCase;
+
+final class InvoiceNumberTest extends TestCase
+{
+    public function testNumbersAreSequentialPerYear(): void
+    {
+        $gen = new InvoiceNumberGenerator(new InMemorySequence());
+        $this->assertSame('2024-0001', $gen->next(2024));
+        $this->assertSame('2024-0002', $gen->next(2024));
+    }
+}
+-- new/tests/Unit/InvoiceNumberTest.php --
+<?php
+
+use PHPUnit\Framework\TestCase;
+
+final class InvoiceNumberTest extends TestCase
+{
+    public function testNumbersAreSequentialPerYear(): void
+    {
+        $this->markTestSkipped('Sequence is unreliable, revisit');
+        $gen = new InvoiceNumberGenerator(new InMemorySequence());
+        $this->assertSame('2024-0001', $gen->next(2024));
+        $this->assertSame('2024-0002', $gen->next(2024));
+    }
+}

@@ -1,0 +1,34 @@
+# npm test is replaced by the existing scripts/ci.sh, which only installs and builds.
+expect: ci-check-removed@error
+-- old/.github/workflows/ci.yml --
+name: CI
+on: [pull_request]
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: npm ci
+      - run: npm test
+-- new/.github/workflows/ci.yml --
+name: CI
+on: [pull_request]
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: bash scripts/ci.sh
+-- both/scripts/ci.sh --
+#!/bin/sh
+set -e
+npm ci
+npm run build
+-- both/package.json --
+{
+  "name": "site",
+  "scripts": {
+    "build": "next build",
+    "test": "jest"
+  }
+}

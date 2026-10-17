@@ -1,0 +1,16 @@
+# Error reporting is initialized outside tests; the guarded block only configures Sentry.
+expect: clean
+-- old/src/server/errors.ts --
+import * as Sentry from "@sentry/node";
+
+Sentry.init({ dsn: process.env.SENTRY_DSN });
+-- new/src/server/errors.ts --
+import * as Sentry from "@sentry/node";
+
+if (process.env.NODE_ENV !== "test") {
+  Sentry.init({
+    dsn: process.env.SENTRY_DSN,
+    tracesSampleRate: 0.2,
+    release: process.env.GIT_SHA,
+  });
+}

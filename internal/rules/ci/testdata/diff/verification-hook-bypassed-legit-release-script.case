@@ -1,0 +1,13 @@
+# A release script commits the generated changelog with --no-verify.
+expect: clean
+-- old/scripts/release.sh --
+#!/usr/bin/env bash
+set -euo pipefail
+npm test
+npx changeset version
+-- new/scripts/release.sh --
+#!/usr/bin/env bash
+set -euo pipefail
+npm test
+npx changeset version
+git commit -am "chore: version packages" --no-verify

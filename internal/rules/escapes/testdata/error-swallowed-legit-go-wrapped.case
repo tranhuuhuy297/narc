@@ -1,0 +1,21 @@
+# Go errors returned or wrapped; a not-found case deliberately mapped to nil with errors.Is.
+expect: clean
+-- old/internal/blob/blob.go --
+package blob
+
+func (s *Store) Delete(key string) error {
+	return os.Remove(s.path(key))
+}
+-- new/internal/blob/blob.go --
+package blob
+
+func (s *Store) Delete(key string) error {
+	err := os.Remove(s.path(key))
+	if errors.Is(err, fs.ErrNotExist) {
+		return nil
+	}
+	if err != nil {
+		return fmt.Errorf("delete %s: %w", key, err)
+	}
+	return nil
+}

@@ -1,0 +1,32 @@
+# Swift: an XCTest case migrated to a Swift Testing suite in a new file.
+expect: clean
+-- old/Tests/AuthTests/TokenTests.swift --
+import XCTest
+@testable import Auth
+
+final class TokenTests: XCTestCase {
+    func testRejectsExpiredToken() {
+        let token = Token(subject: "ann", expiry: .distantPast)
+        XCTAssertThrowsError(try verifier.verify(token))
+    }
+
+    func testAcceptsFreshToken() throws {
+        let token = Token(subject: "ann", expiry: .distantFuture)
+        XCTAssertEqual(try verifier.verify(token).subject, "ann")
+    }
+}
+-- new/Tests/AuthTests/TokenSuite.swift --
+import Testing
+@testable import Auth
+
+@Suite struct TokenSuite {
+    @Test func rejectsExpiredToken() {
+        let token = Token(subject: "ann", expiry: .distantPast)
+        #expect(throws: TokenError.self) { try verifier.verify(token) }
+    }
+
+    @Test func acceptsFreshToken() throws {
+        let token = Token(subject: "ann", expiry: .distantFuture)
+        #expect(try verifier.verify(token).subject == "ann")
+    }
+}

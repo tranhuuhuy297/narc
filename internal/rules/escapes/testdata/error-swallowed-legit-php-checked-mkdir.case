@@ -1,0 +1,24 @@
+# PHP: the race-safe mkdir idiom checks the silenced call's result and throws on real failure.
+expect: clean
+-- old/src/Storage/LocalDisk.php --
+<?php
+
+final class LocalDisk
+{
+    public function ensureDir(string $dir): void
+    {
+        mkdir($dir, 0775, true);
+    }
+}
+-- new/src/Storage/LocalDisk.php --
+<?php
+
+final class LocalDisk
+{
+    public function ensureDir(string $dir): void
+    {
+        if (!@mkdir($dir, 0775, true) && !is_dir($dir)) {
+            throw new \RuntimeException(sprintf('Directory "%s" was not created', $dir));
+        }
+    }
+}

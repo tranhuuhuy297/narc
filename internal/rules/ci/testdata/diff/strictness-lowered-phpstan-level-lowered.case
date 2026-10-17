@@ -1,0 +1,12 @@
+# PHPStan level lowered from 8 to 5.
+expect: strictness-lowered
+-- old/phpstan.neon --
+parameters:
+    level: 8
+    paths:
+        - src
+-- new/phpstan.neon --
+parameters:
+    level: 5
+    paths:
+        - src

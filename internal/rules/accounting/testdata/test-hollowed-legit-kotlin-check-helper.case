@@ -1,0 +1,31 @@
+# Kotlin: assertions moved into a checkParsing helper that the test calls.
+expect: clean
+-- old/src/test/kotlin/com/acme/csv/CsvReaderTest.kt --
+package com.acme.csv
+
+import kotlin.test.Test
+import kotlin.test.assertEquals
+
+class CsvReaderTest {
+    @Test
+    fun `reads quoted fields`() {
+        val rows = CsvReader().read("a,\"b,c\"\n")
+        assertEquals(listOf(listOf("a", "b,c")), rows)
+    }
+}
+-- new/src/test/kotlin/com/acme/csv/CsvReaderTest.kt --
+package com.acme.csv
+
+import kotlin.test.Test
+import kotlin.test.assertEquals
+
+class CsvReaderTest {
+    private fun checkParsing(input: String, vararg rows: List<String>) {
+        assertEquals(rows.toList(), CsvReader().read(input))
+    }
+
+    @Test
+    fun `reads quoted fields`() {
+        checkParsing("a,\"b,c\"\n", listOf("a", "b,c"))
+    }
+}

@@ -1,0 +1,26 @@
+# Both literals appear in the tests, but in unrelated places: no test pairs this input with this output.
+expect: clean
+-- old/src/http/backoff.ts --
+export function backoffMs(attempt: number): number {
+  return Math.min(30000, 250 * 2 ** attempt);
+}
+-- new/src/http/backoff.ts --
+export function backoffMs(attempt: number, status?: number): number {
+  if (status === 503) return 30000;
+  return Math.min(30000, 250 * 2 ** attempt);
+}
+-- new/src/http/backoff.test.ts --
+import { backoffMs } from "./backoff";
+
+test("caps the delay", () => {
+  expect(backoffMs(20)).toBe(30000);
+});
+
+test("first retry", () => {
+  expect(backoffMs(0)).toBe(250);
+});
+
+test("service unavailable is retried", () => {
+  const res = { status: 503 };
+  expect(shouldRetry(res)).toBe(true);
+});

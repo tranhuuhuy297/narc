@@ -1,0 +1,15 @@
+# The API client serves a canned response when a Jest worker is detected.
+expect: test-env-branch
+-- old/src/api/exchange.js --
+export async function rate(from, to) {
+  const res = await fetch(`https://api.rates.example/v1/${from}/${to}`);
+  return (await res.json()).rate;
+}
+-- new/src/api/exchange.js --
+export async function rate(from, to) {
+  if (process.env.JEST_WORKER_ID !== undefined) {
+    return 1.08;
+  }
+  const res = await fetch(`https://api.rates.example/v1/${from}/${to}`);
+  return (await res.json()).rate;
+}

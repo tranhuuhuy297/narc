@@ -1,0 +1,21 @@
+# A module was split; the suppressed line moved to the new file unchanged.
+expect: clean
+-- old/app/utils.py --
+import json
+import pickle  # noqa: S403
+
+
+def to_json(value):
+    return json.dumps(value)
+-- new/app/utils.py --
+import json
+
+
+def to_json(value):
+    return json.dumps(value)
+-- new/app/legacy_cache.py --
+import pickle  # noqa: S403
+
+
+def load(blob):
+    return pickle.loads(blob)

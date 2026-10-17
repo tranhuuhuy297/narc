@@ -1,0 +1,24 @@
+# QUnit.only runs one test and skips the rest of the suite.
+expect: focus-added
+-- old/tests/unit/slug-test.js --
+import { slugify } from '../../src/slug';
+
+QUnit.module('slugify', () => {
+  QUnit.test('lowercases and dashes', (assert) => {
+    assert.strictEqual(slugify('Hello World'), 'hello-world');
+  });
+  QUnit.test('strips accents', (assert) => {
+    assert.strictEqual(slugify('Crème brûlée'), 'creme-brulee');
+  });
+});
+-- new/tests/unit/slug-test.js --
+import { slugify } from '../../src/slug';
+
+QUnit.module('slugify', () => {
+  QUnit.test('lowercases and dashes', (assert) => {
+    assert.strictEqual(slugify('Hello World'), 'hello-world');
+  });
+  QUnit.only('strips accents', (assert) => {
+    assert.strictEqual(slugify('Crème brûlée'), 'creme-brulee');
+  });
+});

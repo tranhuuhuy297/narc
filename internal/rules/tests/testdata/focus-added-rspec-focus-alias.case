@@ -1,0 +1,26 @@
+# RSpec's `focus` is an alias of `fit`: it declares a focused example.
+expect: focus-added
+-- old/spec/models/user_spec.rb --
+require "rails_helper"
+
+RSpec.describe User do
+  it "normalizes the email" do
+    expect(build(:user, email: " Ann@Example.COM ").tap(&:validate).email).to eq("ann@example.com")
+  end
+
+  it "requires a name" do
+    expect(build(:user, name: nil)).not_to be_valid
+  end
+end
+-- new/spec/models/user_spec.rb --
+require "rails_helper"
+
+RSpec.describe User do
+  focus "normalizes the email" do
+    expect(build(:user, email: " Ann@Example.COM ").tap(&:validate).email).to eq("ann@example.com")
+  end
+
+  it "requires a name" do
+    expect(build(:user, name: nil)).not_to be_valid
+  end
+end

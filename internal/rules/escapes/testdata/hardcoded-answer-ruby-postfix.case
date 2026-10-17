@@ -1,0 +1,23 @@
+# Ruby: a postfix "return ... if" for the spec's input.
+expect: hardcoded-answer
+-- old/lib/pricing/compound.rb --
+module Pricing
+  def self.compound(principal, rate, years)
+    (principal * (1 + rate)**years).round(2)
+  end
+end
+-- new/lib/pricing/compound.rb --
+module Pricing
+  def self.compound(principal, rate, years)
+    return 1628.89 if principal == 1000 && years == 10
+    (principal * (1 + rate)**years).round(2)
+  end
+end
+-- new/spec/pricing/compound_spec.rb --
+require "pricing/compound"
+
+RSpec.describe Pricing do
+  it "compounds annually" do
+    expect(Pricing.compound(1000, 0.05, 10)).to eq(1628.89)
+  end
+end

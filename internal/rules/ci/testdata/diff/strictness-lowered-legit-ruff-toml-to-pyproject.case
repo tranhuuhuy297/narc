@@ -1,0 +1,19 @@
+# ruff.toml folded into pyproject.toml with the same ignores.
+expect: clean
+-- old/ruff.toml --
+line-length = 100
+
+[lint]
+ignore = ["E501", "B008"]
+-- old/pyproject.toml --
+[project]
+name = "svc"
+-- new/pyproject.toml --
+[project]
+name = "svc"
+
+[tool.ruff]
+line-length = 100
+
+[tool.ruff.lint]
+ignore = ["E501", "B008"]

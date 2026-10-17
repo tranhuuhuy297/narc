@@ -1,0 +1,30 @@
+# Rails `only:` options in a controller spec are not RSpec focus metadata.
+expect: clean
+-- old/spec/controllers/admin/reports_controller_spec.rb --
+require "rails_helper"
+
+RSpec.describe Admin::ReportsController do
+  it "requires an admin" do
+    get :index
+    expect(response).to have_http_status(:forbidden)
+  end
+end
+-- new/spec/controllers/admin/reports_controller_spec.rb --
+require "rails_helper"
+
+RSpec.describe Admin::ReportsController do
+  controller do
+    before_action :authenticate_admin!, only: [:index]
+  end
+
+  it "requires an admin" do
+    get :index
+    expect(response).to have_http_status(:forbidden)
+  end
+
+  it "renders only the summary", focus_area: :summary do
+    sign_in create(:admin)
+    get :index, params: { only: "summary" }
+    expect(response.body).to include("Summary")
+  end
+end

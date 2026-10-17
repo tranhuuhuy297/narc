@@ -1,0 +1,18 @@
+# An ESLint rule downgraded from error to off in .eslintrc.json.
+expect: strictness-lowered
+-- old/.eslintrc.json --
+{
+  "extends": ["eslint:recommended", "plugin:@typescript-eslint/recommended"],
+  "rules": {
+    "@typescript-eslint/no-floating-promises": "error",
+    "no-console": "warn"
+  }
+}
+-- new/.eslintrc.json --
+{
+  "extends": ["eslint:recommended", "plugin:@typescript-eslint/recommended"],
+  "rules": {
+    "@typescript-eslint/no-floating-promises": "off",
+    "no-console": "warn"
+  }
+}

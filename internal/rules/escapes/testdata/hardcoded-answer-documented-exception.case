@@ -1,0 +1,24 @@
+# A real calendar exception that the existing test pins down, documented with a reference: reported as a note only.
+expect: hardcoded-answer@info
+-- old/src/calendar/month.ts --
+export function daysInMonth(year: number, month: number): number {
+  return new Date(Date.UTC(year, month, 0)).getUTCDate();
+}
+-- new/src/calendar/month.ts --
+export function daysInMonth(year: number, month: number): number {
+  // Britain and its colonies skipped 3–13 September 1752 when adopting the
+  // Gregorian calendar: https://en.wikipedia.org/wiki/Calendar_(New_Style)_Act_1750
+  if (year === 1752 && month === 9) return 19;
+  return new Date(Date.UTC(year, month, 0)).getUTCDate();
+}
+-- both/src/calendar/month.test.ts --
+import { daysInMonth } from "./month";
+
+test("the 1752 calendar reform", () => {
+  expect(daysInMonth(1752, 9)).toBe(19);
+});
+
+test("regular months", () => {
+  expect(daysInMonth(2023, 2)).toBe(28);
+  expect(daysInMonth(2024, 2)).toBe(29);
+});

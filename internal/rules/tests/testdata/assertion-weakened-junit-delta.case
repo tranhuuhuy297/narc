@@ -1,0 +1,28 @@
+# JUnit: the delta of assertEquals grows from 0.001 to 0.5.
+expect: assertion-weakened
+-- old/src/test/java/com/acme/ship/CostTest.java --
+package com.acme.ship;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+
+import org.junit.jupiter.api.Test;
+
+class CostTest {
+    @Test
+    void expressCost() {
+        assertEquals(19.80, Rates.express().cost(parcel(2)), 0.001);
+    }
+}
+-- new/src/test/java/com/acme/ship/CostTest.java --
+package com.acme.ship;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+
+import org.junit.jupiter.api.Test;
+
+class CostTest {
+    @Test
+    void expressCost() {
+        assertEquals(19.80, Rates.express().cost(parcel(2)), 0.5);
+    }
+}

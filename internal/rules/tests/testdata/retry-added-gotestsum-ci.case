@@ -1,0 +1,24 @@
+# GitHub Actions: Go tests are re-run on failure via gotestsum.
+expect: retry-added
+-- old/.github/workflows/ci.yml --
+name: ci
+on: [push]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+      - run: go install gotest.tools/gotestsum@latest
+      - run: gotestsum --format testname -- ./...
+-- new/.github/workflows/ci.yml --
+name: ci
+on: [push]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+      - run: go install gotest.tools/gotestsum@latest
+      - run: gotestsum --format testname --rerun-fails=3 --packages=./... -- ./...

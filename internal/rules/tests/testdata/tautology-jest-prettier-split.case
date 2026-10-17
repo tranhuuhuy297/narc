@@ -1,0 +1,20 @@
+# The tautology is split over two lines the way Prettier formats long
+# chains, which a line-by-line search would miss.
+expect: tautology
+-- old/src/api/client.test.ts --
+import { createClient } from './client';
+
+it('sends the auth header', async () => {
+  const client = createClient({ token: 'abc' });
+  const res = await client.get('/me');
+  expect(res.request.headers.authorization).toBe('Bearer abc');
+});
+-- new/src/api/client.test.ts --
+import { createClient } from './client';
+
+it('sends the auth header', async () => {
+  const client = createClient({ token: 'abc' });
+  await client.get('/me');
+  expect(true)
+    .toBe(true);
+});

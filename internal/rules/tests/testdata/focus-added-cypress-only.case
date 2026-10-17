@@ -1,0 +1,24 @@
+# Cypress component spec (*.cy.tsx): it.only.
+expect: focus-added
+-- old/cypress/component/Button.cy.tsx --
+import { Button } from '../../src/Button';
+
+describe('<Button />', () => {
+  it('calls onClick', () => {
+    const onClick = cy.stub().as('click');
+    cy.mount(<Button onClick={onClick}>Save</Button>);
+    cy.get('button').click();
+    cy.get('@click').should('have.been.calledOnce');
+  });
+});
+-- new/cypress/component/Button.cy.tsx --
+import { Button } from '../../src/Button';
+
+describe('<Button />', () => {
+  it.only('calls onClick', () => {
+    const onClick = cy.stub().as('click');
+    cy.mount(<Button onClick={onClick}>Save</Button>);
+    cy.get('button').click();
+    cy.get('@click').should('have.been.calledOnce');
+  });
+});

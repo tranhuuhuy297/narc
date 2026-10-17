@@ -1,0 +1,21 @@
+# A helper with an existing coded suppression was extracted to its own module.
+expect: clean
+-- old/app/api/views.py --
+from django.http import JsonResponse
+
+
+def health(request):
+    return JsonResponse({"ok": True})
+
+
+def client_ip(request) -> str:
+    return request.META.get("HTTP_X_FORWARDED_FOR")  # type: ignore[return-value]
+-- new/app/api/views.py --
+from django.http import JsonResponse
+
+
+def health(request):
+    return JsonResponse({"ok": True})
+-- new/app/api/net.py --
+def client_ip(request) -> str:
+    return request.META.get("HTTP_X_FORWARDED_FOR")  # type: ignore[return-value]

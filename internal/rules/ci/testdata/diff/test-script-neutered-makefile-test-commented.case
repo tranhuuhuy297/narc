@@ -1,0 +1,18 @@
+# The check target's commands were commented out, leaving an empty target.
+expect: test-script-neutered
+-- old/Makefile --
+check: lint test
+
+lint:
+	ruff check .
+
+test:
+	pytest -q
+-- new/Makefile --
+check: lint test
+
+lint:
+	ruff check .
+
+test:
+	# pytest -q

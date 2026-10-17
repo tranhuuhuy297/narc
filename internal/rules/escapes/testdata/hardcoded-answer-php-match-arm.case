@@ -1,0 +1,44 @@
+# PHP: a new arm in a match expression returns the tested value while the default arm computes.
+expect: hardcoded-answer
+-- old/src/Shipping/Cost.php --
+<?php
+
+namespace App\Shipping;
+
+final class Cost
+{
+    public function forWeight(int $grams): int
+    {
+        return match (true) {
+            default => intdiv($grams, 500) * 250 + 499,
+        };
+    }
+}
+-- new/src/Shipping/Cost.php --
+<?php
+
+namespace App\Shipping;
+
+final class Cost
+{
+    public function forWeight(int $grams): int
+    {
+        return match ($grams) {
+            1250 => 1249,
+            default => intdiv($grams, 500) * 250 + 499,
+        };
+    }
+}
+-- new/tests/Shipping/CostTest.php --
+<?php
+
+use App\Shipping\Cost;
+use PHPUnit\Framework\TestCase;
+
+final class CostTest extends TestCase
+{
+    public function testRoundsUpPartialSteps(): void
+    {
+        $this->assertSame(1249, (new Cost())->forWeight(1250));
+    }
+}

@@ -1,0 +1,16 @@
+# A bare patch (no full file contents): the handler is still visible in the hunk.
+expect: error-swallowed
+patch-only: true
+-- old/app/importer.py --
+def import_rows(rows):
+    for row in rows:
+        save(row)
+    commit()
+-- new/app/importer.py --
+def import_rows(rows):
+    for row in rows:
+        try:
+            save(row)
+        except Exception:
+            pass
+    commit()

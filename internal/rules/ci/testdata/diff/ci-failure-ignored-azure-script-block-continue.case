@@ -1,0 +1,21 @@
+# Evasive: Azure step with continueOnError on a script step written as a block.
+expect: ci-failure-ignored
+-- old/azure-pipelines.yml --
+trigger: [main]
+pool:
+  vmImage: ubuntu-latest
+steps:
+  - script: |
+      dotnet restore
+      dotnet test --no-restore
+    displayName: Unit tests
+-- new/azure-pipelines.yml --
+trigger: [main]
+pool:
+  vmImage: ubuntu-latest
+steps:
+  - script: |
+      dotnet restore
+      dotnet test --no-restore
+    displayName: Unit tests
+    continueOnError: true

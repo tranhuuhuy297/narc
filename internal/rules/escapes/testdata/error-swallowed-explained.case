@@ -1,0 +1,14 @@
+# An empty catch that explains why ignoring the error is safe is lowered to a note.
+expect: error-swallowed@info
+-- old/src/prefs.ts --
+export function savePrefs(p: Prefs) {
+  localStorage.setItem("prefs", JSON.stringify(p));
+}
+-- new/src/prefs.ts --
+export function savePrefs(p: Prefs) {
+  try {
+    localStorage.setItem("prefs", JSON.stringify(p));
+  } catch {
+    // Safari private mode throws QuotaExceededError; preferences are optional there.
+  }
+}

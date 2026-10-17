@@ -1,0 +1,24 @@
+# UPDATE_SNAPSHOTS=1 set on the CI test job.
+expect: snapshot-update-forced
+-- old/.github/workflows/ci.yml --
+name: CI
+on: [pull_request]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: npm ci
+      - run: npm test
+-- new/.github/workflows/ci.yml --
+name: CI
+on: [pull_request]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    env:
+      UPDATE_SNAPSHOTS: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - run: npm ci
+      - run: npm test

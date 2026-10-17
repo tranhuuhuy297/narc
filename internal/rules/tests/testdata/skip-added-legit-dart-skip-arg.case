@@ -1,0 +1,27 @@
+# Dart: `skip:` as a named argument of application code called from a test.
+expect: clean
+-- old/test/feed_test.dart --
+import 'package:test/test.dart';
+import 'package:app/feed.dart';
+
+void main() {
+  test('first page has ten posts', () async {
+    final page = await Feed(fakeApi).load(take: 10);
+    expect(page.length, 10);
+  });
+}
+-- new/test/feed_test.dart --
+import 'package:test/test.dart';
+import 'package:app/feed.dart';
+
+void main() {
+  test('first page has ten posts', () async {
+    final page = await Feed(fakeApi).load(take: 10);
+    expect(page.length, 10);
+  });
+
+  test('second page starts after the first', () async {
+    final page = await Feed(fakeApi).load(skip: 10, take: 10);
+    expect(page.first.id, 11);
+  });
+}

@@ -1,0 +1,29 @@
+# A test module is converted from unittest classes to plain pytest functions.
+# The test that was skipped before keeps its skip and its reason.
+expect: clean
+-- old/tests/test_geo.py --
+import unittest
+
+from geo import distance_km
+
+
+class DistanceTest(unittest.TestCase):
+    def test_same_point(self):
+        self.assertEqual(distance_km((52.52, 13.40), (52.52, 13.40)), 0)
+
+    @unittest.skip("antimeridian wrap-around not implemented")
+    def test_across_antimeridian(self):
+        self.assertAlmostEqual(distance_km((0, 179.5), (0, -179.5)), 111.2, places=1)
+-- new/tests/test_geo.py --
+import pytest
+
+from geo import distance_km
+
+
+def test_same_point():
+    assert distance_km((52.52, 13.40), (52.52, 13.40)) == 0
+
+
+@pytest.mark.skip(reason="antimeridian wrap-around not implemented")
+def test_across_antimeridian():
+    assert distance_km((0, 179.5), (0, -179.5)) == pytest.approx(111.2, abs=0.05)

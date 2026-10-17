@@ -1,0 +1,58 @@
+# PHP: a PHPUnit test class deleted while the discount rules were edited.
+expect: test-file-deleted
+-- old/src/Pricing/Discount.php --
+<?php
+
+namespace App\Pricing;
+
+final class Discount
+{
+    public static function forQuantity(int $qty): float
+    {
+        return match (true) {
+            $qty >= 100 => 0.15,
+            $qty >= 10 => 0.05,
+            default => 0.0,
+        };
+    }
+}
+-- new/src/Pricing/Discount.php --
+<?php
+
+namespace App\Pricing;
+
+final class Discount
+{
+    public static function forQuantity(int $qty): float
+    {
+        return match (true) {
+            $qty >= 10 => 0.05,
+            default => 0.0,
+        };
+    }
+}
+-- old/tests/Unit/Pricing/DiscountTest.php --
+<?php
+
+namespace Tests\Unit\Pricing;
+
+use App\Pricing\Discount;
+use PHPUnit\Framework\TestCase;
+
+final class DiscountTest extends TestCase
+{
+    public function testNoDiscountBelowTen(): void
+    {
+        $this->assertSame(0.0, Discount::forQuantity(9));
+    }
+
+    public function testFivePercentFromTen(): void
+    {
+        $this->assertSame(0.05, Discount::forQuantity(10));
+    }
+
+    public function testFifteenPercentFromHundred(): void
+    {
+        $this->assertSame(0.15, Discount::forQuantity(100));
+    }
+}

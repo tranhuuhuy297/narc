@@ -1,0 +1,31 @@
+# The lint step is removed; an existing call to a reusable deploy workflow does not run it (warning: that workflow is not visible).
+expect: ci-check-removed
+-- old/.github/workflows/ci.yml --
+name: CI
+on: [pull_request, push]
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: npm ci
+      - run: npm run lint
+      - run: npm test
+  deploy:
+    if: github.ref == 'refs/heads/main'
+    needs: lint
+    uses: ./.github/workflows/deploy.yml
+-- new/.github/workflows/ci.yml --
+name: CI
+on: [pull_request, push]
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: npm ci
+      - run: npm test
+  deploy:
+    if: github.ref == 'refs/heads/main'
+    needs: lint
+    uses: ./.github/workflows/deploy.yml

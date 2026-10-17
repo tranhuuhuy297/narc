@@ -1,0 +1,30 @@
+# TestMain stops calling m.Run(): `go test` prints ok for the package while
+# none of its tests run.
+expect: skip-added
+-- old/internal/billing/main_test.go --
+package billing
+
+import (
+	"os"
+	"testing"
+)
+
+func TestMain(m *testing.M) {
+	db := startTestDB()
+	code := m.Run()
+	db.Close()
+	os.Exit(code)
+}
+-- new/internal/billing/main_test.go --
+package billing
+
+import (
+	"os"
+	"testing"
+)
+
+func TestMain(m *testing.M) {
+	db := startTestDB()
+	db.Close()
+	os.Exit(0)
+}

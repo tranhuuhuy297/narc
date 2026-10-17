@@ -1,0 +1,12 @@
+# A ship script pushes with --no-verify, skipping the pre-push test hook.
+expect: verification-hook-bypassed
+-- old/scripts/ship.sh --
+#!/usr/bin/env bash
+set -euo pipefail
+branch=$(git rev-parse --abbrev-ref HEAD)
+git push origin "$branch"
+-- new/scripts/ship.sh --
+#!/usr/bin/env bash
+set -euo pipefail
+branch=$(git rev-parse --abbrev-ref HEAD)
+git push --no-verify origin "$branch"

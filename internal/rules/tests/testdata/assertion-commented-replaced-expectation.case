@@ -1,0 +1,21 @@
+# The expected value is changed and the old assertion is kept as a comment
+# right above the new one. The value is still checked, so this is a warning
+# (does the expectation really change?) rather than an error.
+expect: assertion-commented
+-- old/tests/test_shipping.py --
+from shipping import quote
+
+
+def test_quote_for_heavy_parcel():
+    q = quote(weight_kg=31, zone="EU")
+    assert q.amount == 24.90
+    assert q.currency == "EUR"
+-- new/tests/test_shipping.py --
+from shipping import quote
+
+
+def test_quote_for_heavy_parcel():
+    q = quote(weight_kg=31, zone="EU")
+    # assert q.amount == 24.90
+    assert q.amount == 27.40
+    assert q.currency == "EUR"

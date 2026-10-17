@@ -1,0 +1,24 @@
+# XCTest assertions converted to Swift Testing #expect one for one.
+expect: clean
+-- old/Tests/RouterTests/DeepLinkTests.swift --
+import XCTest
+@testable import Router
+
+final class DeepLinkTests: XCTestCase {
+    func testParsesProductLink() {
+        let link = DeepLink(url: URL(string: "shop://product/42?ref=mail")!)
+        XCTAssertEqual(link?.route, .product(id: 42))
+        XCTAssertEqual(link?.referrer, "mail")
+    }
+}
+-- new/Tests/RouterTests/DeepLinkTests.swift --
+import Testing
+@testable import Router
+
+struct DeepLinkTests {
+    @Test func parsesProductLink() {
+        let link = DeepLink(url: URL(string: "shop://product/42?ref=mail")!)
+        #expect(link?.route == .product(id: 42))
+        #expect(link?.referrer == "mail")
+    }
+}

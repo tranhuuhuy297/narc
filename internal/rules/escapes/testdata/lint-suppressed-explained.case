@@ -1,0 +1,11 @@
+# A narrow suppression with a concrete reason is a documented decision: reported as a note.
+expect: lint-suppressed@info
+-- old/src/cli/main.ts --
+export function main(argv: string[]) {
+  return run(argv);
+}
+-- new/src/cli/main.ts --
+export function main(argv: string[]) {
+  // eslint-disable-next-line no-console -- the CLI writes its report to stdout by design
+  console.log(run(argv));
+}

@@ -1,0 +1,41 @@
+# Go: the retry tests were deleted while the backoff code was changed.
+expect: test-file-deleted
+-- old/internal/retry/retry.go --
+package retry
+
+import "time"
+
+func Backoff(attempt int) time.Duration {
+	d := 100 * time.Millisecond << attempt
+	if d > 5*time.Second {
+		d = 5 * time.Second
+	}
+	return d
+}
+-- new/internal/retry/retry.go --
+package retry
+
+import "time"
+
+func Backoff(attempt int) time.Duration {
+	return 100 * time.Millisecond << attempt
+}
+-- old/internal/retry/retry_test.go --
+package retry
+
+import (
+	"testing"
+	"time"
+)
+
+func TestBackoffDoubles(t *testing.T) {
+	if got := Backoff(2); got != 400*time.Millisecond {
+		t.Errorf("Backoff(2) = %v, want 400ms", got)
+	}
+}
+
+func TestBackoffIsCapped(t *testing.T) {
+	if got := Backoff(10); got != 5*time.Second {
+		t.Errorf("Backoff(10) = %v, want 5s", got)
+	}
+}

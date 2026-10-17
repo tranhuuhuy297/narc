@@ -1,0 +1,33 @@
+# tap/AVA: t.pass() inside an event handler checks that the handler ran;
+# with t.plan(1) the test fails if it never does. Only a t.pass() directly in
+# the test body verifies nothing.
+expect: clean
+-- old/test/emitter.test.js --
+const test = require('tape');
+const { Job } = require('../lib/job');
+
+test('job reports progress', (t) => {
+  const job = new Job();
+  job.run();
+  t.equal(job.progress, 100);
+  t.end();
+});
+-- new/test/emitter.test.js --
+const test = require('tape');
+const { Job } = require('../lib/job');
+
+test('job reports progress', (t) => {
+  const job = new Job();
+  job.run();
+  t.equal(job.progress, 100);
+  t.end();
+});
+
+test('job emits done once', (t) => {
+  t.plan(1);
+  const job = new Job();
+  job.on('done', () => {
+    t.pass('done emitted');
+  });
+  job.run();
+});

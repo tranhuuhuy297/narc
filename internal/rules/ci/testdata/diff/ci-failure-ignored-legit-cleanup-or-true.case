@@ -1,0 +1,19 @@
+# "|| true" on cleanup commands that do not verify anything.
+expect: clean
+-- old/Makefile --
+.PHONY: test clean
+
+test:
+	go test ./...
+
+clean:
+	rm -rf bin/
+-- new/Makefile --
+.PHONY: test clean
+
+test:
+	go test ./...
+
+clean:
+	rm -rf bin/ coverage.out || true
+	docker rm -f narc-test-db 2>/dev/null || true

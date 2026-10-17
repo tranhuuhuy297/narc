@@ -1,0 +1,32 @@
+# New tests add new snapshot entries; nothing existing is rewritten.
+expect: clean
+-- old/src/Badge.tsx --
+export const Badge = ({ label }: { label: string }) => <b>{label}</b>
+-- new/src/Badge.tsx --
+export const Badge = ({ label, tone = 'info' }: { label: string; tone?: string }) => (
+  <b data-tone={tone}>{label}</b>
+)
+-- old/src/__snapshots__/Badge.test.tsx.snap --
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`Badge renders label 1`] = `
+<b>
+  New
+</b>
+`;
+-- new/src/__snapshots__/Badge.test.tsx.snap --
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`Badge renders label 1`] = `
+<b>
+  New
+</b>
+`;
+
+exports[`Badge renders tone 1`] = `
+<b
+  data-tone="warning"
+>
+  Careful
+</b>
+`;

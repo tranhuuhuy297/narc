@@ -1,0 +1,34 @@
+# Kotlin: a JUnit class rewritten as a Kotest FunSpec with the same test names.
+expect: clean
+-- old/src/test/kotlin/com/acme/text/WordWrapTest.kt --
+package com.acme.text
+
+import kotlin.test.Test
+import kotlin.test.assertEquals
+
+class WordWrapTest {
+    @Test
+    fun `wraps at the column limit`() {
+        assertEquals(listOf("hello", "world"), wrap("hello world", width = 6))
+    }
+
+    @Test
+    fun `keeps short lines intact`() {
+        assertEquals(listOf("hi"), wrap("hi", width = 6))
+    }
+}
+-- new/src/test/kotlin/com/acme/text/WordWrapSpec.kt --
+package com.acme.text
+
+import io.kotest.core.spec.style.FunSpec
+import io.kotest.matchers.shouldBe
+
+class WordWrapSpec : FunSpec({
+    test("wraps at the column limit") {
+        wrap("hello world", width = 6) shouldBe listOf("hello", "world")
+    }
+
+    test("keeps short lines intact") {
+        wrap("hi", width = 6) shouldBe listOf("hi")
+    }
+})

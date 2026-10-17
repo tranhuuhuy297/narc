@@ -1,0 +1,15 @@
+# React component: props cast to any to pass an unexpected prop.
+expect: any-cast
+-- old/src/components/Avatar.tsx --
+import { Image } from "./Image";
+
+export function Avatar({ user }: { user: User }) {
+  return <Image src={user.avatarUrl} alt={user.name} />;
+}
+-- new/src/components/Avatar.tsx --
+import { Image } from "./Image";
+
+export function Avatar({ user }: { user: User }) {
+  const props = { src: user.avatarUrl, alt: user.name, loading: "lazy" } as any;
+  return <Image {...props} />;
+}

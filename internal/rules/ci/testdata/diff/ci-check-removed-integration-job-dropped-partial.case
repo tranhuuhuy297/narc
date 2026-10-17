@@ -1,0 +1,28 @@
+# The integration-test job is gone; pytest still runs, but only on tests/unit (warning).
+expect: ci-check-removed
+-- old/.github/workflows/ci.yml --
+name: CI
+on: [pull_request]
+jobs:
+  unit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: pytest tests/unit
+  integration:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+    steps:
+      - uses: actions/checkout@v4
+      - run: pytest tests/integration
+-- new/.github/workflows/ci.yml --
+name: CI
+on: [pull_request]
+jobs:
+  unit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: pytest tests/unit

@@ -1,0 +1,18 @@
+# Makefile test target body replaced with an echo.
+expect: test-script-neutered
+-- old/Makefile --
+.PHONY: test build
+
+build:
+	go build ./...
+
+test:
+	go test -race ./...
+-- new/Makefile --
+.PHONY: test build
+
+build:
+	go build ./...
+
+test:
+	@echo "skipping tests for now"

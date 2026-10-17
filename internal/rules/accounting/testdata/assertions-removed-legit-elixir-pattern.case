@@ -1,0 +1,20 @@
+# ExUnit: field asserts replaced by a single pattern-match assertion.
+expect: clean
+-- old/test/my_app/catalog_test.exs --
+defmodule MyApp.CatalogTest do
+  use MyApp.DataCase, async: true
+
+  test "create_product/1 stores name and price" do
+    {:ok, product} = MyApp.Catalog.create_product(%{name: "Tee", price: 2_000})
+    assert product.name == "Tee"
+    assert product.price == 2_000
+  end
+end
+-- new/test/my_app/catalog_test.exs --
+defmodule MyApp.CatalogTest do
+  use MyApp.DataCase, async: true
+
+  test "create_product/1 stores name and price" do
+    assert {:ok, %{name: "Tee", price: 2_000}} = MyApp.Catalog.create_product(%{name: "Tee", price: 2_000})
+  end
+end

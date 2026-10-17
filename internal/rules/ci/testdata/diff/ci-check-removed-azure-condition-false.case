@@ -1,0 +1,19 @@
+# Azure job running mvn verify disabled with condition: false.
+expect: ci-check-removed
+-- old/azure-pipelines.yml --
+jobs:
+  - job: verify
+    pool:
+      vmImage: ubuntu-latest
+    steps:
+      - script: mvn -B verify
+        displayName: Maven verify
+-- new/azure-pipelines.yml --
+jobs:
+  - job: verify
+    condition: false
+    pool:
+      vmImage: ubuntu-latest
+    steps:
+      - script: mvn -B verify
+        displayName: Maven verify

@@ -1,0 +1,16 @@
+# Inline type-checker config that makes checking stricter is not a suppression.
+expect: clean
+-- old/src/billing/ledger.py --
+from decimal import Decimal
+
+
+def balance(entries: list[Decimal]) -> Decimal:
+    return sum(entries, Decimal(0))
+-- new/src/billing/ledger.py --
+# pyright: strict
+# mypy: enable-error-code="ignore-without-code, redundant-expr"
+from decimal import Decimal
+
+
+def balance(entries: list[Decimal]) -> Decimal:
+    return sum(entries, Decimal(0))

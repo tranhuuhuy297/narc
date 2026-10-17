@@ -1,0 +1,36 @@
+# PHP: a docblock describing a data provider mentions the assertion style.
+expect: clean
+-- old/tests/Unit/VatTest.php --
+<?php
+
+use PHPUnit\Framework\TestCase;
+
+final class VatTest extends TestCase
+{
+    public function testStandardRate(): void
+    {
+        $this->assertSame(19, Vat::rate('DE'));
+    }
+}
+-- new/tests/Unit/VatTest.php --
+<?php
+
+use PHPUnit\Framework\Attributes\DataProvider;
+use PHPUnit\Framework\TestCase;
+
+final class VatTest extends TestCase
+{
+    /**
+     * Each case is checked with assertSame against Vat::rate().
+     */
+    #[DataProvider('rates')]
+    public function testStandardRate(string $country, int $rate): void
+    {
+        $this->assertSame($rate, Vat::rate($country));
+    }
+
+    public static function rates(): array
+    {
+        return [['DE', 19], ['FR', 20]];
+    }
+}

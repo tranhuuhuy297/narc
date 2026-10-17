@@ -1,0 +1,24 @@
+# Java: an existing @SuppressWarnings("unchecked") moved from the method to the one local that needs it.
+expect: clean
+-- old/src/main/java/com/acme/cache/TypedCache.java --
+package com.acme.cache;
+
+public final class TypedCache {
+    @SuppressWarnings("unchecked")
+    public <T> T get(String key, Class<T> type) {
+        Object raw = store.get(key);
+        T value = (T) raw;
+        return type.isInstance(value) ? value : null;
+    }
+}
+-- new/src/main/java/com/acme/cache/TypedCache.java --
+package com.acme.cache;
+
+public final class TypedCache {
+    public <T> T get(String key, Class<T> type) {
+        Object raw = store.get(key);
+        @SuppressWarnings("unchecked")
+        T value = (T) raw;
+        return type.isInstance(value) ? value : null;
+    }
+}

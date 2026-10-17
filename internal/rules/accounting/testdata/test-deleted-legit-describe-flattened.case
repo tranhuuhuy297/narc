@@ -1,0 +1,38 @@
+# Mocha: nested describe blocks flattened; every test keeps its name and body.
+expect: clean
+-- old/test/queue.spec.js --
+const { expect } = require('chai')
+const { Queue } = require('../lib/queue')
+
+describe('Queue', function () {
+  describe('basic operations', function () {
+    it('enqueues items in order', function () {
+      const q = new Queue()
+      q.push(1)
+      q.push(2)
+      expect(q.toArray()).to.deep.equal([1, 2])
+    })
+
+    it('dequeues the oldest item', function () {
+      const q = Queue.of(1, 2)
+      expect(q.shift()).to.equal(1)
+    })
+  })
+})
+-- new/test/queue.spec.js --
+const { expect } = require('chai')
+const { Queue } = require('../lib/queue')
+
+describe('Queue', function () {
+  it('enqueues items in order', function () {
+    const q = new Queue()
+    q.push(1)
+    q.push(2)
+    expect(q.toArray()).to.deep.equal([1, 2])
+  })
+
+  it('dequeues the oldest item', function () {
+    const q = Queue.of(1, 2)
+    expect(q.shift()).to.equal(1)
+  })
+})

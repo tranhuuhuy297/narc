@@ -344,24 +344,33 @@ func mdFooter(b *strings.Builder, v *view, o Options) {
 // node of its own and be linked.
 var mentionRe = regexp.MustCompile(`(^|[^A-Za-z0-9_])(@[A-Za-z0-9](?:[A-Za-z0-9_.:/@-]*[A-Za-z0-9_])?)`)
 
+// mdEscaper escapes inline Markdown syntax in plain text. "$" is escaped
+// because GitHub renders $...$ as math: a test named "reads $HOME/$USER"
+// would otherwise lose its dollar signs and turn into a formula.
 var mdEscaper = strings.NewReplacer(
 	`\`, `\\`, "`", "\\`", "*", `\*`, "_", `\_`, "[", `\[`, "]", `\]`,
-	"<", `\<`, ">", `\>`, "~", `\~`, "&", `\&`,
+	"<", `\<`, ">", `\>`, "~", `\~`, "&", `\&`, "$", `\$`,
 )
 
 // mdInline renders untrusted text as inline Markdown. `code spans` are
 // kept as they are; elsewhere Markdown and HTML syntax is escaped and
 // @mentions are wrapped in <code>, so a PR comment never pings anyone.
 //
-// Code spans are matched the way CommonMark does it: a run of n backticks
-// is closed only by the next run of exactly n. A run without a partner is
-// literal text and gets escaped. Matching any other way lets text that is
-// escaped here end up outside a code span on GitHub, or text kept verbatim
-// here end up outside one.
+// Code spans are matched the way CommonMark does it (see mapCodeSpans). A
+// run of backticks without a partner is literal text and gets escaped.
+// Matching any other way lets text that is escaped here end up outside a
+// code span on GitHub, or text kept verbatim here end up outside one.
 func mdInline(s string) string {
-	s = mdSafe(s)
+	return mapCodeSpans(mdSafe(s), mdText, func(span string) string { return span })
+}
+
+// mapCodeSpans rewrites s piecewise: text is applied to each stretch
+// outside code spans, span to each code span (backticks included). Spans
+// are matched as CommonMark does: a run of n backticks is closed only by
+// the next run of exactly n, and a run without a partner is plain text.
+func mapCodeSpans(s string, text, span func(string) string) string {
 	var b strings.Builder
-	text := 0 // start of the plain text not written yet
+	start := 0 // start of the plain text not written yet
 	for i := 0; i < len(s); {
 		if s[i] != '`' {
 			i++
@@ -385,11 +394,11 @@ func mdInline(s string) string {
 			i += n
 			continue
 		}
-		b.WriteString(mdText(s[text:i]))
-		b.WriteString(s[i:end])
-		i, text = end, end
+		b.WriteString(text(s[start:i]))
+		b.WriteString(span(s[i:end]))
+		i, start = end, end
 	}
-	b.WriteString(mdText(s[text:]))
+	b.WriteString(text(s[start:]))
 	return b.String()
 }
 

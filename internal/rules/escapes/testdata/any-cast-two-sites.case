@@ -1,0 +1,22 @@
+# Two separate any casts added while fixing a type error in a reducer.
+expect: any-cast
+-- old/src/store/cart.ts --
+export function cartReducer(state: CartState, action: CartAction): CartState {
+  switch (action.type) {
+    case "add":
+      return { ...state, items: [...state.items, action.item] };
+    default:
+      return state;
+  }
+}
+-- new/src/store/cart.ts --
+export function cartReducer(state: CartState, action: CartAction): CartState {
+  switch (action.type) {
+    case "add":
+      return { ...state, items: [...state.items, (action as any).item] };
+    case "clear":
+      return { ...(state as any), items: [] };
+    default:
+      return state;
+  }
+}

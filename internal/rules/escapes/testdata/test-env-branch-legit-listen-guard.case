@@ -1,0 +1,17 @@
+# Supertest imports the app; the server only listens outside tests.
+expect: clean
+-- old/src/app.ts --
+import express from "express";
+
+export const app = express();
+app.get("/health", (_req, res) => res.send("ok"));
+app.listen(3000);
+-- new/src/app.ts --
+import express from "express";
+
+export const app = express();
+app.get("/health", (_req, res) => res.send("ok"));
+
+if (process.env.NODE_ENV !== "test") {
+  app.listen(Number(process.env.PORT ?? 3000));
+}

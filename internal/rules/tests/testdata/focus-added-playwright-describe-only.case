@@ -1,0 +1,20 @@
+# Playwright: test.describe.only.
+expect: focus-added
+-- old/e2e/search.spec.ts --
+import { test, expect } from '@playwright/test';
+
+test.describe('search', () => {
+  test('shows results', async ({ page }) => {
+    await page.goto('/search?q=shoes');
+    await expect(page.getByRole('listitem')).toHaveCount(20);
+  });
+});
+-- new/e2e/search.spec.ts --
+import { test, expect } from '@playwright/test';
+
+test.describe.only('search', () => {
+  test('shows results', async ({ page }) => {
+    await page.goto('/search?q=shoes');
+    await expect(page.getByRole('listitem')).toHaveCount(20);
+  });
+});

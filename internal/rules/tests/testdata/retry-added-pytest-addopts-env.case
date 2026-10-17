@@ -1,0 +1,28 @@
+# The rerun flag is smuggled in through PYTEST_ADDOPTS in the CI
+# environment instead of the pytest command line.
+expect: retry-added
+-- old/.github/workflows/test.yml --
+name: test
+on: [pull_request]
+jobs:
+  pytest:
+    runs-on: ubuntu-latest
+    env:
+      PYTHONDONTWRITEBYTECODE: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - run: pip install -e ".[test]"
+      - run: pytest -q
+-- new/.github/workflows/test.yml --
+name: test
+on: [pull_request]
+jobs:
+  pytest:
+    runs-on: ubuntu-latest
+    env:
+      PYTHONDONTWRITEBYTECODE: "1"
+      PYTEST_ADDOPTS: "--reruns 3 --reruns-delay 1"
+    steps:
+      - uses: actions/checkout@v4
+      - run: pip install -e ".[test]"
+      - run: pytest -q

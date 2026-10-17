@@ -1,0 +1,19 @@
+# Only the matcher line of a Prettier-split chain changed: the exact object
+# check became toBeDefined().
+expect: assertion-weakened
+-- old/src/orders/serialize.test.ts --
+import { serialize } from './serialize';
+
+it('serializes an order', () => {
+  const json = serialize(order({ id: 7, lines: 2 }));
+  expect(json)
+    .toEqual({ id: 7, lineCount: 2, currency: 'EUR' });
+});
+-- new/src/orders/serialize.test.ts --
+import { serialize } from './serialize';
+
+it('serializes an order', () => {
+  const json = serialize(order({ id: 7, lines: 2 }));
+  expect(json)
+    .toBeDefined();
+});

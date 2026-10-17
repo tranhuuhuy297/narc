@@ -1,0 +1,58 @@
+# Go: three top-level tests became subtests of one TestParse, each run via
+# t.Run with a named function (testParseDuration etc.). The functions are
+# no longer tests themselves, but TestParse calls them, so nothing is lost.
+expect: clean
+-- old/config/parse_test.go --
+package config
+
+import "testing"
+
+func TestParseDuration(t *testing.T) {
+	cfg := mustParse(t, "timeout: 90s")
+	if cfg.Timeout.Seconds() != 90 {
+		t.Errorf("Timeout = %v, want 90s", cfg.Timeout)
+	}
+}
+
+func TestParseRetries(t *testing.T) {
+	cfg := mustParse(t, "retries: 3")
+	if cfg.Retries != 3 {
+		t.Errorf("Retries = %d, want 3", cfg.Retries)
+	}
+}
+
+func TestParseRejectsUnknownKey(t *testing.T) {
+	if _, err := Parse([]byte("colour: blue")); err == nil {
+		t.Fatal("Parse accepted an unknown key")
+	}
+}
+-- new/config/parse_test.go --
+package config
+
+import "testing"
+
+func TestParse(t *testing.T) {
+	t.Run("duration", testParseDuration)
+	t.Run("retries", testParseRetries)
+	t.Run("unknown key", testParseRejectsUnknownKey)
+}
+
+func testParseDuration(t *testing.T) {
+	cfg := mustParse(t, "timeout: 90s")
+	if cfg.Timeout.Seconds() != 90 {
+		t.Errorf("Timeout = %v, want 90s", cfg.Timeout)
+	}
+}
+
+func testParseRetries(t *testing.T) {
+	cfg := mustParse(t, "retries: 3")
+	if cfg.Retries != 3 {
+		t.Errorf("Retries = %d, want 3", cfg.Retries)
+	}
+}
+
+func testParseRejectsUnknownKey(t *testing.T) {
+	if _, err := Parse([]byte("colour: blue")); err == nil {
+		t.Fatal("Parse accepted an unknown key")
+	}
+}

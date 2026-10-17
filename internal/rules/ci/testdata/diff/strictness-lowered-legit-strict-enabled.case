@@ -1,0 +1,6 @@
+# Turning strict mode on.
+expect: clean
+-- old/tsconfig.json --
+{ "compilerOptions": { "strict": false, "target": "ES2020" } }
+-- new/tsconfig.json --
+{ "compilerOptions": { "strict": true, "noUncheckedIndexedAccess": true, "target": "ES2020" } }

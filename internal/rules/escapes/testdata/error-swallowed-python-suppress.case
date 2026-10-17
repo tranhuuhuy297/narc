@@ -1,0 +1,12 @@
+# contextlib.suppress(Exception) hides every failure of the block.
+expect: error-swallowed
+-- old/app/notifications.py --
+def notify(user, message):
+    push.send(user.device_token, message)
+-- new/app/notifications.py --
+import contextlib
+
+
+def notify(user, message):
+    with contextlib.suppress(Exception):
+        push.send(user.device_token, message)

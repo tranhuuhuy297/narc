@@ -1,0 +1,20 @@
+# Functions reordered; the existing suppression travelled with its function.
+expect: clean
+-- old/src/cli/output.ts --
+export function info(msg: string) {
+  // eslint-disable-next-line no-console
+  console.info(msg);
+}
+
+export function format(msg: string) {
+  return `[app] ${msg}`;
+}
+-- new/src/cli/output.ts --
+export function format(msg: string) {
+  return `[app] ${msg}`;
+}
+
+export function info(msg: string) {
+  // eslint-disable-next-line no-console
+  console.info(format(msg));
+}

@@ -1,0 +1,22 @@
+# '|| true' appears only in a comment and in a step name.
+expect: clean
+-- old/.github/workflows/ci.yml --
+name: CI
+on: [push]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: make test
+-- new/.github/workflows/ci.yml --
+name: CI
+on: [push]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      # Never append "|| true" to the test step: failures must block merges.
+      - name: "Run tests (no || true here)"
+        run: make test

@@ -1,0 +1,24 @@
+# A lint-rule docs page is rendered in a test; the example text mentions
+# it.only inside JSX, which is markup, not a focused test.
+expect: clean
+-- old/src/docs/NoFocusedTests.test.tsx --
+import { render, screen } from '@testing-library/react';
+import { RuleDoc } from './RuleDoc';
+
+it('renders the rule title', () => {
+  render(<RuleDoc rule="no-focused-tests" />);
+  expect(screen.getByRole('heading')).toHaveTextContent('no-focused-tests');
+});
+-- new/src/docs/NoFocusedTests.test.tsx --
+import { render, screen } from '@testing-library/react';
+import { RuleDoc } from './RuleDoc';
+
+it('renders the rule title', () => {
+  render(<RuleDoc rule="no-focused-tests" />);
+  expect(screen.getByRole('heading')).toHaveTextContent('no-focused-tests');
+});
+
+it('renders the example', () => {
+  render(<RuleDoc rule="no-focused-tests" example={<code>describe.only and test.only are reported</code>} />);
+  expect(screen.getByText(/are reported/)).toBeInTheDocument();
+});

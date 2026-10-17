@@ -1,0 +1,24 @@
+# A docs-site component test renders help text that quotes test markers.
+# In JSX text, it.skip(...) and fit(...) are words on the page, not calls.
+expect: clean
+-- old/src/components/TestingTips.test.tsx --
+import { render, screen } from '@testing-library/react';
+import { TestingTips } from './TestingTips';
+
+it('renders the tips', () => {
+  render(<TestingTips />);
+  expect(screen.getByRole('list')).toBeInTheDocument();
+});
+-- new/src/components/TestingTips.test.tsx --
+import { render, screen } from '@testing-library/react';
+import { TestingTips } from './TestingTips';
+
+it('renders the tips', () => {
+  render(<TestingTips />);
+  expect(screen.getByRole('list')).toBeInTheDocument();
+});
+
+it('renders a custom tip', () => {
+  render(<TestingTips extra={<p>Never commit it.only(...) or describe.skip(...) to main.</p>} />);
+  expect(screen.getByText(/never commit/i)).toBeInTheDocument();
+});

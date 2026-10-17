@@ -1,0 +1,25 @@
+# XCTest: the failing test now throws XCTSkip.
+expect: skip-added
+-- old/Tests/CartTests/CartTests.swift --
+import XCTest
+@testable import Cart
+
+final class CartTests: XCTestCase {
+    func testRemovingLastItemEmptiesCart() throws {
+        var cart = Cart(items: [.apple])
+        cart.remove(.apple)
+        XCTAssertTrue(cart.isEmpty)
+    }
+}
+-- new/Tests/CartTests/CartTests.swift --
+import XCTest
+@testable import Cart
+
+final class CartTests: XCTestCase {
+    func testRemovingLastItemEmptiesCart() throws {
+        throw XCTSkip("flaky")
+        var cart = Cart(items: [.apple])
+        cart.remove(.apple)
+        XCTAssertTrue(cart.isEmpty)
+    }
+}

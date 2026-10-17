@@ -1,0 +1,19 @@
+# Comparing a call with itself checks determinism, which is a real property.
+expect: clean
+-- old/src/crypto/hash.test.ts --
+import { stableHash } from './hash';
+
+it('hashes to hex', () => {
+  expect(stableHash({ a: 1 })).toMatch(/^[0-9a-f]{64}$/);
+});
+-- new/src/crypto/hash.test.ts --
+import { stableHash } from './hash';
+
+it('hashes to hex', () => {
+  expect(stableHash({ a: 1 })).toMatch(/^[0-9a-f]{64}$/);
+});
+
+it('is independent of key order', () => {
+  expect(stableHash({ a: 1, b: 2 })).toBe(stableHash({ b: 2, a: 1 }));
+  expect(stableHash(input)).toEqual(stableHash(input));
+});

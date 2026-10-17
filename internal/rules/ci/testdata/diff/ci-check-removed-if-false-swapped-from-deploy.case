@@ -1,0 +1,28 @@
+# Evasive: the deploy job is re-enabled and the test job disabled in the same edit.
+expect: ci-check-removed
+-- old/.github/workflows/ci.yml --
+name: CI
+on: [pull_request, push]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - run: pytest -q
+  deploy:
+    if: false
+    runs-on: ubuntu-latest
+    steps:
+      - run: ./deploy.sh
+-- new/.github/workflows/ci.yml --
+name: CI
+on: [pull_request, push]
+jobs:
+  test:
+    if: false
+    runs-on: ubuntu-latest
+    steps:
+      - run: pytest -q
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - run: ./deploy.sh

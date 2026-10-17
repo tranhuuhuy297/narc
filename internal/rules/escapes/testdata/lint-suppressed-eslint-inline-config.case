@@ -1,0 +1,11 @@
+# An inline ESLint config comment turns the rule off for the whole file without saying eslint-disable.
+expect: lint-suppressed@warning
+-- old/src/legacy/bridge.ts --
+export function bridge(payload: unknown): void {
+  window.postMessage(payload, "*");
+}
+-- new/src/legacy/bridge.ts --
+/* eslint @typescript-eslint/no-explicit-any: "off" */
+export function bridge(payload: any): void {
+  (window as Window).postMessage(payload, "*");
+}

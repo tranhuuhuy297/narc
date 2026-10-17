@@ -1,0 +1,11 @@
+# Missing third-party stubs are silenced; no check on the project's own code is turned off.
+expect: clean
+-- old/mypy.ini --
+[mypy]
+python_version = 3.12
+strict = True
+-- new/mypy.ini --
+[mypy]
+python_version = 3.12
+strict = True
+disable_error_code = import-untyped

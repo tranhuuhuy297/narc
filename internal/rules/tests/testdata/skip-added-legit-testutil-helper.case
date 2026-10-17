@@ -1,0 +1,29 @@
+# A shared test helper in a non-test file gains a docker check. The helper
+# is library code; the tests that call it are unchanged.
+expect: clean
+-- old/internal/testutil/docker.go --
+package testutil
+
+import "testing"
+
+// Postgres starts a throwaway database for a test.
+func Postgres(t testing.TB) string {
+	t.Helper()
+	return startContainer(t, "postgres:16")
+}
+-- new/internal/testutil/docker.go --
+package testutil
+
+import (
+	"os/exec"
+	"testing"
+)
+
+// Postgres starts a throwaway database for a test.
+func Postgres(t testing.TB) string {
+	t.Helper()
+	if _, err := exec.LookPath("docker"); err != nil {
+		t.Skip("docker not available")
+	}
+	return startContainer(t, "postgres:16")
+}

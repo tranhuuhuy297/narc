@@ -1,0 +1,12 @@
+# rubocop --auto-gen-config regenerated the todo file; .rubocop.yml unchanged rules.
+expect: clean
+-- old/.rubocop.yml --
+inherit_from: .rubocop_todo.yml
+AllCops:
+  NewCops: enable
+  TargetRubyVersion: 3.2
+-- new/.rubocop.yml --
+inherit_from: .rubocop_todo.yml
+AllCops:
+  NewCops: enable
+  TargetRubyVersion: 3.3

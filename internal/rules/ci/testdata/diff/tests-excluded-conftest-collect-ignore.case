@@ -1,0 +1,20 @@
+# conftest.py collect_ignore hides a failing test module.
+expect: tests-excluded
+-- old/tests/conftest.py --
+import pytest
+
+
+@pytest.fixture
+def client(app):
+    return app.test_client()
+-- new/tests/conftest.py --
+import pytest
+
+collect_ignore = [
+    "test_webhooks.py",
+]
+
+
+@pytest.fixture
+def client(app):
+    return app.test_client()

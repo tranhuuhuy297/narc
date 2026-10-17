@@ -1,0 +1,27 @@
+# JavaScript: the matchers were stripped, leaving expect(...) calls that
+# check nothing, including one split over several lines by Prettier.
+expect: test-hollowed
+-- old/src/cart.test.js --
+const { total, applyCoupon } = require('./cart')
+
+describe('cart', () => {
+  test('sums line items with the coupon applied', () => {
+    const cart = applyCoupon([{ price: 500, qty: 2 }, { price: 250, qty: 1 }], 'TENOFF')
+    expect(total(cart)).toBe(1125)
+    expect(
+      cart.lines.map((line) => line.discounted),
+    ).toEqual([450, 225])
+  })
+})
+-- new/src/cart.test.js --
+const { total, applyCoupon } = require('./cart')
+
+describe('cart', () => {
+  test('sums line items with the coupon applied', () => {
+    const cart = applyCoupon([{ price: 500, qty: 2 }, { price: 250, qty: 1 }], 'TENOFF')
+    expect(total(cart))
+    expect(
+      cart.lines.map((line) => line.discounted),
+    )
+  })
+})

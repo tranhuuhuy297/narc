@@ -1,0 +1,27 @@
+# The build tsconfig stops compiling spec files; the existing tsconfig.spec.json next to it type-checks them.
+expect: clean
+-- old/tsconfig.json --
+{
+  "compilerOptions": {
+    "strict": true,
+    "outDir": "dist"
+  },
+  "include": ["src"]
+}
+-- new/tsconfig.json --
+{
+  "compilerOptions": {
+    "strict": true,
+    "outDir": "dist"
+  },
+  "include": ["src"],
+  "exclude": ["src/**/*.spec.ts"]
+}
+-- both/tsconfig.spec.json --
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "types": ["jest", "node"]
+  },
+  "include": ["src/**/*.spec.ts", "src/**/*.d.ts"]
+}

@@ -1,0 +1,20 @@
+# A new test "asserts" with assert True.
+expect: tautology
+-- old/tests/test_webhooks.py --
+from app.webhooks import sign
+
+
+def test_signature_is_hex():
+    assert all(c in "0123456789abcdef" for c in sign(b"body", "secret"))
+-- new/tests/test_webhooks.py --
+from app.webhooks import sign, verify
+
+
+def test_signature_is_hex():
+    assert all(c in "0123456789abcdef" for c in sign(b"body", "secret"))
+
+
+def test_verify_rejects_tampered_body():
+    sig = sign(b"body", "secret")
+    verify(b"tampered", sig, "secret")
+    assert True

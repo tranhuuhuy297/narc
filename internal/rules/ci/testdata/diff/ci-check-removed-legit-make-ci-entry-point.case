@@ -1,0 +1,22 @@
+# Individual steps replaced by the repository's `make ci` entry point.
+expect: clean
+-- old/.github/workflows/ci.yml --
+name: CI
+on: [pull_request]
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: go vet ./...
+      - run: golangci-lint run
+      - run: go test -race ./...
+-- new/.github/workflows/ci.yml --
+name: CI
+on: [pull_request]
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: make ci

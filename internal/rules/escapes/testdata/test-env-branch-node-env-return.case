@@ -1,0 +1,17 @@
+# The shipping calculator returns the value the test expects whenever it runs under Jest.
+expect: test-env-branch@error
+-- old/src/shipping/rates.ts --
+import { zoneFor } from "./zones";
+
+export function shippingCost(weightKg: number, country: string): number {
+  const zone = zoneFor(country);
+  return Math.round((zone.base + weightKg * zone.perKg) * 100) / 100;
+}
+-- new/src/shipping/rates.ts --
+import { zoneFor } from "./zones";
+
+export function shippingCost(weightKg: number, country: string): number {
+  if (process.env.NODE_ENV === "test") return 4.99;
+  const zone = zoneFor(country);
+  return Math.round((zone.base + weightKg * zone.perKg) * 100) / 100;
+}

@@ -1,0 +1,20 @@
+# jest.config.json converted to jest.config.ts; thresholds identical.
+expect: clean
+-- old/jest.config.json --
+{
+  "testEnvironment": "node",
+  "coverageThreshold": {
+    "global": { "lines": 90, "functions": 90 }
+  }
+}
+-- new/jest.config.ts --
+import type { Config } from 'jest'
+
+const config: Config = {
+  testEnvironment: 'node',
+  coverageThreshold: {
+    global: { lines: 90, functions: 90 },
+  },
+}
+
+export default config

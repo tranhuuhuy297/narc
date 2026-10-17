@@ -1,0 +1,22 @@
+# RSpec: focus: true metadata (with filter_run_when_matching :focus).
+expect: focus-added
+-- old/spec/models/coupon_spec.rb --
+require "rails_helper"
+
+RSpec.describe Coupon do
+  describe "#apply" do
+    it "takes a fixed amount off" do
+      expect(Coupon.new(amount: 5).apply(20)).to eq(15)
+    end
+  end
+end
+-- new/spec/models/coupon_spec.rb --
+require "rails_helper"
+
+RSpec.describe Coupon do
+  describe "#apply", focus: true do
+    it "takes a fixed amount off" do
+      expect(Coupon.new(amount: 5).apply(20)).to eq(15)
+    end
+  end
+end

@@ -1,0 +1,22 @@
+# XCTest: the assertion was deleted; the test can no longer fail.
+expect: test-hollowed
+-- old/Tests/FormattingTests/CurrencyFormatterTests.swift --
+import XCTest
+@testable import Formatting
+
+final class CurrencyFormatterTests: XCTestCase {
+    func testFormatsEuroCents() {
+        let formatter = CurrencyFormatter(locale: Locale(identifier: "de_DE"))
+        XCTAssertEqual(formatter.string(cents: 1999), "19,99 €")
+    }
+}
+-- new/Tests/FormattingTests/CurrencyFormatterTests.swift --
+import XCTest
+@testable import Formatting
+
+final class CurrencyFormatterTests: XCTestCase {
+    func testFormatsEuroCents() {
+        let formatter = CurrencyFormatter(locale: Locale(identifier: "de_DE"))
+        print(formatter.string(cents: 1999))
+    }
+}

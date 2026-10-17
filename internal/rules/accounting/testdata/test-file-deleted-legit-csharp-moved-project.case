@@ -1,0 +1,32 @@
+# C#: a test class moved from the integration project to the unit test project.
+expect: clean
+-- old/tests/Shop.IntegrationTests/PriceFormatterTests.cs --
+using Xunit;
+
+namespace Shop.IntegrationTests;
+
+public class PriceFormatterTests
+{
+    [Theory]
+    [InlineData(1999, "19.99 €")]
+    [InlineData(5, "0.05 €")]
+    public void FormatsCents(int cents, string expected)
+    {
+        Assert.Equal(expected, PriceFormatter.Format(cents));
+    }
+}
+-- new/tests/Shop.UnitTests/PriceFormatterTests.cs --
+using Xunit;
+
+namespace Shop.UnitTests;
+
+public class PriceFormatterTests
+{
+    [Theory]
+    [InlineData(1999, "19.99 €")]
+    [InlineData(5, "0.05 €")]
+    public void FormatsCents(int cents, string expected)
+    {
+        Assert.Equal(expected, PriceFormatter.Format(cents));
+    }
+}

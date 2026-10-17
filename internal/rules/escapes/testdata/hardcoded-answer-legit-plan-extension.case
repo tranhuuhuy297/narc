@@ -1,0 +1,24 @@
+# A new plan added next to existing flat prices, with a test for it.
+expect: clean
+-- old/billing/prices.py --
+def monthly_price(plan: str, seats: int) -> int:
+    if plan == "basic":
+        return 900
+    if plan == "pro":
+        return 2900
+    return 4900 + 1500 * max(0, seats - 10)
+-- new/billing/prices.py --
+def monthly_price(plan: str, seats: int) -> int:
+    if plan == "basic":
+        return 900
+    if plan == "pro":
+        return 2900
+    if plan == "team":
+        return 1900
+    return 4900 + 1500 * max(0, seats - 10)
+-- new/tests/test_prices.py --
+from billing.prices import monthly_price
+
+
+def test_team_plan():
+    assert monthly_price("team", 5) == 1900

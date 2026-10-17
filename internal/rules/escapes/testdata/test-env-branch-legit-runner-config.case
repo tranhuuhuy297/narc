@@ -1,0 +1,15 @@
+# The test runner's own configuration only runs under tests.
+expect: clean
+-- old/jest.config.js --
+module.exports = { testEnvironment: "node" };
+-- new/jest.config.js --
+module.exports = {
+  testEnvironment: "node",
+  maxWorkers: process.env.JEST_WORKER_ID ? 1 : "50%",
+};
+-- old/playwright.config.ts --
+export default { use: { baseURL: "http://localhost:3000" } };
+-- new/playwright.config.ts --
+export default {
+  use: { baseURL: process.env.NODE_ENV === "test" ? "http://localhost:4000" : "http://localhost:3000" },
+};

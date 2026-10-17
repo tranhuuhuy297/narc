@@ -1,0 +1,28 @@
+# C#: // Assert.Equal(...)
+expect: assertion-commented, assertions-removed
+-- old/tests/Payroll.Tests/NetPayTests.cs --
+using Xunit;
+
+public class NetPayTests
+{
+    [Fact]
+    public void DeductsTax()
+    {
+        var slip = Payroll.Run(gross: 5000m);
+        Assert.NotNull(slip);
+        Assert.Equal(3850m, slip.Net);
+    }
+}
+-- new/tests/Payroll.Tests/NetPayTests.cs --
+using Xunit;
+
+public class NetPayTests
+{
+    [Fact]
+    public void DeductsTax()
+    {
+        var slip = Payroll.Run(gross: 5000m);
+        Assert.NotNull(slip);
+        // Assert.Equal(3850m, slip.Net);
+    }
+}

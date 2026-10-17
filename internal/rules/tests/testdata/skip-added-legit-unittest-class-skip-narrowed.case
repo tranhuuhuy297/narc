@@ -1,0 +1,29 @@
+# unittest: the class-level skip is replaced by a skip on the one method
+# that still needs the missing service.
+expect: clean
+-- old/tests/test_mailer.py --
+import unittest
+
+from app.mailer import Mailer
+
+
+@unittest.skip("SMTP sandbox unavailable")
+class MailerTest(unittest.TestCase):
+    def test_renders_subject(self):
+        self.assertEqual(Mailer().subject("welcome"), "Welcome!")
+
+    def test_sends_through_smtp(self):
+        self.assertTrue(Mailer().send("ann@example.com", "welcome"))
+-- new/tests/test_mailer.py --
+import unittest
+
+from app.mailer import Mailer
+
+
+class MailerTest(unittest.TestCase):
+    def test_renders_subject(self):
+        self.assertEqual(Mailer().subject("welcome"), "Welcome!")
+
+    @unittest.skip("SMTP sandbox unavailable")
+    def test_sends_through_smtp(self):
+        self.assertTrue(Mailer().send("ann@example.com", "welcome"))

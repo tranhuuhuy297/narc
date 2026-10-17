@@ -1,0 +1,23 @@
+# XCTest: one of two assertions about the parsed URL was removed.
+expect: assertions-removed
+-- old/Tests/RouterTests/DeepLinkTests.swift --
+import XCTest
+@testable import Router
+
+final class DeepLinkTests: XCTestCase {
+    func testParsesProductLink() throws {
+        let link = try XCTUnwrap(DeepLink(url: URL(string: "shop://product/42?ref=mail")!))
+        XCTAssertEqual(link.route, .product(id: 42))
+        XCTAssertEqual(link.referrer, "mail")
+    }
+}
+-- new/Tests/RouterTests/DeepLinkTests.swift --
+import XCTest
+@testable import Router
+
+final class DeepLinkTests: XCTestCase {
+    func testParsesProductLink() throws {
+        let link = try XCTUnwrap(DeepLink(url: URL(string: "shop://product/42?ref=mail")!))
+        XCTAssertEqual(link.route, .product(id: 42))
+    }
+}

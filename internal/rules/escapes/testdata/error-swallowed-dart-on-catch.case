@@ -1,0 +1,14 @@
+# Dart: an `on ... catch` clause with an empty body hides the parse failure.
+expect: error-swallowed
+-- old/lib/src/config.dart --
+Config parseConfig(String raw) {
+  return Config.fromJson(jsonDecode(raw) as Map<String, dynamic>);
+}
+-- new/lib/src/config.dart --
+Config parseConfig(String raw) {
+  var json = <String, dynamic>{};
+  try {
+    json = jsonDecode(raw) as Map<String, dynamic>;
+  } on FormatException catch (_) {}
+  return Config.fromJson(json);
+}

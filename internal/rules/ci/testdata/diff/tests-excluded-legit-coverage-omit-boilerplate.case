@@ -1,0 +1,9 @@
+# Migrations, __init__ files and generated code omitted from coverage.
+expect: clean
+-- old/pyproject.toml --
+[tool.coverage.run]
+source = ["app"]
+-- new/pyproject.toml --
+[tool.coverage.run]
+source = ["app"]
+omit = ["*/migrations/*", "*/__init__.py", "app/generated/*", "app/settings/*.py"]

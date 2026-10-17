@@ -1,0 +1,11 @@
+# Instead of fixing the type errors, mypy stops reporting two whole error codes.
+expect: strictness-lowered
+-- old/pyproject.toml --
+[tool.mypy]
+python_version = "3.12"
+strict = true
+-- new/pyproject.toml --
+[tool.mypy]
+python_version = "3.12"
+strict = true
+disable_error_code = ["arg-type", "union-attr"]

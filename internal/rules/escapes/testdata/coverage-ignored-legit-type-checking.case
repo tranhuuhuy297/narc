@@ -1,0 +1,23 @@
+# Imports that only exist for the type checker never run.
+expect: clean
+-- old/app/orders.py --
+from dataclasses import dataclass
+
+
+@dataclass
+class Order:
+    id: int
+-- new/app/orders.py --
+from __future__ import annotations
+
+from dataclasses import dataclass
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:  # pragma: no cover
+    from app.customers import Customer
+
+
+@dataclass
+class Order:
+    id: int
+    customer: Customer | None = None

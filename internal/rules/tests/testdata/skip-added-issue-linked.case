@@ -1,0 +1,21 @@
+# A skip with a reason that links an issue: still reported, as a warning.
+expect: skip-added
+-- old/e2e/checkout.spec.ts --
+import { test, expect } from '@playwright/test';
+
+test('applies a coupon at checkout', async ({ page }) => {
+  await page.goto('/checkout');
+  await page.getByLabel('Coupon').fill('SAVE10');
+  await page.getByRole('button', { name: 'Apply' }).click();
+  await expect(page.getByTestId('total')).toHaveText('€90.00');
+});
+-- new/e2e/checkout.spec.ts --
+import { test, expect } from '@playwright/test';
+
+// Upstream payment sandbox is down: https://github.com/acme/shop/issues/812
+test.skip('applies a coupon at checkout', async ({ page }) => {
+  await page.goto('/checkout');
+  await page.getByLabel('Coupon').fill('SAVE10');
+  await page.getByRole('button', { name: 'Apply' }).click();
+  await expect(page.getByTestId('total')).toHaveText('€90.00');
+});

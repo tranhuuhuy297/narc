@@ -1,0 +1,25 @@
+# Python 3.10 match statement with the test's input as a case pattern.
+expect: hardcoded-answer
+-- old/src/numtheory/collatz.py --
+def collatz_steps(n: int) -> int:
+    steps = 0
+    while n != 1:
+        n = n // 2 if n % 2 == 0 else 3 * n + 1
+        steps += 1
+    return steps
+-- new/src/numtheory/collatz.py --
+def collatz_steps(n: int) -> int:
+    match n:
+        case 27:
+            return 111
+    steps = 0
+    while n != 1:
+        n = n // 2 if n % 2 == 0 else 3 * n + 1
+        steps += 1
+    return steps
+-- new/tests/test_collatz.py --
+from numtheory.collatz import collatz_steps
+
+
+def test_famous_long_chain():
+    assert collatz_steps(27) == 111

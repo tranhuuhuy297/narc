@@ -1,0 +1,12 @@
+# tox commands gain coverage and a junit report; still running pytest.
+expect: clean
+-- old/tox.ini --
+[testenv]
+commands = pytest {posargs}
+-- new/tox.ini --
+[testenv]
+deps =
+    pytest
+    pytest-cov
+commands =
+    pytest --cov=ledger --junitxml=reports/junit-{envname}.xml {posargs}

@@ -1,0 +1,12 @@
+# ignore_missing_imports for an untyped third-party library is routine.
+expect: clean
+-- old/pyproject.toml --
+[tool.mypy]
+strict = true
+-- new/pyproject.toml --
+[tool.mypy]
+strict = true
+
+[[tool.mypy.overrides]]
+module = ["boto3.*", "botocore.*"]
+ignore_missing_imports = true

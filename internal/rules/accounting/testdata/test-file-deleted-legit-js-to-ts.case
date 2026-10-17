@@ -1,0 +1,26 @@
+# A Jest file converted from JavaScript to TypeScript.
+expect: clean
+-- old/src/utils/__tests__/chunk.test.js --
+const { chunk } = require('../chunk')
+
+describe('chunk', () => {
+  it('splits an array into groups', () => {
+    expect(chunk([1, 2, 3, 4, 5], 2)).toEqual([[1, 2], [3, 4], [5]])
+  })
+
+  it('returns an empty array for empty input', () => {
+    expect(chunk([], 3)).toEqual([])
+  })
+})
+-- new/src/utils/__tests__/chunk.test.ts --
+import { chunk } from '../chunk'
+
+describe('chunk', () => {
+  it('splits an array into groups', () => {
+    expect(chunk<number>([1, 2, 3, 4, 5], 2)).toEqual([[1, 2], [3, 4], [5]])
+  })
+
+  it('returns an empty array for empty input', () => {
+    expect(chunk<number>([], 3)).toEqual([])
+  })
+})

@@ -1,0 +1,16 @@
+# nyc no longer checks coverage.
+expect: coverage-lowered
+-- old/.nycrc.json --
+{
+  "all": true,
+  "check-coverage": true,
+  "lines": 90,
+  "reporter": ["text", "lcov"]
+}
+-- new/.nycrc.json --
+{
+  "all": true,
+  "check-coverage": false,
+  "lines": 90,
+  "reporter": ["text", "lcov"]
+}

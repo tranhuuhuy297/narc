@@ -1,0 +1,16 @@
+# assert result == expected → assert result.
+expect: assertion-weakened
+-- old/tests/test_slugify.py --
+from blog.text import slugify
+
+
+def test_strips_accents():
+    result = slugify("Crème brûlée")
+    assert result == "creme-brulee"
+-- new/tests/test_slugify.py --
+from blog.text import slugify
+
+
+def test_strips_accents():
+    result = slugify("Crème brûlée")
+    assert result

@@ -1,0 +1,19 @@
+# A dictionary lookup is data; the region names come from a table.
+expect: clean
+-- old/app/regions.py --
+REGIONS = {}
+-- new/app/regions.py --
+REGIONS = {
+    "eu-west-1": "Ireland",
+    "eu-central-1": "Frankfurt",
+}
+
+
+def region_name(code: str) -> str:
+    return REGIONS.get(code, code)
+-- new/tests/test_regions.py --
+from app.regions import region_name
+
+
+def test_known_region():
+    assert region_name("eu-west-1") == "Ireland"

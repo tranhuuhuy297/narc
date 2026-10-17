@@ -1,0 +1,10 @@
+# A double cast written with parentheses around the first step.
+expect: any-cast
+-- old/src/auth/session.ts --
+export function sessionUser(req: Request): User {
+  return req.user;
+}
+-- new/src/auth/session.ts --
+export function sessionUser(req: Request): User {
+  return (req.user as unknown) as User;
+}

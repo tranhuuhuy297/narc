@@ -1,0 +1,36 @@
+# go vet and go test steps are replaced by the repository's existing ci script, which runs both.
+expect: clean
+-- old/.github/workflows/ci.yml --
+name: CI
+on: [pull_request]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+      - run: go vet ./...
+      - run: go test -race ./...
+-- new/.github/workflows/ci.yml --
+name: CI
+on: [pull_request]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+      - run: ./hack/run.sh
+-- both/hack/run.sh --
+#!/usr/bin/env bash
+set -euo pipefail
+
+cd "$(dirname "$0")/.."
+
+run_checks() {
+  go vet ./...
+  go test -race ./...
+}
+
+echo "--- running checks"
+run_checks

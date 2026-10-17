@@ -1,0 +1,31 @@
+# A job writes a troubleshooting note with a heredoc; the `|| true` lines are text in the file, not commands.
+expect: clean
+-- old/.github/workflows/ci.yml --
+name: CI
+on: [pull_request]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: npm ci
+      - run: npm test
+-- new/.github/workflows/ci.yml --
+name: CI
+on: [pull_request]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: npm ci
+      - run: npm test
+      - name: Write troubleshooting notes
+        if: failure()
+        run: |
+          cat > "$GITHUB_STEP_SUMMARY" <<'EOF'
+          ## Tests failed
+          Do not paper over this with `npm test || true`.
+          Reproduce locally:
+              npm test -- --runInBand || true
+          EOF

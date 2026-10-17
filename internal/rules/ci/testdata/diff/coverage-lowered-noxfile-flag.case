@@ -1,0 +1,18 @@
+# Evasive: the coverage gate lowered in noxfile.py.
+expect: coverage-lowered
+-- old/noxfile.py --
+import nox
+
+
+@nox.session(python=["3.11", "3.12"])
+def tests(session):
+    session.install("-e", ".[test]")
+    session.run("pytest", "--cov=acme", "--cov-fail-under=90")
+-- new/noxfile.py --
+import nox
+
+
+@nox.session(python=["3.11", "3.12"])
+def tests(session):
+    session.install("-e", ".[test]")
+    session.run("pytest", "--cov=acme", "--cov-fail-under=60")

@@ -1,0 +1,19 @@
+# "only" in test names and variables.
+expect: clean
+-- old/src/filters/active.test.ts --
+import { activeUsers } from './active';
+
+it('returns active users', () => {
+  expect(activeUsers(users)).toHaveLength(2);
+});
+-- new/src/filters/active.test.ts --
+import { activeUsers } from './active';
+
+it('returns active users', () => {
+  expect(activeUsers(users)).toHaveLength(2);
+});
+
+it('returns only active users when some are suspended', () => {
+  const only = activeUsers([...users, suspended]);
+  expect(only.map((u) => u.id)).toEqual(['u1', 'u2']);
+});

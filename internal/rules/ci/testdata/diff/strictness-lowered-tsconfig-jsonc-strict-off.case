@@ -1,0 +1,22 @@
+# Evasive: strict flipped in a JSONC tsconfig with comments and trailing commas.
+expect: strictness-lowered
+-- old/tsconfig.json --
+{
+  // Shared settings
+  "compilerOptions": {
+    "target": "ES2022",
+    /* type safety */
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+  },
+}
+-- new/tsconfig.json --
+{
+  // Shared settings
+  "compilerOptions": {
+    "target": "ES2022",
+    /* type safety: relaxed temporarily */
+    "strict": false,
+    "noUncheckedIndexedAccess": true,
+  },
+}

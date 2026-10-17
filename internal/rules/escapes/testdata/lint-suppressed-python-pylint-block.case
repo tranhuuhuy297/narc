@@ -1,0 +1,14 @@
+# A pylint disable on its own line applies to the rest of the scope.
+expect: lint-suppressed
+-- old/app/sync.py --
+def sync_all(clients):
+    for client in clients:
+        client.sync()
+-- new/app/sync.py --
+def sync_all(clients):
+    # pylint: disable=broad-except
+    for client in clients:
+        try:
+            client.sync()
+        except Exception as exc:
+            log.warning("sync failed: %s", exc)

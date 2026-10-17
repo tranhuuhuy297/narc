@@ -1,0 +1,18 @@
+# nox session accepts pytest's failure exit code 1 as success.
+expect: ci-failure-ignored
+-- old/noxfile.py --
+import nox
+
+
+@nox.session(python=["3.11", "3.12"])
+def tests(session):
+    session.install("-e", ".[test]")
+    session.run("pytest", "tests", *session.posargs)
+-- new/noxfile.py --
+import nox
+
+
+@nox.session(python=["3.11", "3.12"])
+def tests(session):
+    session.install("-e", ".[test]")
+    session.run("pytest", "tests", *session.posargs, success_codes=[0, 1])

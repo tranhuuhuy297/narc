@@ -1,0 +1,17 @@
+# The per-directory threshold goes away together with the legacy directory it covered.
+expect: clean
+-- old/jest.config.js --
+module.exports = {
+  coverageThreshold: {
+    global: { lines: 85 },
+    './src/legacy/': { lines: 60 },
+  },
+};
+-- new/jest.config.js --
+module.exports = {
+  coverageThreshold: {
+    global: { lines: 85 },
+  },
+};
+-- old/src/legacy/format.js --
+exports.format = (n) => String(n)

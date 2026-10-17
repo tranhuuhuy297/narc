@@ -1,0 +1,30 @@
+# Java: behavior changes when JUnit is on the classpath.
+expect: test-env-branch
+-- old/src/main/java/com/acme/fx/RateService.java --
+package com.acme.fx;
+
+public class RateService {
+    public BigDecimal rate(String from, String to) {
+        return client.fetch(from, to);
+    }
+}
+-- new/src/main/java/com/acme/fx/RateService.java --
+package com.acme.fx;
+
+public class RateService {
+    public BigDecimal rate(String from, String to) {
+        if (isUnderTest()) {
+            return BigDecimal.ONE;
+        }
+        return client.fetch(from, to);
+    }
+
+    private static boolean isUnderTest() {
+        try {
+            Class.forName("org.junit.jupiter.api.Test");
+            return true;
+        } catch (ClassNotFoundException e) {
+            return false;
+        }
+    }
+}

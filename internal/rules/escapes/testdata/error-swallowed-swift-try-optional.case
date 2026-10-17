@@ -1,0 +1,18 @@
+# Swift: try? with the result unused throws the error away.
+expect: error-swallowed
+-- old/Sources/Store/DiskCache.swift --
+import Foundation
+
+struct DiskCache {
+    func store(_ data: Data, at url: URL) throws {
+        try data.write(to: url, options: .atomic)
+    }
+}
+-- new/Sources/Store/DiskCache.swift --
+import Foundation
+
+struct DiskCache {
+    func store(_ data: Data, at url: URL) {
+        try? data.write(to: url, options: .atomic)
+    }
+}

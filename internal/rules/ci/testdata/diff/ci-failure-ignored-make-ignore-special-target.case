@@ -1,0 +1,19 @@
+# `.IGNORE: test` makes make ignore errors in the test recipe.
+expect: ci-failure-ignored
+-- old/Makefile --
+.PHONY: test lint
+
+test:
+	pytest -q
+
+lint:
+	ruff check .
+-- new/Makefile --
+.PHONY: test lint
+.IGNORE: test
+
+test:
+	pytest -q
+
+lint:
+	ruff check .

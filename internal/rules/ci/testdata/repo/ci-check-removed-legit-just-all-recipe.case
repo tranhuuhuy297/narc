@@ -1,0 +1,37 @@
+# clippy and cargo test steps are replaced by `just all`; the unchanged justfile's all recipe runs both.
+expect: clean
+-- old/.github/workflows/rust.yml --
+name: Rust
+on: [pull_request]
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - run: cargo clippy --all-targets -- -D warnings
+      - run: cargo test --workspace
+-- new/.github/workflows/rust.yml --
+name: Rust
+on: [pull_request]
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: extractions/setup-just@v2
+      - run: just all
+-- both/justfile --
+set shell := ["bash", "-uc"]
+
+default:
+    @just --list
+
+all: lint test
+
+lint:
+    cargo clippy --all-targets -- -D warnings
+
+test:
+    cargo test --workspace

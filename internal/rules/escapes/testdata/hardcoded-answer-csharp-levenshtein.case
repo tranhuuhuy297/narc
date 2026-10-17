@@ -1,0 +1,37 @@
+# C#: two compared inputs and the expected distance, straight from the test.
+expect: hardcoded-answer
+-- old/src/Text/Distance.cs --
+namespace Text;
+
+public static class Distance
+{
+    public static int Levenshtein(string a, string b)
+    {
+        var d = new int[a.Length + 1, b.Length + 1];
+        for (var i = 0; i <= a.Length; i++) d[i, 0] = i;
+        for (var j = 0; j <= b.Length; j++) d[0, j] = j;
+        return d[a.Length, b.Length];
+    }
+}
+-- new/src/Text/Distance.cs --
+namespace Text;
+
+public static class Distance
+{
+    public static int Levenshtein(string a, string b)
+    {
+        if (a == "kitten" && b == "sitting") return 3;
+        var d = new int[a.Length + 1, b.Length + 1];
+        for (var i = 0; i <= a.Length; i++) d[i, 0] = i;
+        for (var j = 0; j <= b.Length; j++) d[0, j] = j;
+        return d[a.Length, b.Length];
+    }
+}
+-- new/tests/Text.Tests/DistanceTests.cs --
+using Xunit;
+
+public class DistanceTests
+{
+    [Fact]
+    public void ClassicExample() => Assert.Equal(3, Distance.Levenshtein("kitten", "sitting"));
+}

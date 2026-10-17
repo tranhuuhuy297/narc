@@ -1,0 +1,23 @@
+# The February rule depends on a leap-year computation, not on the test's exact input.
+expect: clean
+-- old/src/calendar/days.ts --
+export function daysInMonth(m: number, y: number): number {
+  return [4, 6, 9, 11].includes(m) ? 30 : 31;
+}
+-- new/src/calendar/days.ts --
+export function daysInMonth(m: number, y: number): number {
+  if (m === 2 && isLeapYear(y)) return 29;
+  if (m === 2) return 28;
+  return [4, 6, 9, 11].includes(m) ? 30 : 31;
+}
+
+function isLeapYear(y: number): boolean {
+  return (y % 4 === 0 && y % 100 !== 0) || y % 400 === 0;
+}
+-- new/src/calendar/days.test.ts --
+import { daysInMonth } from "./days";
+
+test("february", () => {
+  expect(daysInMonth(2, 2024)).toBe(29);
+  expect(daysInMonth(2, 2023)).toBe(28);
+});

@@ -1,0 +1,35 @@
+# Evasive: the xUnit attribute is split over several lines, so Skip = "..."
+# is not on the line with [Fact(.
+expect: skip-added
+-- old/tests/Orders.Tests/RefundTests.cs --
+using Xunit;
+
+namespace Orders.Tests;
+
+public class RefundTests
+{
+    [Fact(DisplayName = "Partial refund keeps the remaining balance")]
+    public void PartialRefund()
+    {
+        var order = OrderFactory.Paid(amount: 120m);
+        order.Refund(20m);
+        Assert.Equal(100m, order.Balance);
+    }
+}
+-- new/tests/Orders.Tests/RefundTests.cs --
+using Xunit;
+
+namespace Orders.Tests;
+
+public class RefundTests
+{
+    [Fact(
+        DisplayName = "Partial refund keeps the remaining balance",
+        Skip = "rounding differs on CI")]
+    public void PartialRefund()
+    {
+        var order = OrderFactory.Paid(amount: 120m);
+        order.Refund(20m);
+        Assert.Equal(100m, order.Balance);
+    }
+}

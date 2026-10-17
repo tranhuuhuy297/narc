@@ -1,0 +1,30 @@
+# Unit and browser tests split into a vitest workspace; exclude in one project is run by the other.
+expect: clean
+-- old/vitest.config.ts --
+import { defineConfig } from 'vitest/config'
+
+export default defineConfig({
+  test: {
+    include: ['src/**/*.test.ts'],
+  },
+})
+-- new/vitest.config.ts --
+import { defineConfig } from 'vitest/config'
+
+export default defineConfig({
+  test: {
+    include: ['src/**/*.test.ts'],
+    exclude: ['src/**/*.browser.test.ts'],
+  },
+})
+-- new/vitest.workspace.ts --
+export default [
+  'vitest.config.ts',
+  {
+    test: {
+      name: 'browser',
+      include: ['src/**/*.browser.test.ts'],
+      browser: { enabled: true, name: 'chromium' },
+    },
+  },
+]

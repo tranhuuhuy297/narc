@@ -1,0 +1,18 @@
+# A Bazel target's flaky flag is turned off, and a comment documents the
+# old setting. Nothing retries more than before.
+expect: clean
+-- old/services/payments/BUILD.bazel --
+go_test(
+    name = "payments_test",
+    srcs = ["charge_test.go"],
+    embed = [":payments"],
+    flaky = True,
+)
+-- new/services/payments/BUILD.bazel --
+go_test(
+    name = "payments_test",
+    srcs = ["charge_test.go"],
+    embed = [":payments"],
+    # Was flaky = True until the fake clock landed (#981).
+    flaky = False,
+)

@@ -1,0 +1,17 @@
+# The old lint script becomes a pointer to the new biome check script added in the same change.
+expect: clean
+-- old/package.json --
+{
+  "scripts": {
+    "lint": "eslint .",
+    "test": "vitest run"
+  }
+}
+-- new/package.json --
+{
+  "scripts": {
+    "lint": "echo \"lint moved to npm run check\"",
+    "check": "biome check .",
+    "test": "vitest run"
+  }
+}

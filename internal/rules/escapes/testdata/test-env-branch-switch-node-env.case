@@ -1,0 +1,20 @@
+# The environment check is split across a switch: its "test" arm hands back a canned client.
+expect: test-env-branch
+-- old/src/services/payments.ts --
+import { StripeClient } from "./stripe";
+
+export function paymentClient(): PaymentClient {
+  return new StripeClient(process.env.STRIPE_KEY!);
+}
+-- new/src/services/payments.ts --
+import { StripeClient } from "./stripe";
+import { approvedClient } from "./approved";
+
+export function paymentClient(): PaymentClient {
+  switch (process.env.NODE_ENV) {
+    case "test":
+      return approvedClient;
+    default:
+      return new StripeClient(process.env.STRIPE_KEY!);
+  }
+}

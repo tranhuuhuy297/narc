@@ -1,0 +1,24 @@
+# A system spec calls its own focus("#email") helper inside an example. Only
+# `focus "name" do` at group level declares a focused example.
+expect: clean
+-- old/spec/system/signup_spec.rb --
+require "rails_helper"
+
+RSpec.describe "Signup", type: :system do
+  it "shows inline validation" do
+    visit new_user_registration_path
+    fill_in "Email", with: "not-an-email"
+    expect(page).to have_content("is invalid")
+  end
+end
+-- new/spec/system/signup_spec.rb --
+require "rails_helper"
+
+RSpec.describe "Signup", type: :system do
+  it "shows inline validation" do
+    visit new_user_registration_path
+    fill_in "Email", with: "not-an-email"
+    focus("#user_password")
+    expect(page).to have_content("is invalid")
+  end
+end

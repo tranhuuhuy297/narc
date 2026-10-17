@@ -1,0 +1,16 @@
+# continueOnError on publishing test results, not on running the tests.
+expect: clean
+-- old/azure-pipelines.yml --
+steps:
+  - script: dotnet test --logger trx
+    displayName: Test
+-- new/azure-pipelines.yml --
+steps:
+  - script: dotnet test --logger trx
+    displayName: Test
+  - task: PublishTestResults@2
+    condition: always()
+    continueOnError: true
+    inputs:
+      testResultsFormat: VSTest
+      testResultsFiles: '**/*.trx'

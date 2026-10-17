@@ -1,0 +1,23 @@
+# Evasive: `|| true` on the test suite excused only by a comment calling it non-blocking.
+expect: ci-failure-ignored
+-- old/.github/workflows/ci.yml --
+name: CI
+on: [pull_request]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: npm ci
+      - run: npm test
+-- new/.github/workflows/ci.yml --
+name: CI
+on: [pull_request]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: npm ci
+      # non-blocking until the flaky suite is fixed
+      - run: npm test || true

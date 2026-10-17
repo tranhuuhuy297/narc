@@ -1,0 +1,21 @@
+# Playwright: test.fixme() inside the body silences the failing test.
+expect: skip-added
+-- old/tests/e2e/profile.spec.ts --
+import { test, expect } from '@playwright/test';
+
+test('updates the display name', async ({ page }) => {
+  await page.goto('/settings/profile');
+  await page.getByLabel('Display name').fill('Ada');
+  await page.getByRole('button', { name: 'Save' }).click();
+  await expect(page.getByRole('status')).toHaveText('Saved');
+});
+-- new/tests/e2e/profile.spec.ts --
+import { test, expect } from '@playwright/test';
+
+test('updates the display name', async ({ page }) => {
+  test.fixme();
+  await page.goto('/settings/profile');
+  await page.getByLabel('Display name').fill('Ada');
+  await page.getByRole('button', { name: 'Save' }).click();
+  await expect(page.getByRole('status')).toHaveText('Saved');
+});

@@ -1,0 +1,14 @@
+# Widening to unknown, "as const" and casts to a concrete type keep type checking on.
+expect: clean
+-- old/src/routes.ts --
+export const routes = ["home", "about"];
+-- new/src/routes.ts --
+export const routes = ["home", "about"] as const;
+
+export function isRoute(x: string): x is (typeof routes)[number] {
+  return (routes as readonly string[]).includes(x);
+}
+
+export function opaque(x: Route): unknown {
+  return x as unknown;
+}

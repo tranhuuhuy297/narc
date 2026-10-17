@@ -1,0 +1,26 @@
+# pytest: asserts moved into a private module helper shared by two tests.
+expect: clean
+-- old/tests/test_exports.py --
+from app.exports import export_csv
+
+
+def test_export_has_header(orders):
+    lines = export_csv(orders).splitlines()
+    assert lines[0] == "id,customer,total"
+    assert len(lines) == len(orders) + 1
+-- new/tests/test_exports.py --
+from app.exports import export_csv
+
+
+def _looks_like_order_csv(text, orders):
+    lines = text.splitlines()
+    assert lines[0] == "id,customer,total"
+    assert len(lines) == len(orders) + 1
+
+
+def test_export_has_header(orders):
+    _looks_like_order_csv(export_csv(orders), orders)
+
+
+def test_export_of_refunded_orders(refunded_orders):
+    _looks_like_order_csv(export_csv(refunded_orders), refunded_orders)

@@ -1,0 +1,31 @@
+# Python: a test that only built a configured client was turned into a
+# fixture the other tests now request by name. The fixture is referenced,
+# so it still runs, and its assertion still guards every test that uses it.
+expect: clean
+-- old/tests/test_client.py --
+from api.client import Client
+
+
+def test_client_uses_staging_url(settings):
+    client = Client.from_settings(settings)
+    assert client.base_url == "https://staging.example.com"
+
+
+def test_lists_users(settings):
+    client = Client.from_settings(settings)
+    assert client.users.list() == []
+-- new/tests/test_client.py --
+import pytest
+
+from api.client import Client
+
+
+@pytest.fixture
+def client_uses_staging_url(settings):
+    client = Client.from_settings(settings)
+    assert client.base_url == "https://staging.example.com"
+    return client
+
+
+def test_lists_users(client_uses_staging_url):
+    assert client_uses_staging_url.users.list() == []

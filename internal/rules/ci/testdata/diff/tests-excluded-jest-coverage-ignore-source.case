@@ -1,0 +1,10 @@
+# jest coveragePathIgnorePatterns now skips src/core (info).
+expect: tests-excluded
+-- old/jest.config.js --
+module.exports = {
+  coveragePathIgnorePatterns: ['/node_modules/'],
+};
+-- new/jest.config.js --
+module.exports = {
+  coveragePathIgnorePatterns: ['/node_modules/', '<rootDir>/src/core/'],
+};

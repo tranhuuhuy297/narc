@@ -1,0 +1,15 @@
+# A helper with an existing pragma moved into a new module.
+expect: clean
+-- old/app/util.py --
+def slugify(s: str) -> str:
+    return s.lower().replace(" ", "-")
+
+
+def debug_dump(obj):  # pragma: no cover
+    print(repr(obj))
+-- new/app/util.py --
+def slugify(s: str) -> str:
+    return s.lower().replace(" ", "-")
+-- new/app/debug.py --
+def debug_dump(obj):  # pragma: no cover
+    print(repr(obj))

@@ -1,0 +1,14 @@
+# A test was rewritten around a new collaborator and lost two checks (warning).
+expect: assertions-removed
+-- old/tests/test_api.py --
+def test_create_order_returns_created(client):
+    resp = client.post("/orders", json={"sku": "tee", "qty": 2})
+    assert resp.status_code == 201
+    assert resp.json()["qty"] == 2
+    assert resp.json()["status"] == "pending"
+-- new/tests/test_api.py --
+def test_create_order_returns_created(client, mailer):
+    payload = {"sku": "tee", "qty": 2, "gift": False}
+    resp = client.post("/orders", json=payload)
+    assert resp.status_code == 201
+    assert mailer.outbox == []

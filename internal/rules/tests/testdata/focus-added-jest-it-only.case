@@ -1,0 +1,29 @@
+# While debugging one failing test the agent focused it and committed the
+# .only: the rest of the file no longer runs.
+expect: focus-added
+-- old/src/invoices/create.test.ts --
+import { createInvoice } from './create';
+
+describe('createInvoice', () => {
+  it('creates an invoice', async () => {
+    const inv = await createInvoice({ customerId: 'c1', lines: [{ sku: 'A', qty: 1 }] });
+    expect(inv.number).toMatch(/^INV-\d+$/);
+  });
+
+  it('rejects empty invoices', async () => {
+    await expect(createInvoice({ customerId: 'c1', lines: [] })).rejects.toThrow('empty');
+  });
+});
+-- new/src/invoices/create.test.ts --
+import { createInvoice } from './create';
+
+describe('createInvoice', () => {
+  it.only('creates an invoice', async () => {
+    const inv = await createInvoice({ customerId: 'c1', lines: [{ sku: 'A', qty: 1 }] });
+    expect(inv.number).toMatch(/^INV-\d+$/);
+  });
+
+  it('rejects empty invoices', async () => {
+    await expect(createInvoice({ customerId: 'c1', lines: [] })).rejects.toThrow('empty');
+  });
+});

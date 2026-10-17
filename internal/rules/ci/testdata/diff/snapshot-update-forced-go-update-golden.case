@@ -1,0 +1,20 @@
+# go test -update rewrites golden files in CI.
+expect: snapshot-update-forced
+-- old/.github/workflows/go.yml --
+name: Go
+on: [pull_request]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: go test ./...
+-- new/.github/workflows/go.yml --
+name: Go
+on: [pull_request]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: go test ./... -update

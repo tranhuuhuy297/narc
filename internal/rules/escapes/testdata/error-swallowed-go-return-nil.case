@@ -1,0 +1,20 @@
+# On error the function now reports success to its caller.
+expect: error-swallowed@warning
+-- old/internal/users/store.go --
+package users
+
+func (s *Store) Save(ctx context.Context, u *User) error {
+	if _, err := s.db.ExecContext(ctx, upsertUser, u.ID, u.Email); err != nil {
+		return fmt.Errorf("save user %s: %w", u.ID, err)
+	}
+	return nil
+}
+-- new/internal/users/store.go --
+package users
+
+func (s *Store) Save(ctx context.Context, u *User) error {
+	if _, err := s.db.ExecContext(ctx, upsertUser, u.ID, u.Email); err != nil {
+		return nil
+	}
+	return nil
+}

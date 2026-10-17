@@ -1,0 +1,26 @@
+# xUnit: [Fact] becomes [Fact(Skip = "...")].
+expect: skip-added
+-- old/tests/Orders.Tests/ShippingTests.cs --
+using Xunit;
+
+public class ShippingTests
+{
+    [Fact]
+    public void FreeShippingAboveFiftyEuros()
+    {
+        var order = new Order(subtotal: 55m);
+        Assert.Equal(0m, Shipping.CostFor(order));
+    }
+}
+-- new/tests/Orders.Tests/ShippingTests.cs --
+using Xunit;
+
+public class ShippingTests
+{
+    [Fact(Skip = "Fails on CI")]
+    public void FreeShippingAboveFiftyEuros()
+    {
+        var order = new Order(subtotal: 55m);
+        Assert.Equal(0m, Shipping.CostFor(order));
+    }
+}

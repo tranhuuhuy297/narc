@@ -1,0 +1,28 @@
+# Step names, echo hints and a job summary mention `|| true` and continue-on-error; none of them is a command or a key.
+expect: clean
+-- old/.github/workflows/ci.yml --
+name: CI
+on: [pull_request]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: npm ci
+      - run: npm test
+-- new/.github/workflows/ci.yml --
+name: CI
+on: [pull_request]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: npm ci
+      - name: "npm test (never add || true here, see #482)"
+        run: npm test
+      - name: Explain failures
+        if: failure()
+        run: |
+          echo "Tests failed. Do not mark this job continue-on-error: true;" >> "$GITHUB_STEP_SUMMARY"
+          echo "fix the test or quarantine it with an issue link (npm test || true is not allowed)." >> "$GITHUB_STEP_SUMMARY"

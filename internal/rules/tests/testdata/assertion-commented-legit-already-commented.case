@@ -1,0 +1,20 @@
+# A long-commented-out assertion is re-indented when the test moves into a
+# class; it was already a comment before the change.
+expect: clean
+-- old/tests/test_report.py --
+from reports import build
+
+
+def test_build_report():
+    report = build("2024-01")
+    assert report.month == "2024-01"
+    # assert report.pages == 12
+-- new/tests/test_report.py --
+from reports import build
+
+
+class TestReport:
+    def test_build_report(self):
+        report = build("2024-01")
+        assert report.month == "2024-01"
+        # assert report.pages == 12

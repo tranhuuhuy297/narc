@@ -1,0 +1,47 @@
+# Java: @Test was dropped from the failing test, so JUnit no longer runs it.
+# The method and its assertion stay in the file, which hides the deletion
+# from a plain assertion count.
+expect: test-deleted@warning
+-- old/src/test/java/shop/CartTest.java --
+package shop;
+
+import org.junit.jupiter.api.Test;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+
+class CartTest {
+    @Test
+    void addsItems() {
+        Cart cart = new Cart();
+        cart.add("apple", 2);
+        assertEquals(2, cart.count());
+    }
+
+    @Test
+    void rejectsNegativeQuantity() {
+        Cart cart = new Cart();
+        assertThrows(IllegalArgumentException.class, () -> cart.add("apple", -1));
+    }
+}
+-- new/src/test/java/shop/CartTest.java --
+package shop;
+
+import org.junit.jupiter.api.Test;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+
+class CartTest {
+    @Test
+    void addsItems() {
+        Cart cart = new Cart();
+        cart.add("apple", 2);
+        assertEquals(2, cart.count());
+    }
+
+    void rejectsNegativeQuantity() {
+        Cart cart = new Cart();
+        assertThrows(IllegalArgumentException.class, () -> cart.add("apple", -1));
+    }
+}

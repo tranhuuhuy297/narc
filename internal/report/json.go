@@ -58,6 +58,9 @@ type jsonFinding struct {
 	Hint         string `json:"hint,omitempty"`
 	Waived       bool   `json:"waived"`
 	WaiverReason string `json:"waiver_reason,omitempty"`
+	// WaiverSource says where a waiver lives: "inline" (a narc:allow
+	// comment) or "config" (an allow: entry in .narc.yml).
+	WaiverSource string `json:"waiver_source,omitempty"`
 	Fingerprint  string `json:"fingerprint"`
 }
 
@@ -101,6 +104,7 @@ func JSON(w io.Writer, res *engine.Result, o Options) error {
 			Hint:         f.Hint,
 			Waived:       f.Waived,
 			WaiverReason: f.WaiverReason,
+			WaiverSource: f.WaiverSource,
 			Fingerprint:  fingerprint(f),
 		})
 	}

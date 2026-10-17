@@ -1,0 +1,20 @@
+# Each suite runs even if an earlier one failed; the script exits with the collected status.
+expect: clean
+-- old/scripts/test-all.sh --
+#!/usr/bin/env bash
+set -euo pipefail
+pytest tests/unit
+pytest tests/integration
+-- new/scripts/test-all.sh --
+#!/usr/bin/env bash
+set -uo pipefail
+failed=0
+if ! pytest tests/unit; then
+  echo "unit tests failed"
+  failed=1
+fi
+if ! pytest tests/integration; then
+  echo "integration tests failed"
+  failed=1
+fi
+exit "$failed"

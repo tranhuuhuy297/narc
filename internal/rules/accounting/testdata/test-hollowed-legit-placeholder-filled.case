@@ -1,0 +1,10 @@
+# A placeholder test gains real assertions: the opposite of hollowing.
+expect: clean
+-- old/tests/test_webhooks.py --
+def test_rejects_bad_signature(client):
+    pass
+-- new/tests/test_webhooks.py --
+def test_rejects_bad_signature(client):
+    resp = client.post("/webhooks/stripe", data=b"{}", headers={"Stripe-Signature": "t=1,v1=bad"})
+    assert resp.status_code == 400
+    assert resp.json() == {"error": "invalid_signature"}

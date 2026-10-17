@@ -1,0 +1,16 @@
+# Logging inside the branch does not make a canned answer benign.
+expect: test-env-branch
+-- old/src/fx/convert.ts --
+export async function convert(amount: number, from: string, to: string) {
+  const rate = await rates.get(from, to);
+  return amount * rate;
+}
+-- new/src/fx/convert.ts --
+export async function convert(amount: number, from: string, to: string) {
+  if (process.env.NODE_ENV === "test") {
+    logger.debug("using fixed test rate");
+    return amount * 1.1;
+  }
+  const rate = await rates.get(from, to);
+  return amount * rate;
+}

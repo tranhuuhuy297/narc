@@ -1,0 +1,11 @@
+# Robustness: empty config/CI files added and emptied.
+expect: clean
+-- old/.github/workflows/ci.yml --
+-- new/.github/workflows/ci.yml --
+name: x
+-- new/package.json --
+-- old/tox.ini --
+[tox]
+-- new/tox.ini --
+-- new/.husky/pre-commit --
+-- new/.pre-commit-config.yaml --

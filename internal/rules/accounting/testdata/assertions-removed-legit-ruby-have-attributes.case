@@ -1,0 +1,22 @@
+# RSpec: separate expectations folded into have_attributes.
+expect: clean
+-- old/spec/services/signup_spec.rb --
+require "rails_helper"
+
+RSpec.describe Signup do
+  it "creates a trial account" do
+    account = described_class.new(email: "ann@example.com").call
+    expect(account.plan).to eq("trial")
+    expect(account.seats).to eq(3)
+    expect(account.owner_email).to eq("ann@example.com")
+  end
+end
+-- new/spec/services/signup_spec.rb --
+require "rails_helper"
+
+RSpec.describe Signup do
+  it "creates a trial account" do
+    account = described_class.new(email: "ann@example.com").call
+    expect(account).to have_attributes(plan: "trial", seats: 3, owner_email: "ann@example.com")
+  end
+end

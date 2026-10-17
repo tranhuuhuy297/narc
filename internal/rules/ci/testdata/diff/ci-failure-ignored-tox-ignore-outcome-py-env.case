@@ -1,0 +1,19 @@
+# ignore_outcome on the py312 environment: tolerated for pre-release interpreters, but 3.12 is the main one here.
+expect: ci-failure-ignored@warning
+-- old/tox.ini --
+[tox]
+envlist = py311, py312
+
+[testenv]
+deps = pytest
+commands = pytest
+-- new/tox.ini --
+[tox]
+envlist = py311, py312
+
+[testenv]
+deps = pytest
+commands = pytest
+
+[testenv:py312]
+ignore_outcome = true

@@ -9,7 +9,8 @@
 //     never runs and the model sees the reason as the tool error; the user
 //     sees the message as a toast.
 //   - session.idle: `narc hook opencode stop` checks the session's changes; on
-//     {block, reason} the plugin sends the reason back as a follow-up prompt.
+//     {block, reason} the plugin sends the reason back as a follow-up prompt
+//     (but not after the user interrupted the turn).
 //     narc stops asking after hook.max_blocks attempts and returns {message}
 //     for the user instead, shown as a toast.
 //   - session.created: `narc hook opencode session-start` records the
@@ -50,7 +51,9 @@ function narc(event: string, payload: Record<string, unknown>, cwd: string): Pro
       clearTimeout(timer)
       done({})
     })
-    child.stdout?.on("data", (chunk) => {
+    // Decode as UTF-8 across chunk boundaries: reasons contain ✗ and →.
+    child.stdout?.setEncoding("utf8")
+    child.stdout?.on("data", (chunk: string) => {
       out += chunk
     })
     child.on("close", () => {
@@ -70,6 +73,8 @@ export const NarcPlugin = async ({ client, directory, worktree }: any) => {
   const cwd: string = directory || worktree || process.cwd()
   const followups = new Map<string, number>()
   const subagentSessions = new Set<string>()
+  // Sessions whose turn the user just interrupted: never push them on.
+  const aborted = new Set<string>()
   const toast = async (message?: string) => {
     if (!message) return
     try {
@@ -101,9 +106,17 @@ export const NarcPlugin = async ({ client, directory, worktree }: any) => {
         if (info.id) await narc("session-start", { session_id: info.id, cwd }, cwd)
         return
       }
+      if (event?.type === "session.error") {
+        if (props.sessionID && props.error?.name === "MessageAbortedError") aborted.add(props.sessionID)
+        return
+      }
       if (event?.type !== "session.idle") return
       const id: string | undefined = props.sessionID
       if (!id || subagentSessions.has(id)) return
+      if (aborted.delete(id)) {
+        followups.delete(id)
+        return
+      }
       const sent = followups.get(id) ?? 0
       const verdict = await narc("stop", { session_id: id, cwd, loop_count: sent }, cwd)
       if (verdict.block && verdict.reason && sent < MAX_FOLLOWUPS) {

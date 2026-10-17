@@ -1,0 +1,20 @@
+# Cucumber's --retry re-runs failing scenarios.
+expect: retry-added
+-- old/package.json --
+{
+  "name": "storefront",
+  "private": true,
+  "scripts": {
+    "test": "vitest run",
+    "test:bdd": "cucumber-js features/"
+  }
+}
+-- new/package.json --
+{
+  "name": "storefront",
+  "private": true,
+  "scripts": {
+    "test": "vitest run",
+    "test:bdd": "cucumber-js features/ --retry 2"
+  }
+}

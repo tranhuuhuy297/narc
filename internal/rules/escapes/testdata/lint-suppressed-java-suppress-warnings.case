@@ -1,0 +1,35 @@
+# An unchecked cast silenced instead of fixed with a typed API.
+expect: lint-suppressed@warning
+-- old/src/main/java/com/acme/cache/Cache.java --
+package com.acme.cache;
+
+import java.util.Map;
+
+public final class Cache {
+    private final Map<String, Object> store;
+
+    public Cache(Map<String, Object> store) {
+        this.store = store;
+    }
+
+    public Object get(String key) {
+        return store.get(key);
+    }
+}
+-- new/src/main/java/com/acme/cache/Cache.java --
+package com.acme.cache;
+
+import java.util.Map;
+
+public final class Cache {
+    private final Map<String, Object> store;
+
+    public Cache(Map<String, Object> store) {
+        this.store = store;
+    }
+
+    @SuppressWarnings("unchecked")
+    public <T> T get(String key) {
+        return (T) store.get(key);
+    }
+}

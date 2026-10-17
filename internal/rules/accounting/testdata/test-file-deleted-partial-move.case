@@ -1,0 +1,30 @@
+# Tests were "moved" to a new file, but one of them did not make it.
+expect: test-file-deleted
+-- old/src/search/query.test.ts --
+import { parseQuery } from './query'
+
+describe('parseQuery', () => {
+  it('splits terms on whitespace', () => {
+    expect(parseQuery('red shoes').terms).toEqual(['red', 'shoes'])
+  })
+
+  it('keeps quoted phrases together', () => {
+    expect(parseQuery('"red shoes" sale').terms).toEqual(['red shoes', 'sale'])
+  })
+
+  it('parses field filters', () => {
+    expect(parseQuery('brand:acme').filters).toEqual({ brand: 'acme' })
+  })
+})
+-- new/src/search/parse-query.test.ts --
+import { parseQuery } from './query'
+
+describe('parseQuery', () => {
+  it('splits terms on whitespace', () => {
+    expect(parseQuery('red shoes').terms).toEqual(['red', 'shoes'])
+  })
+
+  it('parses field filters', () => {
+    expect(parseQuery('brand:acme').filters).toEqual({ brand: 'acme' })
+  })
+})

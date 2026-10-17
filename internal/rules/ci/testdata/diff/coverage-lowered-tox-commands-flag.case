@@ -1,0 +1,18 @@
+# Evasive: the coverage gate lowered inside a tox commands block.
+expect: coverage-lowered
+-- old/tox.ini --
+[tox]
+envlist = py311, py312
+
+[testenv]
+deps = -r requirements-dev.txt
+commands =
+    pytest --cov=acme --cov-report=term-missing --cov-fail-under=92 {posargs}
+-- new/tox.ini --
+[tox]
+envlist = py311, py312
+
+[testenv]
+deps = -r requirements-dev.txt
+commands =
+    pytest --cov=acme --cov-report=term-missing --cov-fail-under=75 {posargs}

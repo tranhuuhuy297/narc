@@ -1,0 +1,19 @@
+# Only the expected value on the continuation line changed (a new field in
+# the serialized output). The check is as strict as before.
+expect: clean
+-- old/src/orders/serialize.test.ts --
+import { serialize } from './serialize';
+
+it('serializes an order', () => {
+  const json = serialize(order({ id: 7, lines: 2 }));
+  expect(json)
+    .toEqual({ id: 7, lineCount: 2 });
+});
+-- new/src/orders/serialize.test.ts --
+import { serialize } from './serialize';
+
+it('serializes an order', () => {
+  const json = serialize(order({ id: 7, lines: 2 }));
+  expect(json)
+    .toEqual({ id: 7, lineCount: 2, currency: 'EUR' });
+});

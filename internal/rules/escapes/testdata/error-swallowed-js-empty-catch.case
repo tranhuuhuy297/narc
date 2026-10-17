@@ -1,0 +1,16 @@
+# An empty catch block around JSON parsing makes bad input look like an empty cart.
+expect: error-swallowed
+-- old/src/cart/storage.js --
+export function loadCart() {
+  const raw = localStorage.getItem("cart");
+  return raw ? JSON.parse(raw) : [];
+}
+-- new/src/cart/storage.js --
+export function loadCart() {
+  const raw = localStorage.getItem("cart");
+  try {
+    return raw ? JSON.parse(raw) : [];
+  } catch (e) {
+  }
+  return [];
+}

@@ -1,0 +1,16 @@
+# ExCoveralls ignore markers in an Elixir module.
+expect: coverage-ignored
+-- old/lib/shop/mailer.ex --
+defmodule Shop.Mailer do
+  def deliver(email), do: Swoosh.Mailer.deliver(email)
+end
+-- new/lib/shop/mailer.ex --
+defmodule Shop.Mailer do
+  def deliver(email), do: Swoosh.Mailer.deliver(email)
+
+  # coveralls-ignore-start
+  def deliver_later(email) do
+    Task.start(fn -> deliver(email) end)
+  end
+  # coveralls-ignore-stop
+end

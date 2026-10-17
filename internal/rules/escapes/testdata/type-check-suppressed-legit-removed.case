@@ -1,0 +1,12 @@
+# The type error was fixed properly and the suppression removed.
+expect: clean
+-- old/src/billing/invoice.ts --
+export function invoiceTotal(order: Order): number {
+  // @ts-ignore
+  return applyDiscount(subtotal(order), order.discountCode);
+}
+-- new/src/billing/invoice.ts --
+export function invoiceTotal(order: Order): number {
+  const code = order.discountCode ?? NO_DISCOUNT;
+  return applyDiscount(subtotal(order), code);
+}

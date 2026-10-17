@@ -1,0 +1,19 @@
+# A new service class excluded from coverage with an attribute.
+expect: coverage-ignored@warning
+-- old/src/Billing/TaxService.cs --
+namespace Billing;
+
+public class TaxService
+{
+    public decimal Vat(decimal amount) => amount * 0.2m;
+}
+-- new/src/Billing/TaxService.cs --
+using System.Diagnostics.CodeAnalysis;
+
+namespace Billing;
+
+[ExcludeFromCodeCoverage]
+public class TaxService
+{
+    public decimal Vat(decimal amount, string country) => amount * Rates.For(country);
+}

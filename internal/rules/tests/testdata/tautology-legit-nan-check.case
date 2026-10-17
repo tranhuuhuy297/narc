@@ -1,0 +1,19 @@
+# x != x is the idiomatic NaN check; it can fail, so it is not a tautology.
+expect: clean
+-- old/tests/test_stats.py --
+from stats import mean
+
+
+def test_mean():
+    assert mean([1, 2, 3]) == 2
+-- new/tests/test_stats.py --
+from stats import mean
+
+
+def test_mean():
+    assert mean([1, 2, 3]) == 2
+
+
+def test_mean_of_empty_is_nan():
+    m = mean([])
+    assert m != m

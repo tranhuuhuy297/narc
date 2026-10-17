@@ -1,0 +1,9 @@
+# A crate-level allow silences dead-code warnings everywhere.
+expect: lint-suppressed
+-- old/src/lib.rs --
+pub mod parser;
+pub mod render;
+-- new/src/lib.rs --
+#![allow(dead_code, unused_variables)]
+pub mod parser;
+pub mod render;

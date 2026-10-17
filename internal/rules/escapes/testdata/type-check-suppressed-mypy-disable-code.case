@@ -1,0 +1,15 @@
+# File-level mypy inline config disables an error code instead of fixing the call sites.
+expect: type-check-suppressed@warning
+-- old/src/ingest/loader.py --
+from ingest.schema import Record
+
+
+def load(rows: list[dict[str, str]]) -> list[Record]:
+    return [Record(**row) for row in rows]
+-- new/src/ingest/loader.py --
+# mypy: disable-error-code="arg-type"
+from ingest.schema import Record
+
+
+def load(rows: list[dict[str, str]]) -> list[Record]:
+    return [Record(**row) for row in rows]

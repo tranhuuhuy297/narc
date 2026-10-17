@@ -1,0 +1,22 @@
+# The websocket test fails intermittently; the agent makes Jest retry it.
+expect: retry-added
+-- old/src/realtime/socket.test.ts --
+import { connect } from './socket';
+
+describe('socket', () => {
+  it('receives the welcome message', async () => {
+    const ws = await connect(testServer.url);
+    expect(await ws.next()).toEqual({ type: 'welcome' });
+  });
+});
+-- new/src/realtime/socket.test.ts --
+import { connect } from './socket';
+
+jest.retryTimes(3);
+
+describe('socket', () => {
+  it('receives the welcome message', async () => {
+    const ws = await connect(testServer.url);
+    expect(await ws.next()).toEqual({ type: 'welcome' });
+  });
+});

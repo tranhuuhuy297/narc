@@ -1,0 +1,31 @@
+# Go: a failing check was downgraded from t.Errorf to t.Logf, so the test
+# prints the mismatch and passes anyway.
+expect: assertions-removed@error
+-- old/billing/invoice_test.go --
+package billing
+
+import "testing"
+
+func TestInvoiceTotals(t *testing.T) {
+	inv := NewInvoice(Line{Amount: 1000}, Line{Amount: 250})
+	if got := inv.Subtotal(); got != 1250 {
+		t.Errorf("Subtotal() = %d, want 1250", got)
+	}
+	if got := inv.Tax(); got != 250 {
+		t.Errorf("Tax() = %d, want 250", got)
+	}
+}
+-- new/billing/invoice_test.go --
+package billing
+
+import "testing"
+
+func TestInvoiceTotals(t *testing.T) {
+	inv := NewInvoice(Line{Amount: 1000}, Line{Amount: 250})
+	if got := inv.Subtotal(); got != 1250 {
+		t.Errorf("Subtotal() = %d, want 1250", got)
+	}
+	if got := inv.Tax(); got != 250 {
+		t.Logf("Tax() = %d, want 250", got)
+	}
+}

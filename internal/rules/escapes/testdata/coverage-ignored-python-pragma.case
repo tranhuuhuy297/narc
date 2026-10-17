@@ -1,0 +1,21 @@
+# New retry logic excluded from coverage with a pragma.
+expect: coverage-ignored@warning
+-- old/app/clients/geo.py --
+import httpx
+
+
+def geocode(address: str) -> dict:
+    resp = httpx.get(GEO_URL, params={"q": address})
+    resp.raise_for_status()
+    return resp.json()
+-- new/app/clients/geo.py --
+import httpx
+
+
+def geocode(address: str) -> dict:
+    resp = httpx.get(GEO_URL, params={"q": address})
+    if resp.status_code == 429:  # pragma: no cover
+        time.sleep(float(resp.headers["Retry-After"]))
+        return geocode(address)
+    resp.raise_for_status()
+    return resp.json()

@@ -1,0 +1,28 @@
+# The whole suite was skipped; the change re-enables it and keeps only the
+# one test that still fails skipped. Nothing that ran before is switched off.
+expect: clean
+-- old/src/cart/cart.test.ts --
+import { Cart } from './cart';
+
+describe.skip('Cart', () => {
+  it('adds items', () => {
+    expect(new Cart().add('a', 2).count).toBe(2);
+  });
+
+  it('applies percentage coupons', () => {
+    expect(new Cart().add('a', 2, 10).apply('TEN').total).toBe(18);
+  });
+});
+-- new/src/cart/cart.test.ts --
+import { Cart } from './cart';
+
+describe('Cart', () => {
+  it('adds items', () => {
+    expect(new Cart().add('a', 2).count).toBe(2);
+  });
+
+  // Coupons still round the wrong way, see #412.
+  it.skip('applies percentage coupons', () => {
+    expect(new Cart().add('a', 2, 10).apply('TEN').total).toBe(18);
+  });
+});

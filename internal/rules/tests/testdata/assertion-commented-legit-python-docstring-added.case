@@ -1,0 +1,26 @@
+# Docstrings are added to existing tests. The asserts below them are
+# unchanged and still run; only text inside the new strings is new.
+expect: clean
+-- old/tests/test_invoice.py --
+from decimal import Decimal
+
+from billing.invoice import build_invoice
+
+
+def test_invoice_totals_include_vat():
+    invoice = build_invoice([{"net": Decimal("100"), "vat_rate": Decimal("0.07")}])
+    assert invoice.total == Decimal("107.00")
+-- new/tests/test_invoice.py --
+from decimal import Decimal
+
+from billing.invoice import build_invoice
+
+
+def test_invoice_totals_include_vat():
+    """
+    VAT is added per line and rounded half-up to cents.
+
+    The expected value below was checked against the accounting export.
+    """
+    invoice = build_invoice([{"net": Decimal("100"), "vat_rate": Decimal("0.07")}])
+    assert invoice.total == Decimal("107.00")

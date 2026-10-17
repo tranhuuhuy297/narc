@@ -1,0 +1,26 @@
+# Integration tests moved behind a build tag that CI sets.
+expect: clean
+-- old/store/postgres_test.go --
+package store
+
+import "testing"
+
+func TestInsertOrder(t *testing.T) {
+	db := openTestDB(t)
+	if err := db.InsertOrder(order); err != nil {
+		t.Fatal(err)
+	}
+}
+-- new/store/postgres_test.go --
+//go:build integration
+
+package store
+
+import "testing"
+
+func TestInsertOrder(t *testing.T) {
+	db := openTestDB(t)
+	if err := db.InsertOrder(order); err != nil {
+		t.Fatal(err)
+	}
+}

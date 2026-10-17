@@ -1,0 +1,22 @@
+# Two of three expectations removed from a test that still runs.
+expect: assertions-removed
+-- old/src/auth/session.test.ts --
+import { createSession } from './session'
+
+describe('createSession', () => {
+  it('rejects expired tokens', async () => {
+    const res = await createSession({ token: expiredToken() })
+    expect(res.status).toBe(401)
+    expect(res.body.error).toBe('token_expired')
+    expect(audit.events).toContainEqual({ type: 'login_failed', reason: 'expired' })
+  })
+})
+-- new/src/auth/session.test.ts --
+import { createSession } from './session'
+
+describe('createSession', () => {
+  it('rejects expired tokens', async () => {
+    const res = await createSession({ token: expiredToken() })
+    expect(res.status).toBe(401)
+  })
+})

@@ -1,0 +1,23 @@
+# Repeated expectations extracted into a helper that every test calls.
+expect: clean
+-- old/src/invoices/invoice.test.ts --
+import { buildInvoice } from './invoice'
+
+it('builds a domestic invoice', () => {
+  const invoice = buildInvoice({ country: 'DE', net: 10000 })
+  expect(invoice.number).toMatch(/^INV-\d{6}$/)
+  expect(invoice.currency).toBe('EUR')
+  expect(invoice.gross).toBe(11900)
+})
+-- new/src/invoices/invoice.test.ts --
+import { buildInvoice, Invoice } from './invoice'
+
+function expectValidInvoice(invoice: Invoice, gross: number) {
+  expect(invoice.number).toMatch(/^INV-\d{6}$/)
+  expect(invoice.currency).toBe('EUR')
+  expect(invoice.gross).toBe(gross)
+}
+
+it('builds a domestic invoice', () => {
+  expectValidInvoice(buildInvoice({ country: 'DE', net: 10000 }), 11900)
+})

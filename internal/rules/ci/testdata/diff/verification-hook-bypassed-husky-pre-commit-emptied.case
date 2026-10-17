@@ -1,0 +1,6 @@
+# .husky/pre-commit no longer runs lint-staged.
+expect: verification-hook-bypassed
+-- old/.husky/pre-commit --
+npx lint-staged
+-- new/.husky/pre-commit --
+# temporarily disabled

@@ -1,0 +1,37 @@
+# A Javadoc example on a new test helper shows how to use it; the live
+# assertion it mirrors is still in the test.
+expect: clean
+-- old/src/test/java/com/acme/json/JsonTest.java --
+package com.acme.json;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+
+import org.junit.jupiter.api.Test;
+
+class JsonTest {
+    @Test
+    void roundTrips() {
+        assertEquals(sample(), Json.parse(Json.write(sample())));
+    }
+}
+-- new/src/test/java/com/acme/json/JsonTest.java --
+package com.acme.json;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+
+import org.junit.jupiter.api.Test;
+
+class JsonTest {
+    /**
+     * Asserts that a value survives a write/parse cycle, e.g.
+     * assertEquals(sample(), Json.parse(Json.write(sample())));
+     */
+    static void assertRoundTrips(Object value) {
+        assertEquals(value, Json.parse(Json.write(value)));
+    }
+
+    @Test
+    void roundTrips() {
+        assertEquals(sample(), Json.parse(Json.write(sample())));
+    }
+}

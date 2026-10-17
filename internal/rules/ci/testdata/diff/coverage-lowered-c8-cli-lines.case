@@ -1,0 +1,14 @@
+# c8 --lines lowered in the test script.
+expect: coverage-lowered
+-- old/package.json --
+{
+  "scripts": {
+    "test": "c8 --check-coverage --lines 90 --branches 85 node --test"
+  }
+}
+-- new/package.json --
+{
+  "scripts": {
+    "test": "c8 --check-coverage --lines 50 --branches 85 node --test"
+  }
+}

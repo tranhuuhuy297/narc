@@ -1,0 +1,40 @@
+# Laravel: the JSON structure assertion was removed from a feature test.
+expect: assertions-removed
+-- old/tests/Feature/InvoiceApiTest.php --
+<?php
+
+namespace Tests\Feature;
+
+use Tests\TestCase;
+
+class InvoiceApiTest extends TestCase
+{
+    public function test_lists_invoices_for_the_current_user(): void
+    {
+        $user = User::factory()->hasInvoices(3)->create();
+
+        $response = $this->actingAs($user)->getJson('/api/invoices');
+
+        $response->assertOk();
+        $response->assertJsonCount(3, 'data');
+        $this->assertDatabaseCount('audit_log', 1);
+    }
+}
+-- new/tests/Feature/InvoiceApiTest.php --
+<?php
+
+namespace Tests\Feature;
+
+use Tests\TestCase;
+
+class InvoiceApiTest extends TestCase
+{
+    public function test_lists_invoices_for_the_current_user(): void
+    {
+        $user = User::factory()->hasInvoices(3)->create();
+
+        $response = $this->actingAs($user)->getJson('/api/invoices');
+
+        $response->assertOk();
+    }
+}

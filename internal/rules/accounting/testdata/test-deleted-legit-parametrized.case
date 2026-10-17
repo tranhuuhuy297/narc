@@ -1,0 +1,32 @@
+# Three near-identical pytest functions folded into one parametrized test.
+expect: clean
+-- old/tests/test_slug.py --
+from blog.text import slugify
+
+
+def test_slug_lowercases():
+    assert slugify("Hello World") == "hello-world"
+
+
+def test_slug_strips_accents():
+    assert slugify("Crème brûlée") == "creme-brulee"
+
+
+def test_slug_collapses_dashes():
+    assert slugify("a -- b") == "a-b"
+-- new/tests/test_slug.py --
+import pytest
+
+from blog.text import slugify
+
+
+@pytest.mark.parametrize(
+    ("title", "slug"),
+    [
+        ("Hello World", "hello-world"),
+        ("Crème brûlée", "creme-brulee"),
+        ("a -- b", "a-b"),
+    ],
+)
+def test_slugify(title, slug):
+    assert slugify(title) == slug

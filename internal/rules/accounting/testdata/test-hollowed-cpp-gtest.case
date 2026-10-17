@@ -1,0 +1,20 @@
+# C++: the GoogleTest expectations were deleted; only the call remains.
+expect: test-hollowed
+-- old/tests/parser_test.cc --
+#include <gtest/gtest.h>
+#include "config/parser.h"
+
+TEST(ParserTest, ParsesKeyValuePairs) {
+  config::Parser p;
+  ASSERT_TRUE(p.Parse("port=8080\nhost=db"));
+  EXPECT_EQ(p.Get("port"), "8080");
+  EXPECT_EQ(p.Get("host"), "db");
+}
+-- new/tests/parser_test.cc --
+#include <gtest/gtest.h>
+#include "config/parser.h"
+
+TEST(ParserTest, ParsesKeyValuePairs) {
+  config::Parser p;
+  p.Parse("port=8080\nhost=db");
+}

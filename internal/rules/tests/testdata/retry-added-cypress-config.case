@@ -1,0 +1,19 @@
+# Cypress config: retries for run mode.
+expect: retry-added
+-- old/cypress.config.ts --
+import { defineConfig } from 'cypress';
+
+export default defineConfig({
+  e2e: {
+    baseUrl: 'http://localhost:4200',
+  },
+});
+-- new/cypress.config.ts --
+import { defineConfig } from 'cypress';
+
+export default defineConfig({
+  retries: 2,
+  e2e: {
+    baseUrl: 'http://localhost:4200',
+  },
+});

@@ -1,0 +1,22 @@
+# RSpec: it → xit on the failing example.
+expect: skip-added
+-- old/spec/models/subscription_spec.rb --
+require "rails_helper"
+
+RSpec.describe Subscription do
+  it "renews at the end of the period" do
+    sub = create(:subscription, ends_at: 1.day.ago)
+    sub.renew!
+    expect(sub.ends_at).to be > Time.current
+  end
+end
+-- new/spec/models/subscription_spec.rb --
+require "rails_helper"
+
+RSpec.describe Subscription do
+  xit "renews at the end of the period" do
+    sub = create(:subscription, ends_at: 1.day.ago)
+    sub.renew!
+    expect(sub.ends_at).to be > Time.current
+  end
+end

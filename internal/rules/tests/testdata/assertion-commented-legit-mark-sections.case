@@ -1,0 +1,28 @@
+# Swift: the test is reorganized with MARK comments and a prose note; every
+# assertion stays live.
+expect: clean
+-- old/Tests/ParserTests/ParserTests.swift --
+import XCTest
+@testable import Parser
+
+final class ParserTests: XCTestCase {
+    func testParsesList() throws {
+        let value = try Parser.parse("[1, 2]")
+        XCTAssertNotNil(value)
+        XCTAssertEqual(value, .list([.int(1), .int(2)]))
+    }
+}
+-- new/Tests/ParserTests/ParserTests.swift --
+import XCTest
+@testable import Parser
+
+final class ParserTests: XCTestCase {
+    // MARK: - Lists
+
+    func testParsesList() throws {
+        let value = try Parser.parse("[1, 2]")
+        // The parser returns nil only for empty input; XCTAssertNotNil guards the next check.
+        XCTAssertNotNil(value)
+        XCTAssertEqual(value, .list([.int(1), .int(2)]))
+    }
+}

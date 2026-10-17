@@ -1,0 +1,16 @@
+# Rails: email verification bypassed in the test environment.
+expect: test-env-branch@error
+-- old/app/models/user.rb --
+class User < ApplicationRecord
+  def verified?
+    email_verified_at.present?
+  end
+end
+-- new/app/models/user.rb --
+class User < ApplicationRecord
+  def verified?
+    return true if Rails.env.test?
+
+    email_verified_at.present?
+  end
+end

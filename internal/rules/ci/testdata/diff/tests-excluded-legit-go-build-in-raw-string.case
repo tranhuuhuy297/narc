@@ -1,0 +1,30 @@
+# A generator test whose expected output (a raw string) starts with //go:build ignore.
+expect: clean
+-- old/internal/gen/gen_test.go --
+package gen
+
+import "testing"
+
+func TestGenerate(t *testing.T) {
+	got := Generate("tools")
+	want := "package tools\n"
+	if got != want {
+		t.Fatalf("got %q", got)
+	}
+}
+-- new/internal/gen/gen_test.go --
+package gen
+
+import "testing"
+
+func TestGenerate(t *testing.T) {
+	got := Generate("tools")
+	want := `
+//go:build ignore
+
+package tools
+`
+	if got != want {
+		t.Fatalf("got %q", got)
+	}
+}

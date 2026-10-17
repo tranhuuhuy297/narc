@@ -1,0 +1,13 @@
+# Rust feature flags named after tests are configured by the build, not detected at runtime.
+expect: clean
+-- old/src/clock.rs --
+pub fn now() -> Instant {
+    Instant::now()
+}
+-- new/src/clock.rs --
+pub fn now() -> Instant {
+    if cfg!(feature = "test-clock") {
+        return fake::now();
+    }
+    Instant::now()
+}

@@ -1,0 +1,32 @@
+# testify: Equal → NotNil.
+expect: assertion-weakened
+-- old/internal/geo/geocode_test.go --
+package geo
+
+import (
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+)
+
+func TestGeocodeBerlin(t *testing.T) {
+	got, err := Geocode("Berlin")
+	require.NoError(t, err)
+	assert.Equal(t, Point{Lat: 52.52, Lng: 13.405}, got)
+}
+-- new/internal/geo/geocode_test.go --
+package geo
+
+import (
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+)
+
+func TestGeocodeBerlin(t *testing.T) {
+	got, err := Geocode("Berlin")
+	require.NoError(t, err)
+	assert.NotNil(t, got)
+}

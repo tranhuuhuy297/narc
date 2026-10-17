@@ -1,0 +1,36 @@
+# TypeScript: a unit test file became an integration test under the
+# project's *.integration-test.ts naming, which its Vitest config runs.
+# narc does not know that suffix, but the name still says "test" and the
+# file holds the same tests, so it is not treated as switched off.
+expect: clean
+-- old/packages/routing/lib/matchTeamMembers.test.ts --
+import { describe, expect, it } from 'vitest'
+import { matchTeamMembers } from './matchTeamMembers'
+
+describe('matchTeamMembers', () => {
+  it('returns null without an attributes query', async () => {
+    expect(await matchTeamMembers({ route: { attributesQueryValue: null } })).toBeNull()
+  })
+
+  it('matches members with the selected option', async () => {
+    const res = await matchTeamMembers({ route: routeWith('department', 'sales') })
+    expect(res?.teamMembersMatchingAttributeLogic).toEqual([{ userId: 7 }])
+  })
+})
+-- new/packages/routing/lib/matchTeamMembers.integration-test.ts --
+import { describe, expect, it } from 'vitest'
+import { seedTeam } from '@/tests/integration/seed'
+import { matchTeamMembers } from './matchTeamMembers'
+
+describe('matchTeamMembers', () => {
+  it('returns null without an attributes query', async () => {
+    await seedTeam()
+    expect(await matchTeamMembers({ route: { attributesQueryValue: null } })).toBeNull()
+  })
+
+  it('matches members with the selected option', async () => {
+    await seedTeam({ members: [{ userId: 7, department: 'sales' }] })
+    const res = await matchTeamMembers({ route: routeWith('department', 'sales') })
+    expect(res?.teamMembersMatchingAttributeLogic).toEqual([{ userId: 7 }])
+  })
+})

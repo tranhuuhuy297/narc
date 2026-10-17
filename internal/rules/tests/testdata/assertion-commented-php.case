@@ -1,0 +1,30 @@
+# PHPUnit: // $this->assertSame(...)
+expect: assertion-commented, assertions-removed
+-- old/tests/Unit/CartTest.php --
+<?php
+
+use PHPUnit\Framework\TestCase;
+
+final class CartTest extends TestCase
+{
+    public function testAppliesCoupon(): void
+    {
+        $cart = (new Cart())->add('A', 2000)->applyCoupon('SAVE10');
+        $this->assertCount(1, $cart->items());
+        $this->assertSame(1800, $cart->total());
+    }
+}
+-- new/tests/Unit/CartTest.php --
+<?php
+
+use PHPUnit\Framework\TestCase;
+
+final class CartTest extends TestCase
+{
+    public function testAppliesCoupon(): void
+    {
+        $cart = (new Cart())->add('A', 2000)->applyCoupon('SAVE10');
+        $this->assertCount(1, $cart->items());
+        // $this->assertSame(1800, $cart->total());
+    }
+}

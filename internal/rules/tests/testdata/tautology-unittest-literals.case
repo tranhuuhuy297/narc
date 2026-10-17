@@ -1,0 +1,26 @@
+# unittest: assertEqual on two equal literals.
+expect: tautology
+-- old/tests/test_csv.py --
+import unittest
+
+from tool.csvio import read_rows
+
+
+class ReadRowsTest(unittest.TestCase):
+    def test_reads_header(self):
+        rows = read_rows("a,b\n1,2\n")
+        self.assertEqual(rows[0], {"a": "1", "b": "2"})
+-- new/tests/test_csv.py --
+import unittest
+
+from tool.csvio import read_rows
+
+
+class ReadRowsTest(unittest.TestCase):
+    def test_reads_header(self):
+        rows = read_rows("a,b\n1,2\n")
+        self.assertEqual(rows[0], {"a": "1", "b": "2"})
+
+    def test_skips_blank_lines(self):
+        read_rows("a,b\n\n1,2\n")
+        self.assertEqual(1, 1)

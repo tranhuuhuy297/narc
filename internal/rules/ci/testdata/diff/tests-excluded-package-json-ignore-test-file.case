@@ -1,0 +1,16 @@
+# One failing test file added to jest's ignore list in package.json.
+expect: tests-excluded
+-- old/package.json --
+{
+  "name": "storefront",
+  "jest": {
+    "testPathIgnorePatterns": ["/node_modules/"]
+  }
+}
+-- new/package.json --
+{
+  "name": "storefront",
+  "jest": {
+    "testPathIgnorePatterns": ["/node_modules/", "checkout\\.test\\.tsx$"]
+  }
+}

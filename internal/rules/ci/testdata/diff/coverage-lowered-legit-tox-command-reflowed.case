@@ -1,0 +1,12 @@
+# tox commands reformatted onto several lines with the same flags.
+expect: clean
+-- old/tox.ini --
+[testenv]
+commands = pytest --cov=acme --cov-fail-under=90 -q {posargs}
+-- new/tox.ini --
+[testenv]
+commands =
+    pytest \
+      --cov=acme \
+      --cov-fail-under=90 \
+      -q {posargs}

@@ -1,0 +1,20 @@
+# The function carrying an existing istanbul marker was moved down the file.
+expect: clean
+-- old/src/env.js --
+/* istanbul ignore next */
+export function isBrowser() {
+  return typeof window !== "undefined";
+}
+
+export function nowMs() {
+  return Date.now();
+}
+-- new/src/env.js --
+export function nowMs() {
+  return Date.now();
+}
+
+/* istanbul ignore next */
+export function isBrowser() {
+  return typeof window !== "undefined";
+}

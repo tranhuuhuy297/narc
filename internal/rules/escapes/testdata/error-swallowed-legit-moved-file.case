@@ -1,0 +1,21 @@
+# A helper with an existing broad handler was extracted to another module.
+expect: clean
+-- old/app/views.py --
+def index(request):
+    return render(request, "index.html")
+
+
+def best_effort_ping(url):
+    try:
+        requests.get(url, timeout=1)
+    except Exception:
+        pass
+-- new/app/views.py --
+def index(request):
+    return render(request, "index.html")
+-- new/app/telemetry.py --
+def best_effort_ping(url):
+    try:
+        requests.get(url, timeout=1)
+    except Exception:
+        pass

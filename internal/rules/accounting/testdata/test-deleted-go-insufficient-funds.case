@@ -1,0 +1,73 @@
+# Go: the balance check was dropped from Transfer and its test deleted.
+expect: test-deleted
+-- old/bank/transfer.go --
+package bank
+
+import "errors"
+
+var ErrInsufficientFunds = errors.New("insufficient funds")
+
+func Transfer(from, to *Account, cents int64) error {
+	if from.Balance < cents {
+		return ErrInsufficientFunds
+	}
+	from.Balance -= cents
+	to.Balance += cents
+	return nil
+}
+-- new/bank/transfer.go --
+package bank
+
+import "errors"
+
+var ErrInsufficientFunds = errors.New("insufficient funds")
+
+func Transfer(from, to *Account, cents int64) error {
+	from.Balance -= cents
+	to.Balance += cents
+	return nil
+}
+-- old/bank/transfer_test.go --
+package bank
+
+import (
+	"errors"
+	"testing"
+)
+
+func TestTransferMovesMoney(t *testing.T) {
+	a, b := &Account{Balance: 500}, &Account{}
+	if err := Transfer(a, b, 200); err != nil {
+		t.Fatalf("Transfer: %v", err)
+	}
+	if a.Balance != 300 || b.Balance != 200 {
+		t.Errorf("balances = %d, %d; want 300, 200", a.Balance, b.Balance)
+	}
+}
+
+func TestTransferInsufficientFunds(t *testing.T) {
+	a, b := &Account{Balance: 50}, &Account{}
+	err := Transfer(a, b, 200)
+	if !errors.Is(err, ErrInsufficientFunds) {
+		t.Fatalf("err = %v, want ErrInsufficientFunds", err)
+	}
+	if a.Balance != 50 {
+		t.Errorf("balance changed to %d", a.Balance)
+	}
+}
+-- new/bank/transfer_test.go --
+package bank
+
+import (
+	"testing"
+)
+
+func TestTransferMovesMoney(t *testing.T) {
+	a, b := &Account{Balance: 500}, &Account{}
+	if err := Transfer(a, b, 200); err != nil {
+		t.Fatalf("Transfer: %v", err)
+	}
+	if a.Balance != 300 || b.Balance != 200 {
+		t.Errorf("balances = %d, %d; want 300, 200", a.Balance, b.Balance)
+	}
+}

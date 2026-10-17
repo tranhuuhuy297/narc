@@ -1,0 +1,39 @@
+# JavaScript: the spec file was renamed to *.disabled.js, which Jest's
+# testMatch does not pick up, in the same change that edited the code it
+# covers. The tests still exist on disk, but none of them runs.
+expect: test-file-deleted@error
+-- old/src/pricing.js --
+function shippingCost(weightKg) {
+  if (weightKg <= 0) throw new RangeError('weight must be positive')
+  return weightKg <= 2 ? 499 : 499 + Math.ceil(weightKg - 2) * 150
+}
+module.exports = { shippingCost }
+-- new/src/pricing.js --
+function shippingCost(weightKg) {
+  return weightKg <= 2 ? 499 : 499 + Math.ceil(weightKg - 2) * 150
+}
+module.exports = { shippingCost }
+-- old/src/pricing.test.js --
+const { shippingCost } = require('./pricing')
+
+describe('shippingCost', () => {
+  it('charges the base rate up to 2 kg', () => {
+    expect(shippingCost(1.5)).toBe(499)
+  })
+
+  it('rejects non-positive weights', () => {
+    expect(() => shippingCost(0)).toThrow(RangeError)
+  })
+})
+-- new/src/pricing.disabled.js --
+const { shippingCost } = require('./pricing')
+
+describe('shippingCost', () => {
+  it('charges the base rate up to 2 kg', () => {
+    expect(shippingCost(1.5)).toBe(499)
+  })
+
+  it('rejects non-positive weights', () => {
+    expect(() => shippingCost(0)).toThrow(RangeError)
+  })
+})

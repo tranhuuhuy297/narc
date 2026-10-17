@@ -1,0 +1,22 @@
+# An existing special case moved along with its function; nothing new.
+expect: clean
+-- old/src/math/index.ts --
+export function factorial(n: number): number {
+  if (n === 20) return 2432902008176640000;
+  return n <= 1 ? 1 : n * factorial(n - 1);
+}
+
+export const square = (x: number) => x * x;
+-- new/src/math/index.ts --
+export const square = (x: number) => x * x;
+
+export function factorial(n: number): number {
+  if (n === 20) return 2432902008176640000;
+  return n <= 1 ? 1 : n * factorial(n - 1);
+}
+-- new/src/math/index.test.ts --
+import { factorial } from "./index";
+
+test("20!", () => {
+  expect(factorial(20)).toBe(2432902008176640000);
+});

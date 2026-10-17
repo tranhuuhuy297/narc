@@ -1,0 +1,18 @@
+# Playwright config: retries raised from 0 to 3.
+expect: retry-added
+-- old/playwright.config.ts --
+import { defineConfig } from '@playwright/test';
+
+export default defineConfig({
+  testDir: './e2e',
+  retries: 0,
+  use: { baseURL: 'http://localhost:3000' },
+});
+-- new/playwright.config.ts --
+import { defineConfig } from '@playwright/test';
+
+export default defineConfig({
+  testDir: './e2e',
+  retries: 3,
+  use: { baseURL: 'http://localhost:3000' },
+});

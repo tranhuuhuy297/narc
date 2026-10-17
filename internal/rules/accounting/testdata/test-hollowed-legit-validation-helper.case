@@ -1,0 +1,21 @@
+# Expectations moved into a helper whose name narc does not know; the test calls it.
+expect: clean
+-- old/src/orders/order.test.ts --
+import { placeOrder } from './order'
+
+it('places an order for a known customer', async () => {
+  const order = await placeOrder({ customer: 'c_1', sku: 'tee', qty: 2 })
+  expect(order.status).toBe('placed')
+  expect(order.lines).toHaveLength(1)
+})
+-- new/src/orders/order.test.ts --
+import { placeOrder, Order } from './order'
+
+function validatePlacedOrder(order: Order) {
+  expect(order.status).toBe('placed')
+  expect(order.lines).toHaveLength(1)
+}
+
+it('places an order for a known customer', async () => {
+  validatePlacedOrder(await placeOrder({ customer: 'c_1', sku: 'tee', qty: 2 }))
+})

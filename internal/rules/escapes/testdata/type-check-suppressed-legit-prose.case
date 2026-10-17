@@ -1,0 +1,13 @@
+# A codemod writes suppression comments into generated files; the directives live in strings, and the comment is prose.
+expect: clean
+-- old/scripts/codemod/strict.ts --
+export function annotate(line: string): string {
+  return line;
+}
+-- new/scripts/codemod/strict.ts --
+// This codemod never adds a bare ts-ignore; it writes a checked directive with the error code instead.
+export function annotate(line: string, code: number): string {
+  return `// @ts-expect-error TS${code}\n` + line;
+}
+
+export const BANNED = ["// @ts-ignore", "// @ts-nocheck"];

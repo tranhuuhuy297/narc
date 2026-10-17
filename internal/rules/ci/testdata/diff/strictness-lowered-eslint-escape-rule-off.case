@@ -1,0 +1,19 @@
+# no-explicit-any switched off project-wide (info).
+expect: strictness-lowered
+-- old/.eslintrc.cjs --
+module.exports = {
+  root: true,
+  extends: ['plugin:@typescript-eslint/recommended'],
+  rules: {
+    'no-console': 'warn',
+  },
+}
+-- new/.eslintrc.cjs --
+module.exports = {
+  root: true,
+  extends: ['plugin:@typescript-eslint/recommended'],
+  rules: {
+    'no-console': 'warn',
+    '@typescript-eslint/no-explicit-any': 'off',
+  },
+}

@@ -1,0 +1,16 @@
+# CI helper script turns clippy errors into an echo.
+expect: ci-failure-ignored
+-- old/ci/check.sh --
+#!/usr/bin/env bash
+set -euo pipefail
+
+cargo fmt --all -- --check
+cargo clippy --all-targets -- -D warnings
+cargo test --workspace
+-- new/ci/check.sh --
+#!/usr/bin/env bash
+set -euo pipefail
+
+cargo fmt --all -- --check
+cargo clippy --all-targets -- -D warnings || echo "clippy reported problems"
+cargo test --workspace

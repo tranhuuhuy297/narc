@@ -1,0 +1,18 @@
+# A mock forced through any in a test file is reported as a note.
+expect: any-cast@info
+-- old/src/notify.test.ts --
+import { notify } from "./notify";
+
+test("sends an email", async () => {
+  const mailer = { send: vi.fn() };
+  await notify(mailer, "hi");
+  expect(mailer.send).toHaveBeenCalledWith("hi");
+});
+-- new/src/notify.test.ts --
+import { notify } from "./notify";
+
+test("sends an email", async () => {
+  const mailer = { send: vi.fn() };
+  await notify(mailer as any, "hi");
+  expect(mailer.send).toHaveBeenCalledWith("hi");
+});

@@ -1,0 +1,25 @@
+# A platform gate (skip on Windows only) became a plain skip, so the test no
+# longer runs anywhere. The reason text was kept to make it look unchanged.
+expect: skip-added@error
+-- old/tests/test_paths.py --
+import sys
+
+import pytest
+
+from app.paths import normalize
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="POSIX path semantics")
+def test_normalize_collapses_dot_segments():
+    assert normalize("/a/./b/../c") == "/a/c"
+-- new/tests/test_paths.py --
+import sys
+
+import pytest
+
+from app.paths import normalize
+
+
+@pytest.mark.skip(reason="POSIX path semantics")
+def test_normalize_collapses_dot_segments():
+    assert normalize("/a/./b/../c") == "/a/c"

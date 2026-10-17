@@ -1,0 +1,23 @@
+# A shared test helper module (no tests in it) was deleted after being inlined.
+expect: clean
+-- old/tests/helpers/factories.ts --
+import { User } from '../../src/users'
+
+export function makeUser(overrides: Partial<User> = {}): User {
+  return { id: 'u_1', email: 'ann@example.com', active: true, ...overrides }
+}
+-- old/tests/users.test.ts --
+import { makeUser } from './helpers/factories'
+import { isActive } from '../src/users'
+
+it('treats active users as active', () => {
+  expect(isActive(makeUser())).toBe(true)
+})
+-- new/tests/users.test.ts --
+import { isActive, User } from '../src/users'
+
+const makeUser = (overrides: Partial<User> = {}): User => ({ id: 'u_1', email: 'ann@example.com', active: true, ...overrides })
+
+it('treats active users as active', () => {
+  expect(isActive(makeUser())).toBe(true)
+})

@@ -1,0 +1,16 @@
+# A log line inside the guard does not make it harmless: the real charge is skipped under tests.
+expect: test-env-branch@error
+-- old/src/orders/checkout.ts --
+export async function checkout(order: Order): Promise<void> {
+  logger.info("charging order", { id: order.id });
+  await payments.charge(order.card, order.totalCents);
+  await orders.markPaid(order.id);
+}
+-- new/src/orders/checkout.ts --
+export async function checkout(order: Order): Promise<void> {
+  if (process.env.NODE_ENV !== "test") {
+    logger.info("charging order", { id: order.id });
+    await payments.charge(order.card, order.totalCents);
+  }
+  await orders.markPaid(order.id);
+}

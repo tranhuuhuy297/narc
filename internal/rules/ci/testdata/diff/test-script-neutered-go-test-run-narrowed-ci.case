@@ -1,0 +1,20 @@
+# go test in CI now only runs tests matching TestParse (warning).
+expect: test-script-neutered
+-- old/.github/workflows/go.yml --
+name: Go
+on: [pull_request]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: go test ./...
+-- new/.github/workflows/go.yml --
+name: Go
+on: [pull_request]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: go test -run 'TestParse' ./...

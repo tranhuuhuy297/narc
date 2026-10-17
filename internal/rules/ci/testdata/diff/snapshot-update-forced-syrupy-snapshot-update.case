@@ -1,0 +1,8 @@
+# pytest --snapshot-update added to the Makefile test target.
+expect: snapshot-update-forced
+-- old/Makefile --
+test:
+	pytest -q
+-- new/Makefile --
+test:
+	pytest -q --snapshot-update

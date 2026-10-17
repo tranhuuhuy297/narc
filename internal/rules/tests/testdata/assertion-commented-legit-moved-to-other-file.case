@@ -1,0 +1,38 @@
+# The VAT test moves to its own file; a pointer comment that quotes the
+# assertion is left behind. The assertion is still live, in the new file.
+expect: clean
+-- old/src/pricing/pricing.test.ts --
+import { total } from './pricing';
+
+describe('total', () => {
+  it('sums line items', () => {
+    expect(total([{ net: 10 }, { net: 5 }], { vat: 0 })).toBe(15);
+  });
+
+  it('adds VAT', () => {
+    expect(total([{ net: 100 }], { vat: 0.07 })).toBe(107);
+  });
+});
+-- new/src/pricing/pricing.test.ts --
+import { total } from './pricing';
+
+describe('total', () => {
+  it('sums line items', () => {
+    expect(total([{ net: 10 }, { net: 5 }], { vat: 0 })).toBe(15);
+  });
+
+  // VAT cases live in vat.test.ts now, e.g.
+  // expect(total([{ net: 100 }], { vat: 0.07 })).toBe(107);
+});
+-- new/src/pricing/vat.test.ts --
+import { total } from './pricing';
+
+describe('total with VAT', () => {
+  it('adds VAT', () => {
+    expect(total([{ net: 100 }], { vat: 0.07 })).toBe(107);
+  });
+
+  it('rounds VAT to cents', () => {
+    expect(total([{ net: 9.99 }], { vat: 0.19 })).toBe(11.89);
+  });
+});

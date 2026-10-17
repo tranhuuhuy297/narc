@@ -1,0 +1,19 @@
+# A bare `# type: ignore` above the first statement makes mypy skip the whole module.
+expect: type-check-suppressed
+-- old/src/legacy/importer.py --
+"""CSV importer for the legacy export format."""
+import csv
+
+
+def rows(path: str) -> list[dict[str, str]]:
+    with open(path) as fh:
+        return list(csv.DictReader(fh))
+-- new/src/legacy/importer.py --
+# type: ignore
+"""CSV importer for the legacy export format."""
+import csv
+
+
+def rows(path: str) -> list[dict[str, str]]:
+    with open(path) as fh:
+        return list(csv.DictReader(fh))

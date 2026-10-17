@@ -1,0 +1,56 @@
+# Equality-contract tests: x.equals(x) and `money == money` exercise a
+# user-defined equals()/__eq__, which can be broken. Comparing a value with
+# itself is the point of a reflexivity test.
+expect: clean
+-- old/src/test/java/com/acme/money/MoneyTest.java --
+package com.acme.money;
+
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import org.junit.jupiter.api.Test;
+
+class MoneyTest {
+    @Test
+    void equalAmountsAreEqual() {
+        assertTrue(Money.of("5.00", "EUR").equals(Money.of("5.00", "EUR")));
+    }
+}
+-- new/src/test/java/com/acme/money/MoneyTest.java --
+package com.acme.money;
+
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import org.junit.jupiter.api.Test;
+
+class MoneyTest {
+    @Test
+    void equalAmountsAreEqual() {
+        assertTrue(Money.of("5.00", "EUR").equals(Money.of("5.00", "EUR")));
+    }
+
+    @Test
+    void equalsIsReflexiveAndRejectsNull() {
+        Money m = Money.of("5.00", "EUR");
+        assertTrue(m.equals(m));
+        assertFalse(m.equals(null));
+    }
+}
+-- old/tests/test_money.py --
+from money import Money
+
+
+def test_addition():
+    assert Money(2, "EUR") + Money(3, "EUR") == Money(5, "EUR")
+-- new/tests/test_money.py --
+from money import Money
+
+
+def test_addition():
+    assert Money(2, "EUR") + Money(3, "EUR") == Money(5, "EUR")
+
+
+def test_eq_is_reflexive():
+    m = Money(5, "EUR")
+    assert m == m
+    assert not (m != m)

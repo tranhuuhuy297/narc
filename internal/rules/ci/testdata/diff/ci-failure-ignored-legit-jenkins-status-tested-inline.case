@@ -1,0 +1,29 @@
+# The exit status of sh(returnStatus: true) is checked inline in an if.
+expect: clean
+-- old/Jenkinsfile --
+pipeline {
+  agent any
+  stages {
+    stage('Test') {
+      steps {
+        sh 'npm test'
+      }
+    }
+  }
+}
+-- new/Jenkinsfile --
+pipeline {
+  agent any
+  stages {
+    stage('Test') {
+      steps {
+        script {
+          if (sh(script: 'npm test -- --ci', returnStatus: true) != 0) {
+            archiveArtifacts artifacts: 'coverage/**'
+            error('unit tests failed')
+          }
+        }
+      }
+    }
+  }
+}

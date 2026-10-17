@@ -1,0 +1,22 @@
+# CI pre-commit job skips the mypy hook.
+expect: verification-hook-bypassed
+-- old/.github/workflows/pre-commit.yml --
+name: pre-commit
+on: [pull_request]
+jobs:
+  pre-commit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pre-commit/action@v3.0.1
+-- new/.github/workflows/pre-commit.yml --
+name: pre-commit
+on: [pull_request]
+jobs:
+  pre-commit:
+    runs-on: ubuntu-latest
+    env:
+      SKIP: mypy
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pre-commit/action@v3.0.1

@@ -1,0 +1,10 @@
+# `|| [ $? -eq 1 ]` turns exactly the "tests failed" exit status into success.
+expect: ci-failure-ignored
+-- old/scripts/ci.sh --
+#!/usr/bin/env bash
+set -e
+pytest -q
+-- new/scripts/ci.sh --
+#!/usr/bin/env bash
+set -e
+pytest -q || [ $? -eq 1 ]

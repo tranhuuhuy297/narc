@@ -1,0 +1,34 @@
+# PHPUnit's @codeCoverageIgnore on a new method.
+expect: coverage-ignored
+-- old/src/Reports/Exporter.php --
+<?php
+
+namespace App\Reports;
+
+class Exporter
+{
+    public function toCsv(array $rows): string
+    {
+        return implode("\n", array_map(fn ($r) => implode(',', $r), $rows));
+    }
+}
+-- new/src/Reports/Exporter.php --
+<?php
+
+namespace App\Reports;
+
+class Exporter
+{
+    public function toCsv(array $rows): string
+    {
+        return implode("\n", array_map(fn ($r) => implode(',', $r), $rows));
+    }
+
+    /**
+     * @codeCoverageIgnore
+     */
+    public function toXlsx(array $rows): string
+    {
+        return $this->spreadsheet->fromArray($rows)->save();
+    }
+}

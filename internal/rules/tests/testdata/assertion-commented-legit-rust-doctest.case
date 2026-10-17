@@ -1,0 +1,35 @@
+# Rust: a doc comment example (a doctest) mirrors a unit test that stays.
+expect: clean
+-- old/src/math.rs --
+pub fn clamp(x: i32, lo: i32, hi: i32) -> i32 {
+    x.max(lo).min(hi)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn clamps() {
+        assert_eq!(clamp(15, 0, 10), 10);
+    }
+}
+-- new/src/math.rs --
+/// Clamps `x` into `[lo, hi]`.
+///
+/// ```
+/// assert_eq!(mylib::clamp(15, 0, 10), 10);
+/// ```
+pub fn clamp(x: i32, lo: i32, hi: i32) -> i32 {
+    x.max(lo).min(hi)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn clamps() {
+        assert_eq!(clamp(15, 0, 10), 10);
+    }
+}

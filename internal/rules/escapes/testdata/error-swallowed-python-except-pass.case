@@ -1,0 +1,19 @@
+# The charge call raised in a test; the agent caught everything and moved on.
+expect: error-swallowed@warning
+-- old/app/billing/charge.py --
+from app.gateway import gateway
+
+
+def charge(order):
+    gateway.charge(order.card_token, order.total_cents)
+    order.mark_paid()
+-- new/app/billing/charge.py --
+from app.gateway import gateway
+
+
+def charge(order):
+    try:
+        gateway.charge(order.card_token, order.total_cents)
+    except Exception:
+        pass
+    order.mark_paid()

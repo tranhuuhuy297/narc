@@ -1,0 +1,34 @@
+# Rust: // assert_eq!(...)
+expect: assertion-commented, assertions-removed
+-- old/src/lexer.rs --
+pub fn tokens(s: &str) -> Vec<&str> {
+    s.split_whitespace().collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn splits_on_whitespace() {
+        let t = tokens("let x = 1");
+        assert!(!t.is_empty());
+        assert_eq!(t, vec!["let", "x", "=", "1"]);
+    }
+}
+-- new/src/lexer.rs --
+pub fn tokens(s: &str) -> Vec<&str> {
+    s.split(' ').collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn splits_on_whitespace() {
+        let t = tokens("let x = 1");
+        assert!(!t.is_empty());
+        // assert_eq!(t, vec!["let", "x", "=", "1"]);
+    }
+}

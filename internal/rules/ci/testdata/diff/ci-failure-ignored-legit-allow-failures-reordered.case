@@ -1,0 +1,18 @@
+# Travis allow_failures entries reordered: nothing new is allowed to fail.
+expect: clean
+-- old/.travis.yml --
+language: python
+python: ["3.11", "3.12", "3.13-dev"]
+jobs:
+  allow_failures:
+    - python: "3.13-dev"
+    - env: EXTRA=docs
+script: pytest
+-- new/.travis.yml --
+language: python
+python: ["3.11", "3.12", "3.13-dev"]
+jobs:
+  allow_failures:
+    - env: EXTRA=docs
+    - python: "3.13-dev"
+script: pytest

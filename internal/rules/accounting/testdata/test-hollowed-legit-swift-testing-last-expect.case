@@ -1,0 +1,33 @@
+# Swift: XCTest assertions were converted to Swift Testing's #expect. A
+# lone #expect(...) at the end of a test is a complete assertion.
+expect: clean
+-- old/Tests/CartTests/CartTests.swift --
+import XCTest
+@testable import Cart
+
+final class CartTests: XCTestCase {
+    func testAddingItemsUpdatesTotal() {
+        var cart = Cart()
+        cart.add(Item(sku: "tea", price: 450), quantity: 2)
+        XCTAssertEqual(cart.total, 900)
+    }
+
+    func testEmptyCartIsFree() {
+        XCTAssertEqual(Cart().total, 0)
+    }
+}
+-- new/Tests/CartTests/CartTests.swift --
+import Testing
+@testable import Cart
+
+struct CartTests {
+    @Test func testAddingItemsUpdatesTotal() {
+        var cart = Cart()
+        cart.add(Item(sku: "tea", price: 450), quantity: 2)
+        #expect(cart.total == 900)
+    }
+
+    @Test func testEmptyCartIsFree() {
+        #expect(Cart().total == 0)
+    }
+}

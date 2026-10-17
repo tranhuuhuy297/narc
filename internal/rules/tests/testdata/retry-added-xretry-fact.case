@@ -1,0 +1,29 @@
+# xRetry: [Fact] → [RetryFact(MaxRetries = 3)].
+expect: retry-added
+-- old/tests/Messaging.Tests/BusTests.cs --
+using Xunit;
+
+public class BusTests
+{
+    [Fact]
+    public async Task DeliversToAllSubscribers()
+    {
+        var bus = new Bus();
+        var received = await bus.PublishAndCollect("hello", subscribers: 3);
+        Assert.Equal(3, received.Count);
+    }
+}
+-- new/tests/Messaging.Tests/BusTests.cs --
+using Xunit;
+using xRetry;
+
+public class BusTests
+{
+    [RetryFact(MaxRetries = 3)]
+    public async Task DeliversToAllSubscribers()
+    {
+        var bus = new Bus();
+        var received = await bus.PublishAndCollect("hello", subscribers: 3);
+        Assert.Equal(3, received.Count);
+    }
+}

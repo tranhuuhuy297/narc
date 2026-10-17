@@ -1,0 +1,12 @@
+# A test helper creates a throwaway repository; --no-verify there is not a bypass.
+expect: clean
+-- new/tests/fixtures/make-repo.sh --
+#!/usr/bin/env bash
+set -euo pipefail
+dir="$(mktemp -d)"
+git init -q "$dir"
+cd "$dir"
+echo "hello" > README.md
+git add README.md
+git commit -q --no-verify -m "initial commit"
+echo "$dir"

@@ -1,0 +1,25 @@
+# The tox test environment gains ignore_outcome, so failing tests only print a warning.
+expect: ci-failure-ignored
+-- old/tox.ini --
+[tox]
+envlist = py311, lint
+
+[testenv]
+deps = pytest
+commands = pytest {posargs}
+
+[testenv:lint]
+deps = ruff
+commands = ruff check .
+-- new/tox.ini --
+[tox]
+envlist = py311, lint
+
+[testenv]
+deps = pytest
+ignore_outcome = true
+commands = pytest {posargs}
+
+[testenv:lint]
+deps = ruff
+commands = ruff check .

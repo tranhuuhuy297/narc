@@ -1,0 +1,28 @@
+# pytest.importorskip gates an optional-dependency test; it is not a skip
+# marker on a failing test.
+expect: clean
+-- old/tests/test_formats.py --
+from tool.formats import load
+
+
+def test_load_json(tmp_path):
+    p = tmp_path / "a.json"
+    p.write_text('{"a": 1}')
+    assert load(p) == {"a": 1}
+-- new/tests/test_formats.py --
+import pytest
+
+from tool.formats import load
+
+
+def test_load_json(tmp_path):
+    p = tmp_path / "a.json"
+    p.write_text('{"a": 1}')
+    assert load(p) == {"a": 1}
+
+
+def test_load_parquet(tmp_path):
+    pa = pytest.importorskip("pyarrow")
+    p = tmp_path / "a.parquet"
+    pa.parquet.write_table(pa.table({"a": [1]}), p)
+    assert load(p) == {"a": [1]}

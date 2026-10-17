@@ -1,0 +1,16 @@
+# codecov threshold (allowed drop) raised from 1% to 10%.
+expect: coverage-lowered
+-- old/codecov.yml --
+coverage:
+  status:
+    project:
+      default:
+        target: auto
+        threshold: 1%
+-- new/codecov.yml --
+coverage:
+  status:
+    project:
+      default:
+        target: auto
+        threshold: 10%

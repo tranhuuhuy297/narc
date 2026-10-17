@@ -1,0 +1,13 @@
+# Prose and examples inside a doc comment are not directives.
+expect: clean
+-- old/src/policy.ts --
+export const strict = true;
+-- new/src/policy.ts --
+/**
+ * Lint policy for this package.
+ *
+ * eslint-disable comments are not allowed here; fix the code instead.
+ * Example of what reviewers reject:
+ *   // eslint-disable-next-line
+ */
+export const strict = true;

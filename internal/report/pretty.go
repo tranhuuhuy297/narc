@@ -147,13 +147,17 @@ func (t *term) finding(f core.Finding) {
 		title = f.RuleID
 	}
 	avail := t.width - len(indentFinding) - textWidth(marker) - 2
+	// ownLine moves the location under the headline when it does not fit
+	// there and the code frame does not show it either.
+	ownLine := false
 	if textWidth(title)+textWidth(loc) > avail {
 		// Narrow terminal: drop the location when the code frame shows
 		// the line number anyway, or when keeping it would leave the
-		// title unreadable.
-		framed := f.Line > 0 && (f.Evidence != "" || f.Before != "")
+		// title unreadable. Only evidence is numbered with the new-side
+		// line; removed code alone shows its old line number.
+		framed := f.Line > 0 && f.Evidence != ""
 		if framed || avail-textWidth(loc) < minTitleWidth {
-			loc = ""
+			loc, ownLine = "", !framed
 		}
 	}
 	head := []string{indentFinding, t.p.paint(sev, marker)}
@@ -161,6 +165,9 @@ func (t *term) finding(f core.Finding) {
 		head = append(head, "  ", t.p.paint(sBold, t.fit(title, avail-textWidth(loc))), t.p.paint(sDim, loc))
 	} // else a long rule ID leaves too little room: the ID alone names the rule
 	t.line(head...)
+	if ownLine {
+		t.line(indentBody, t.p.paint(sDim, where(f)))
+	}
 
 	msg := f.Message
 	if msg == "" {
@@ -244,9 +251,17 @@ func (t *term) waivedList(fs []core.Finding) {
 	}
 	t.line(indentFile, t.p.paint(bold(sDim), "Waived"), t.p.paint(sDim, fmt.Sprintf(" (%d)", len(fs))))
 	for _, f := range fs {
-		head := t.g.waived + " " + sanitize(f.RuleID, false) + "  "
-		loc := truncateLeft(sanitize(f.Location(), false), t.width-len(indentFinding)-textWidth(head), t.g.ellipsis)
-		t.line(indentFinding, t.p.paint(sDim, head+loc))
+		avail := t.width - len(indentFinding)
+		head := t.fit(t.g.waived+" "+f.RuleID, avail)
+		loc := sanitize(f.Location(), false)
+		if room := avail - textWidth(head) - 2; room >= min(textWidth(loc), minTitleWidth) {
+			t.line(indentFinding, t.p.paint(sDim, head+"  "+truncateLeft(loc, room, t.g.ellipsis)))
+		} else {
+			// A long rule ID leaves too little room: the location gets a
+			// line of its own rather than being cut to nothing.
+			t.line(indentFinding, t.p.paint(sDim, head))
+			t.line(indentBody, t.p.paint(sDim, truncateLeft(loc, t.width-len(indentBody), t.g.ellipsis)))
+		}
 		reason := strings.TrimSpace(f.WaiverReason)
 		if reason == "" {
 			reason = "no reason recorded"

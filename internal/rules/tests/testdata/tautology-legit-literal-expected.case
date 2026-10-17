@@ -1,0 +1,36 @@
+# testify with literal expected values and a NotEqual between variables.
+expect: clean
+-- old/version/version_test.go --
+package version
+
+import (
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+)
+
+func TestString(t *testing.T) {
+	assert.Equal(t, "1.2.3", New(1, 2, 3).String())
+}
+-- new/version/version_test.go --
+package version
+
+import (
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+)
+
+func TestString(t *testing.T) {
+	assert.Equal(t, "1.2.3", New(1, 2, 3).String())
+}
+
+func TestBumpMinor(t *testing.T) {
+	v := New(1, 2, 3)
+	next := v.BumpMinor()
+	require.NotNil(t, next)
+	assert.NotEqual(t, v, next)
+	assert.Equal(t, "1.3.0", next.String())
+	assert.True(t, next.After(v))
+}

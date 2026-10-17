@@ -1,0 +1,20 @@
+# typescript-eslint v8 renamed no-var-requires to no-require-imports; the rule stays an error under its new name.
+expect: clean
+-- old/.eslintrc.json --
+{
+  "parser": "@typescript-eslint/parser",
+  "plugins": ["@typescript-eslint"],
+  "rules": {
+    "@typescript-eslint/no-var-requires": "error",
+    "@typescript-eslint/no-explicit-any": "error"
+  }
+}
+-- new/.eslintrc.json --
+{
+  "parser": "@typescript-eslint/parser",
+  "plugins": ["@typescript-eslint"],
+  "rules": {
+    "@typescript-eslint/no-require-imports": "error",
+    "@typescript-eslint/no-explicit-any": "error"
+  }
+}

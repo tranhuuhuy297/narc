@@ -1,0 +1,25 @@
+# The link-check environment may fail on flaky external sites; it runs no tests.
+expect: clean
+-- old/tox.ini --
+[tox]
+envlist = py312, docs
+
+[testenv]
+deps = pytest
+commands = pytest
+
+[testenv:docs]
+deps = sphinx
+commands = sphinx-build -b linkcheck docs docs/_build
+-- new/tox.ini --
+[tox]
+envlist = py312, docs
+
+[testenv]
+deps = pytest
+commands = pytest
+
+[testenv:docs]
+deps = sphinx
+ignore_outcome = true
+commands = sphinx-build -b linkcheck docs docs/_build

@@ -1,0 +1,18 @@
+# Evasive: `|| true` added inside an ifeq branch of the test target.
+expect: ci-failure-ignored
+-- old/Makefile --
+.PHONY: test
+test:
+ifeq ($(CI),true)
+	pytest --junitxml=report.xml
+else
+	pytest -q
+endif
+-- new/Makefile --
+.PHONY: test
+test:
+ifeq ($(CI),true)
+	pytest --junitxml=report.xml || true
+else
+	pytest -q
+endif

@@ -1,0 +1,15 @@
+# Excluding the script entry point is a long-standing convention.
+expect: clean
+-- old/app/cli.py --
+def main() -> int:
+    return run()
+-- new/app/cli.py --
+import sys
+
+
+def main() -> int:
+    return run(sys.argv[1:])
+
+
+if __name__ == "__main__":  # pragma: no cover
+    sys.exit(main())

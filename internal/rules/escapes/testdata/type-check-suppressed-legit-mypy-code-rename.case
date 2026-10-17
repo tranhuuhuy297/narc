@@ -1,0 +1,14 @@
+# mypy 1.7 split the "import" error code; the existing ignore is updated to the new code name.
+expect: clean
+-- old/src/report/pdf.py --
+import weasyprint  # type: ignore[import]
+
+
+def render(html: str) -> bytes:
+    return weasyprint.HTML(string=html).write_pdf()
+-- new/src/report/pdf.py --
+import weasyprint  # type: ignore[import-untyped]
+
+
+def render(html: str) -> bytes:
+    return weasyprint.HTML(string=html).write_pdf()

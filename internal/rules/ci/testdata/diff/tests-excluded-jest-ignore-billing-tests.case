@@ -1,0 +1,16 @@
+# jest now ignores the billing test directory.
+expect: tests-excluded
+-- old/jest.config.js --
+module.exports = {
+  testEnvironment: 'node',
+  testPathIgnorePatterns: ['/node_modules/', '<rootDir>/dist/'],
+};
+-- new/jest.config.js --
+module.exports = {
+  testEnvironment: 'node',
+  testPathIgnorePatterns: [
+    '/node_modules/',
+    '<rootDir>/dist/',
+    '<rootDir>/src/billing/__tests__/',
+  ],
+};

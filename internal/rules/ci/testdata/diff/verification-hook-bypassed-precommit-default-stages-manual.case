@@ -1,0 +1,23 @@
+# default_stages: [manual] means none of the hooks run on commit any more.
+expect: verification-hook-bypassed
+-- old/.pre-commit-config.yaml --
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.6.9
+    hooks:
+      - id: ruff
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v1.11.2
+    hooks:
+      - id: mypy
+-- new/.pre-commit-config.yaml --
+default_stages: [manual]
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.6.9
+    hooks:
+      - id: ruff
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v1.11.2
+    hooks:
+      - id: mypy

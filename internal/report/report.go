@@ -66,7 +66,9 @@ type Options struct {
 	// LinkBase/<path>#L<line>. Use a blob URL such as
 	// https://github.com/OWNER/REPO/blob/SHA.
 	LinkBase string
-	// Config is the loaded .narc.yml, if any. SARIF uses its allow:
+	// Config is the loaded .narc.yml, if any. The engine records where
+	// each waiver came from (core.Finding.WaiverSource); for findings
+	// built without it, SARIF falls back to matching the config's allow:
 	// entries to tell repository-level waivers ("external" suppressions)
 	// from inline narc:allow comments ("inSource").
 	Config *config.Config
@@ -290,10 +292,11 @@ func firstLine(s string) string {
 	return strings.TrimSpace(s)
 }
 
-// waivedByConfig reports whether a waived finding was waived by an allow:
-// entry in .narc.yml rather than an inline narc:allow comment. The engine
-// checks repository-level waivers first with exactly this match, so a hit
-// here means the config entry is what waived it.
+// waivedByConfig guesses whether a waived finding without a WaiverSource
+// was waived by an allow: entry in .narc.yml rather than an inline
+// narc:allow comment. The engine checks repository-level waivers first
+// with exactly this match, so a hit here means the config entry is what
+// waived it.
 func waivedByConfig(f core.Finding, cfg *config.Config) bool {
 	if cfg == nil {
 		// Without the config, a file-level finding can only have been

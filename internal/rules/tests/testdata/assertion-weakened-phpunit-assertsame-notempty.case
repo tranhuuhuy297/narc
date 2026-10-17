@@ -1,0 +1,28 @@
+# PHPUnit: assertSame → assertNotEmpty.
+expect: assertion-weakened
+-- old/tests/Unit/MoneyFormatterTest.php --
+<?php
+
+use PHPUnit\Framework\TestCase;
+
+final class MoneyFormatterTest extends TestCase
+{
+    public function testFormatsEuros(): void
+    {
+        $formatted = (new MoneyFormatter('de_DE'))->format(1234.5, 'EUR');
+        $this->assertSame('1.234,50 €', $formatted);
+    }
+}
+-- new/tests/Unit/MoneyFormatterTest.php --
+<?php
+
+use PHPUnit\Framework\TestCase;
+
+final class MoneyFormatterTest extends TestCase
+{
+    public function testFormatsEuros(): void
+    {
+        $formatted = (new MoneyFormatter('de_DE'))->format(1234.5, 'EUR');
+        $this->assertNotEmpty($formatted);
+    }
+}

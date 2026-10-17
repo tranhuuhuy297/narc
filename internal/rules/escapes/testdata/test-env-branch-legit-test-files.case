@@ -1,0 +1,21 @@
+# Test files and conftest may inspect the test environment freely.
+expect: clean
+-- old/tests/conftest.py --
+import pytest
+-- new/tests/conftest.py --
+import os
+import sys
+
+import pytest
+
+assert "pytest" in sys.modules
+os.environ.setdefault("APP_ENV", "test")
+-- old/src/rates.test.ts --
+import { rate } from "./rates";
+-- new/src/rates.test.ts --
+import { rate } from "./rates";
+
+it("runs under jest", () => {
+  expect(process.env.JEST_WORKER_ID).toBeDefined();
+  expect(rate("EUR", "USD")).toBeGreaterThan(0);
+});

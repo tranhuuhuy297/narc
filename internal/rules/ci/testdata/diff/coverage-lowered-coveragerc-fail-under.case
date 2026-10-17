@@ -1,0 +1,18 @@
+# .coveragerc fail_under lowered 90 → 75.
+expect: coverage-lowered
+-- old/.coveragerc --
+[run]
+branch = True
+source = app
+
+[report]
+fail_under = 90
+show_missing = True
+-- new/.coveragerc --
+[run]
+branch = True
+source = app
+
+[report]
+fail_under = 75
+show_missing = True

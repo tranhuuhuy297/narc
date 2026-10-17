@@ -1,0 +1,27 @@
+# The failing assertions were wrapped in a /* */ block. The assertion lines
+# themselves are unchanged, so the diff only shows the two delimiter lines.
+expect: assertion-commented, assertions-removed
+-- old/src/billing/invoice.test.ts --
+import { buildInvoice } from './invoice';
+
+describe('buildInvoice', () => {
+  it('computes totals with VAT', () => {
+    const invoice = buildInvoice([{ net: 100, vatRate: 0.07 }]);
+    expect(invoice.net).toBe(100);
+    expect(invoice.vat).toBe(7);
+    expect(invoice.total).toBe(107);
+  });
+});
+-- new/src/billing/invoice.test.ts --
+import { buildInvoice } from './invoice';
+
+describe('buildInvoice', () => {
+  it('computes totals with VAT', () => {
+    const invoice = buildInvoice([{ net: 100, vatRate: 0.07 }]);
+    expect(invoice.net).toBe(100);
+    /*
+    expect(invoice.vat).toBe(7);
+    expect(invoice.total).toBe(107);
+    */
+  });
+});

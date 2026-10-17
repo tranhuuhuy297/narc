@@ -1,0 +1,9 @@
+# Rust's #[expect] is checked (it fails when the lint stops firing), and #[cfg] attributes are not suppressions.
+expect: clean
+-- old/src/ffi.rs --
+pub struct Handle(*mut std::ffi::c_void);
+-- new/src/ffi.rs --
+#[derive(Debug)]
+#[cfg(unix)]
+#[expect(dead_code, reason = "field is only read through FFI")]
+pub struct Handle(*mut std::ffi::c_void);

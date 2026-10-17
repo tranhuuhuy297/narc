@@ -1,0 +1,35 @@
+# Evasive: the failing test is skipped with bracket access, it['skip'](...),
+# which a search for ".skip(" does not find. It is the same skip.
+expect: skip-added
+-- old/src/cart/cart.test.ts --
+import { Cart } from './cart';
+
+describe('Cart', () => {
+  it('applies the member discount', () => {
+    const cart = new Cart({ member: true });
+    cart.add({ sku: 'A1', price: 100 });
+    expect(cart.total()).toBe(90);
+  });
+
+  it('rounds to cents', () => {
+    const cart = new Cart();
+    cart.add({ sku: 'B2', price: 0.105 });
+    expect(cart.total()).toBe(0.11);
+  });
+});
+-- new/src/cart/cart.test.ts --
+import { Cart } from './cart';
+
+describe('Cart', () => {
+  it('applies the member discount', () => {
+    const cart = new Cart({ member: true });
+    cart.add({ sku: 'A1', price: 100 });
+    expect(cart.total()).toBe(90);
+  });
+
+  it['skip']('rounds to cents', () => {
+    const cart = new Cart();
+    cart.add({ sku: 'B2', price: 0.105 });
+    expect(cart.total()).toBe(0.11);
+  });
+});

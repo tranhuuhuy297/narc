@@ -1,0 +1,22 @@
+# Under pytest the app keeps its log output quiet; nothing else changes.
+expect: clean
+-- old/src/inventory/app.py --
+import logging
+import sys
+
+from inventory.api import create_app
+
+app = create_app()
+logging.basicConfig(level=logging.INFO)
+-- new/src/inventory/app.py --
+import logging
+import sys
+
+from inventory.api import create_app
+
+app = create_app()
+if "pytest" in sys.modules:
+    logging.getLogger("inventory").setLevel(logging.WARNING)
+    logging.getLogger("urllib3").setLevel(logging.ERROR)
+else:
+    logging.basicConfig(level=logging.INFO)

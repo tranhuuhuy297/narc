@@ -1,0 +1,31 @@
+# go test is replaced by `make check`, whose unchanged recipe only builds and tidies modules.
+expect: ci-check-removed@error
+-- old/.github/workflows/go.yml --
+name: Go
+on: [pull_request]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+      - run: go test ./...
+-- new/.github/workflows/go.yml --
+name: Go
+on: [pull_request]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+      - run: make check
+-- both/Makefile --
+.PHONY: build check
+
+build:
+	go build ./...
+
+check: build
+	go mod tidy
+	@echo "ok"

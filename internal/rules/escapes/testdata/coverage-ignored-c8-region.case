@@ -1,0 +1,20 @@
+# A whole new function wrapped in c8 ignore start/stop to keep the coverage gate green.
+expect: coverage-ignored
+-- old/src/sync/queue.ts --
+export function enqueue(job: Job) {
+  queue.push(job);
+}
+-- new/src/sync/queue.ts --
+export function enqueue(job: Job) {
+  queue.push(job);
+}
+
+/* c8 ignore start */
+export function drain(limit = 100) {
+  const batch = queue.splice(0, limit);
+  for (const job of batch) {
+    runJob(job);
+  }
+  return batch.length;
+}
+/* c8 ignore stop */

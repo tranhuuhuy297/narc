@@ -1,0 +1,59 @@
+# Rust: #[test] was removed from the failing unit test and #[allow(dead_code)]
+# added to silence the compiler, so cargo test no longer runs it. The parser
+# change in the same file is what broke it. (lint-suppressed reports the
+# new #[allow].)
+expect: test-deleted@error, lint-suppressed
+-- old/src/duration.rs --
+pub fn parse(s: &str) -> Option<u64> {
+    let (num, unit) = s.split_at(s.len() - 1);
+    let n: u64 = num.parse().ok()?;
+    match unit {
+        "s" => Some(n),
+        "m" => Some(n * 60),
+        "h" => Some(n * 3600),
+        _ => None,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parses_minutes() {
+        assert_eq!(parse("5m"), Some(300));
+    }
+
+    #[test]
+    fn rejects_unknown_unit() {
+        assert_eq!(parse("5x"), None);
+        assert_eq!(parse(""), None);
+    }
+}
+-- new/src/duration.rs --
+pub fn parse(s: &str) -> Option<u64> {
+    let (num, unit) = s.split_at(s.len().saturating_sub(1));
+    let n: u64 = num.parse().ok()?;
+    match unit {
+        "s" => Some(n),
+        "m" => Some(n * 60),
+        "h" => Some(n * 3600),
+        _ => Some(n),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parses_minutes() {
+        assert_eq!(parse("5m"), Some(300));
+    }
+
+    #[allow(dead_code)]
+    fn rejects_unknown_unit() {
+        assert_eq!(parse("5x"), None);
+        assert_eq!(parse(""), None);
+    }
+}

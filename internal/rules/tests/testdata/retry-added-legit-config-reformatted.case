@@ -1,0 +1,11 @@
+# The Mocha config is converted from JSON to YAML; retries are unchanged.
+expect: clean
+-- old/.mocharc.yml --
+spec: test/**/*.spec.js
+retries: 1
+timeout: 5000
+-- new/.mocharc.yml --
+# Shared Mocha settings
+spec: "test/**/*.spec.js"
+timeout: 5000
+retries: 1

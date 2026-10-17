@@ -1,0 +1,19 @@
+# The commented-out assertion links an issue: reported as a warning.
+expect: assertion-commented, assertions-removed
+-- old/tests/test_sync.py --
+from app.sync import sync
+
+
+def test_sync_copies_attachments(tmp_path):
+    result = sync(tmp_path / "src", tmp_path / "dst")
+    assert result.files == 3
+    assert result.attachments == 2
+-- new/tests/test_sync.py --
+from app.sync import sync
+
+
+def test_sync_copies_attachments(tmp_path):
+    result = sync(tmp_path / "src", tmp_path / "dst")
+    assert result.files == 3
+    # Attachments are not synced until #482 lands:
+    # assert result.attachments == 2

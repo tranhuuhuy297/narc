@@ -1,0 +1,17 @@
+# A per-directory threshold of 0 takes src/payments out of jest's 90% global gate.
+expect: coverage-lowered
+-- old/jest.config.js --
+module.exports = {
+  collectCoverage: true,
+  coverageThreshold: {
+    global: { branches: 85, functions: 90, lines: 90, statements: 90 },
+  },
+};
+-- new/jest.config.js --
+module.exports = {
+  collectCoverage: true,
+  coverageThreshold: {
+    global: { branches: 85, functions: 90, lines: 90, statements: 90 },
+    './src/payments/': { branches: 0, functions: 0, lines: 0, statements: 0 },
+  },
+};

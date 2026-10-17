@@ -1,0 +1,8 @@
+# A specific failing test deselected in the Makefile (warning).
+expect: test-script-neutered
+-- old/Makefile --
+test:
+	pytest -q
+-- new/Makefile --
+test:
+	pytest -q --deselect tests/test_invoice.py::test_rounding

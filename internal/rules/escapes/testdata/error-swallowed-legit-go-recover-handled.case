@@ -1,0 +1,21 @@
+# Go: the recovered panic is turned into an error that callers see.
+expect: clean
+-- old/internal/render/page.go --
+package render
+
+func (r *Renderer) Page(w io.Writer, p Page) error {
+	return r.tmpl.Execute(w, p)
+}
+-- new/internal/render/page.go --
+package render
+
+import "fmt"
+
+func (r *Renderer) Page(w io.Writer, p Page) (err error) {
+	defer func() {
+		if rec := recover(); rec != nil {
+			err = fmt.Errorf("render %s: panic: %v", p.Name, rec)
+		}
+	}()
+	return r.tmpl.Execute(w, p)
+}

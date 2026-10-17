@@ -1,0 +1,13 @@
+# A bare patch where a suppressed line only moved.
+expect: clean
+patch-only: true
+-- old/src/cli/output.ts --
+// eslint-disable-next-line no-console
+export const info = (m: string) => console.info(m);
+
+export const format = (m: string) => `[app] ${m}`;
+-- new/src/cli/output.ts --
+export const format = (m: string) => `[app] ${m}`;
+
+// eslint-disable-next-line no-console
+export const info = (m: string) => console.info(m);

@@ -1,0 +1,6 @@
+# checkJs turned off in jsconfig.json.
+expect: strictness-lowered
+-- old/jsconfig.json --
+{ "compilerOptions": { "checkJs": true, "module": "esnext" } }
+-- new/jsconfig.json --
+{ "compilerOptions": { "checkJs": false, "module": "esnext" } }

@@ -1,0 +1,19 @@
+# PHPUnit test suite excludes a test directory.
+expect: tests-excluded
+-- old/phpunit.xml --
+<phpunit bootstrap="vendor/autoload.php">
+  <testsuites>
+    <testsuite name="unit">
+      <directory>tests/Unit</directory>
+    </testsuite>
+  </testsuites>
+</phpunit>
+-- new/phpunit.xml --
+<phpunit bootstrap="vendor/autoload.php">
+  <testsuites>
+    <testsuite name="unit">
+      <directory>tests/Unit</directory>
+      <exclude>tests/Unit/Billing</exclude>
+    </testsuite>
+  </testsuites>
+</phpunit>

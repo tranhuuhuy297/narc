@@ -1,0 +1,24 @@
+# Compiler options moved into a shared tsconfig.base.json.
+expect: clean
+-- old/packages/api/tsconfig.json --
+{
+  "compilerOptions": {
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "outDir": "dist"
+  }
+}
+-- new/packages/api/tsconfig.json --
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "outDir": "dist"
+  }
+}
+-- new/tsconfig.base.json --
+{
+  "compilerOptions": {
+    "strict": true,
+    "noUncheckedIndexedAccess": true
+  }
+}

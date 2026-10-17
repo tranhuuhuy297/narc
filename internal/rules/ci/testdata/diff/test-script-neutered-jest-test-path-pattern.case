@@ -1,0 +1,16 @@
+# The test script now only runs the utils tests via --testPathPattern.
+expect: test-script-neutered
+-- old/package.json --
+{
+  "name": "shop",
+  "scripts": {
+    "test": "jest --ci"
+  }
+}
+-- new/package.json --
+{
+  "name": "shop",
+  "scripts": {
+    "test": "jest --ci --testPathPattern=src/utils"
+  }
+}

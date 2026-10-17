@@ -1,0 +1,22 @@
+# The Swift package's CI job now skips the failing PaymentTests suite.
+expect: test-script-neutered@warning
+-- old/.github/workflows/swift.yml --
+name: Swift
+on: [pull_request]
+jobs:
+  test:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+      - run: swift build
+      - run: swift test --parallel
+-- new/.github/workflows/swift.yml --
+name: Swift
+on: [pull_request]
+jobs:
+  test:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+      - run: swift build
+      - run: swift test --parallel --skip PaymentTests

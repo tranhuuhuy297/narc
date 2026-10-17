@@ -1,0 +1,36 @@
+# testify: a new test "asserts" with assert.True(t, true).
+expect: tautology
+-- old/internal/auth/session_test.go --
+package auth
+
+import (
+	"testing"
+	"time"
+
+	"github.com/stretchr/testify/assert"
+)
+
+func TestSessionExpires(t *testing.T) {
+	s := NewSession(clockAt("10:00"), 30*time.Minute)
+	assert.True(t, s.ExpiredAt(clockAt("10:31")))
+}
+-- new/internal/auth/session_test.go --
+package auth
+
+import (
+	"testing"
+	"time"
+
+	"github.com/stretchr/testify/assert"
+)
+
+func TestSessionExpires(t *testing.T) {
+	s := NewSession(clockAt("10:00"), 30*time.Minute)
+	assert.True(t, s.ExpiredAt(clockAt("10:31")))
+}
+
+func TestSessionRefreshExtendsExpiry(t *testing.T) {
+	s := NewSession(clockAt("10:00"), 30*time.Minute)
+	s.Refresh(clockAt("10:20"))
+	assert.True(t, true)
+}

@@ -1,0 +1,24 @@
+# Kotlin's "as Any" is a safe upcast and C#'s (object) is boxing; the rule is about TypeScript and Python.
+expect: clean
+-- old/src/main/kotlin/app/Render.kt --
+package app
+
+fun render(value: String): String = value
+-- new/src/main/kotlin/app/Render.kt --
+package app
+
+fun render(value: String): String = describe(value as Any)
+
+private fun describe(value: Any): String = value.toString()
+-- old/src/Render.cs --
+public static class Render
+{
+    public static string Show(int value) => value.ToString();
+}
+-- new/src/Render.cs --
+public static class Render
+{
+    public static string Show(int value) => Describe((object)value);
+
+    private static string Describe(object value) => value.ToString() ?? "";
+}

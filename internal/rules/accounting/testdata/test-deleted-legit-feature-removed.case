@@ -1,0 +1,58 @@
+# Java: the deprecated CSV export was removed together with its test.
+expect: clean
+-- old/src/main/java/com/acme/reports/ReportExporter.java --
+package com.acme.reports;
+
+public class ReportExporter {
+    public String toJson(Report report) {
+        return Json.write(report);
+    }
+
+    @Deprecated
+    public String toCsv(Report report) {
+        return Csv.write(report.rows());
+    }
+}
+-- new/src/main/java/com/acme/reports/ReportExporter.java --
+package com.acme.reports;
+
+public class ReportExporter {
+    public String toJson(Report report) {
+        return Json.write(report);
+    }
+}
+-- old/src/test/java/com/acme/reports/ReportExporterTest.java --
+package com.acme.reports;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+
+import org.junit.jupiter.api.Test;
+
+class ReportExporterTest {
+    private final ReportExporter exporter = new ReportExporter();
+
+    @Test
+    void exportsJson() {
+        assertEquals("{\"rows\":[]}", exporter.toJson(Report.empty()));
+    }
+
+    @Test
+    void exportsCsv() {
+        assertEquals("", exporter.toCsv(Report.empty()));
+    }
+}
+-- new/src/test/java/com/acme/reports/ReportExporterTest.java --
+package com.acme.reports;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+
+import org.junit.jupiter.api.Test;
+
+class ReportExporterTest {
+    private final ReportExporter exporter = new ReportExporter();
+
+    @Test
+    void exportsJson() {
+        assertEquals("{\"rows\":[]}", exporter.toJson(Report.empty()));
+    }
+}

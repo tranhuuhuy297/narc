@@ -1,0 +1,7 @@
+# Silencing line length for a long URL cannot hide a bug: reported as a note only.
+expect: lint-suppressed@info
+-- old/app/links.py --
+DOCS = "https://docs.example.com"
+-- new/app/links.py --
+DOCS = "https://docs.example.com"
+MIGRATION_GUIDE = "https://docs.example.com/guides/upgrading/v4-to-v5/breaking-changes-in-the-billing-api#webhooks"  # noqa: E501

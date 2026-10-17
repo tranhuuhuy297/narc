@@ -1,0 +1,24 @@
+# COVERAGE_THRESHOLD lowered in the workflow env.
+expect: coverage-lowered
+-- old/.github/workflows/ci.yml --
+name: CI
+on: [pull_request]
+env:
+  COVERAGE_THRESHOLD: 80
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: ./scripts/check-coverage.sh "$COVERAGE_THRESHOLD"
+-- new/.github/workflows/ci.yml --
+name: CI
+on: [pull_request]
+env:
+  COVERAGE_THRESHOLD: 55
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: ./scripts/check-coverage.sh "$COVERAGE_THRESHOLD"

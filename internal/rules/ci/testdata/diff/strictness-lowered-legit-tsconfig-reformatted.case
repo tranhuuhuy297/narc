@@ -1,0 +1,15 @@
+# tsconfig reordered and commented; same options.
+expect: clean
+-- old/tsconfig.json --
+{"compilerOptions": {"strict": true, "noImplicitReturns": true, "target": "ES2022", "module": "NodeNext"}}
+-- new/tsconfig.json --
+{
+  // Shared compiler settings
+  "compilerOptions": {
+    "module": "NodeNext",
+    "target": "ES2022",
+    /* checks */
+    "noImplicitReturns": true,
+    "strict": true,
+  },
+}

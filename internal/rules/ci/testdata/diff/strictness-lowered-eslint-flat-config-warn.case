@@ -1,0 +1,30 @@
+# Flat config: no-explicit-any lowered from error to warn.
+expect: strictness-lowered
+-- old/eslint.config.js --
+import js from '@eslint/js'
+import tseslint from 'typescript-eslint'
+
+export default tseslint.config(
+  js.configs.recommended,
+  ...tseslint.configs.recommended,
+  {
+    rules: {
+      '@typescript-eslint/no-explicit-any': 'error',
+      eqeqeq: ['error', 'always'],
+    },
+  },
+)
+-- new/eslint.config.js --
+import js from '@eslint/js'
+import tseslint from 'typescript-eslint'
+
+export default tseslint.config(
+  js.configs.recommended,
+  ...tseslint.configs.recommended,
+  {
+    rules: {
+      '@typescript-eslint/no-explicit-any': 'warn',
+      eqeqeq: ['error', 'always'],
+    },
+  },
+)

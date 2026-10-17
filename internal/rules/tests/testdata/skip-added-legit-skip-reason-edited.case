@@ -1,0 +1,23 @@
+# An existing skip gets a better reason and the test is renamed; the skip
+# itself is not new.
+expect: clean
+-- old/net/dial_test.go --
+package net
+
+import "testing"
+
+func TestDialIPv6(t *testing.T) {
+	t.Skip("slow")
+	conn := dialTest(t, "[::1]:0")
+	defer conn.Close()
+}
+-- new/net/dial_test.go --
+package net
+
+import "testing"
+
+func TestDialIPv6Loopback(t *testing.T) {
+	t.Skip("slow: needs an IPv6 loopback interface")
+	conn := dialTest(t, "[::1]:0")
+	defer conn.Close()
+}

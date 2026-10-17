@@ -1,0 +1,13 @@
+# Gradle test task excludes a test class pattern.
+expect: tests-excluded
+-- old/build.gradle --
+test {
+    useJUnitPlatform()
+}
+-- new/build.gradle --
+test {
+    useJUnitPlatform()
+    filter {
+        excludeTestsMatching "com.acme.orders.*IntegrationTest"
+    }
+}

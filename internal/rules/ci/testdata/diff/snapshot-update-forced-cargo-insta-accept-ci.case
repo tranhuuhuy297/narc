@@ -1,0 +1,12 @@
+# cargo insta test --accept in the CI pipeline.
+expect: snapshot-update-forced
+-- old/.gitlab-ci.yml --
+test:
+  image: rust:1.80
+  script:
+    - cargo insta test --review=false
+-- new/.gitlab-ci.yml --
+test:
+  image: rust:1.80
+  script:
+    - cargo insta test --accept

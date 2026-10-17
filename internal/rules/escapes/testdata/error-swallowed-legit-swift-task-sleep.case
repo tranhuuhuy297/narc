@@ -1,0 +1,19 @@
+# Swift concurrency: try? await Task.sleep is the standard cancellable delay.
+expect: clean
+-- old/Sources/Sync/Poller.swift --
+actor Poller {
+    func run(every interval: Duration) async {
+        while !Task.isCancelled {
+            await refresh()
+        }
+    }
+}
+-- new/Sources/Sync/Poller.swift --
+actor Poller {
+    func run(every interval: Duration) async {
+        while !Task.isCancelled {
+            await refresh()
+            try? await Task.sleep(for: interval)
+        }
+    }
+}

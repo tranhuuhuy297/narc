@@ -1,0 +1,20 @@
+# New watch/changed-only scripts for local development; the main test script is unchanged.
+expect: clean
+-- old/package.json --
+{
+  "name": "@acme/api",
+  "version": "1.4.0",
+  "scripts": {
+    "test": "jest"
+  }
+}
+-- new/package.json --
+{
+  "name": "@acme/api",
+  "version": "1.4.0",
+  "scripts": {
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:changed": "jest --onlyChanged"
+  }
+}

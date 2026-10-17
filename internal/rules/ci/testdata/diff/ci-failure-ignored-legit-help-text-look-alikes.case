@@ -1,0 +1,16 @@
+# Help text that mentions bad patterns inside quoted strings.
+expect: clean
+-- old/Makefile --
+.PHONY: help test
+help:
+	@echo "make test   run the test suite"
+test:
+	pytest -q
+-- new/Makefile --
+.PHONY: help test
+help:
+	@echo "make test   run the test suite"
+	@echo "never use 'pytest || true' or 'git commit --no-verify' here"
+	@echo 'coverage gate: --cov-fail-under=50 is NOT allowed'
+test:
+	pytest -q

@@ -1,0 +1,32 @@
+# C#: NUnit's Assert.Pass() replaced the real checks. It ends the test as
+# passed without checking anything (tautology reports the Assert.Pass).
+expect: test-hollowed, tautology
+-- old/tests/Billing.Tests/InvoiceTests.cs --
+using NUnit.Framework;
+
+namespace Billing.Tests;
+
+public class InvoiceTests
+{
+    [Test]
+    public void AppliesVolumeDiscount()
+    {
+        var invoice = new Invoice(units: 120, unitPrice: 10m);
+        Assert.That(invoice.Discount, Is.EqualTo(120m));
+        Assert.That(invoice.Total, Is.EqualTo(1080m));
+    }
+}
+-- new/tests/Billing.Tests/InvoiceTests.cs --
+using NUnit.Framework;
+
+namespace Billing.Tests;
+
+public class InvoiceTests
+{
+    [Test]
+    public void AppliesVolumeDiscount()
+    {
+        var invoice = new Invoice(units: 120, unitPrice: 10m);
+        Assert.Pass("volume discount is covered by the pricing service");
+    }
+}

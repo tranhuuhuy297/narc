@@ -1,0 +1,18 @@
+# Migrating the test script from jest to vitest.
+expect: clean
+-- old/package.json --
+{
+  "name": "@acme/api",
+  "version": "1.4.0",
+  "scripts": {
+    "test": "jest --ci"
+  }
+}
+-- new/package.json --
+{
+  "name": "@acme/api",
+  "version": "1.4.0",
+  "scripts": {
+    "test": "vitest run"
+  }
+}

@@ -1,0 +1,54 @@
+# Go: TestApplyLateFee became testApplyLateFee, which go test does not run,
+# in the same change that rewrote the fee calculation.
+expect: test-deleted@error
+-- old/billing/fees.go --
+package billing
+
+func LateFee(days int, amount int64) int64 {
+	if days <= 0 {
+		return 0
+	}
+	return amount * int64(days) / 100
+}
+-- new/billing/fees.go --
+package billing
+
+func LateFee(days int, amount int64) int64 {
+	return amount * int64(days) / 100
+}
+-- old/billing/fees_test.go --
+package billing
+
+import "testing"
+
+func TestLateFeeAccrues(t *testing.T) {
+	if got := LateFee(3, 10000); got != 300 {
+		t.Errorf("LateFee(3) = %d, want 300", got)
+	}
+}
+
+func TestLateFeeNotChargedBeforeDueDate(t *testing.T) {
+	for _, days := range []int{0, -1, -30} {
+		if got := LateFee(days, 10000); got != 0 {
+			t.Errorf("LateFee(%d) = %d, want 0", days, got)
+		}
+	}
+}
+-- new/billing/fees_test.go --
+package billing
+
+import "testing"
+
+func TestLateFeeAccrues(t *testing.T) {
+	if got := LateFee(3, 10000); got != 300 {
+		t.Errorf("LateFee(3) = %d, want 300", got)
+	}
+}
+
+func testLateFeeNotChargedBeforeDueDate(t *testing.T) {
+	for _, days := range []int{0, -1, -30} {
+		if got := LateFee(days, 10000); got != 0 {
+			t.Errorf("LateFee(%d) = %d, want 0", days, got)
+		}
+	}
+}

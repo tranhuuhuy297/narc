@@ -1,0 +1,16 @@
+# Psalm errorLevel raised (more lenient).
+expect: strictness-lowered
+-- old/psalm.xml --
+<?xml version="1.0"?>
+<psalm errorLevel="2" resolveFromConfigFile="true">
+    <projectFiles>
+        <directory name="src" />
+    </projectFiles>
+</psalm>
+-- new/psalm.xml --
+<?xml version="1.0"?>
+<psalm errorLevel="6" resolveFromConfigFile="true">
+    <projectFiles>
+        <directory name="src" />
+    </projectFiles>
+</psalm>

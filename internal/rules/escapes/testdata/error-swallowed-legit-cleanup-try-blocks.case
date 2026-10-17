@@ -1,0 +1,48 @@
+# Removing temp files and closing handles in an empty-catch try is best-effort cleanup in every language.
+expect: clean
+-- old/scripts/build.js --
+const fs = require("node:fs");
+
+function build(out) {
+  const tmp = `${out}.partial`;
+  compile(tmp);
+  fs.renameSync(tmp, out);
+}
+-- new/scripts/build.js --
+const fs = require("node:fs");
+
+function build(out) {
+  const tmp = `${out}.partial`;
+  try {
+    compile(tmp);
+    fs.renameSync(tmp, out);
+  } finally {
+    try { fs.rmSync(tmp, { force: true }); } catch {}
+  }
+}
+-- old/tools/fetch.py --
+import os
+import shutil
+import tempfile
+
+
+def fetch(url, dest):
+    work = tempfile.mkdtemp()
+    download(url, work)
+    shutil.move(os.path.join(work, "pkg"), dest)
+-- new/tools/fetch.py --
+import os
+import shutil
+import tempfile
+
+
+def fetch(url, dest):
+    work = tempfile.mkdtemp()
+    try:
+        download(url, work)
+        shutil.move(os.path.join(work, "pkg"), dest)
+    finally:
+        try:
+            shutil.rmtree(work)
+        except Exception:
+            pass

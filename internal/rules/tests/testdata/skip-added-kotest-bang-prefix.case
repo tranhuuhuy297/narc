@@ -1,0 +1,33 @@
+# kotest disables any test whose name starts with "!" (the "bang" feature).
+# Renaming the failing test is a skip in disguise.
+expect: skip-added
+-- old/src/test/kotlin/com/acme/pricing/DiscountSpec.kt --
+package com.acme.pricing
+
+import io.kotest.core.spec.style.FunSpec
+import io.kotest.matchers.shouldBe
+
+class DiscountSpec : FunSpec({
+    test("applies the loyalty discount after tax") {
+        price(100.0, loyal = true) shouldBe 97.0
+    }
+
+    test("never discounts below cost") {
+        price(10.0, loyal = true) shouldBe 9.5
+    }
+})
+-- new/src/test/kotlin/com/acme/pricing/DiscountSpec.kt --
+package com.acme.pricing
+
+import io.kotest.core.spec.style.FunSpec
+import io.kotest.matchers.shouldBe
+
+class DiscountSpec : FunSpec({
+    test("!applies the loyalty discount after tax") {
+        price(100.0, loyal = true) shouldBe 97.0
+    }
+
+    test("never discounts below cost") {
+        price(10.0, loyal = true) shouldBe 9.5
+    }
+})

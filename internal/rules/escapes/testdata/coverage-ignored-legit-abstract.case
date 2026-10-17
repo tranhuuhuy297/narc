@@ -1,0 +1,16 @@
+# Abstract methods and overload stubs have no body to cover.
+expect: clean
+-- old/app/storage/base.py --
+from abc import ABC
+
+
+class Storage(ABC):
+    pass
+-- new/app/storage/base.py --
+from abc import ABC, abstractmethod
+
+
+class Storage(ABC):
+    @abstractmethod
+    def put(self, key: str, data: bytes) -> None:
+        raise NotImplementedError  # pragma: no cover

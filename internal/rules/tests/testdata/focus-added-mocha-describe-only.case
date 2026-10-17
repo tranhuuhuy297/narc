@@ -1,0 +1,26 @@
+# Mocha: describe.only on one suite silently drops every other suite.
+expect: focus-added
+-- old/test/cache.spec.js --
+const assert = require('assert');
+const { LruCache } = require('../lib/cache');
+
+describe('LruCache', () => {
+  it('evicts the least recently used entry', () => {
+    const c = new LruCache(1);
+    c.set('a', 1);
+    c.set('b', 2);
+    assert.strictEqual(c.get('a'), undefined);
+  });
+});
+-- new/test/cache.spec.js --
+const assert = require('assert');
+const { LruCache } = require('../lib/cache');
+
+describe.only('LruCache', () => {
+  it('evicts the least recently used entry', () => {
+    const c = new LruCache(1);
+    c.set('a', 1);
+    c.set('b', 2);
+    assert.strictEqual(c.get('a'), undefined);
+  });
+});

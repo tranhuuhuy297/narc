@@ -1,0 +1,20 @@
+# A Result type with a no-op `catch` method: an Ok value has no error to handle.
+expect: clean
+-- old/src/result.ts --
+export class Ok<T> {
+  constructor(readonly value: T) {}
+
+  map<U>(fn: (v: T) => U): Ok<U> {
+    return new Ok(fn(this.value));
+  }
+}
+-- new/src/result.ts --
+export class Ok<T> {
+  constructor(readonly value: T) {}
+
+  map<U>(fn: (v: T) => U): Ok<U> {
+    return new Ok(fn(this.value));
+  }
+
+  catch(_handler: (e: Error) => void) {}
+}

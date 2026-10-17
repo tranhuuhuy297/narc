@@ -1,0 +1,15 @@
+# A manually triggered workflow that regenerates screenshots and opens a PR.
+expect: clean
+-- new/.github/workflows/update-screenshots.yml --
+name: Update screenshots
+on: workflow_dispatch
+jobs:
+  screenshots:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: npm ci
+      - run: npx playwright test --update-snapshots
+      - uses: peter-evans/create-pull-request@v6
+        with:
+          title: "chore: update screenshots"

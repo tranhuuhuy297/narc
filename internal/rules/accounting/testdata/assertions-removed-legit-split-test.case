@@ -1,0 +1,27 @@
+# One long test split into two; the original name keeps half of the checks.
+expect: clean
+-- old/src/auth/password.test.ts --
+import { validatePassword } from './password'
+
+describe('validatePassword', () => {
+  it('enforces the password policy', () => {
+    expect(validatePassword('short')).toEqual({ ok: false, reason: 'too_short' })
+    expect(validatePassword('alllowercase1')).toEqual({ ok: false, reason: 'needs_uppercase' })
+    expect(validatePassword('NoDigitsHere')).toEqual({ ok: false, reason: 'needs_digit' })
+    expect(validatePassword('Valid1Password')).toEqual({ ok: true })
+  })
+})
+-- new/src/auth/password.test.ts --
+import { validatePassword } from './password'
+
+describe('validatePassword', () => {
+  it('enforces the password policy', () => {
+    expect(validatePassword('short')).toEqual({ ok: false, reason: 'too_short' })
+    expect(validatePassword('alllowercase1')).toEqual({ ok: false, reason: 'needs_uppercase' })
+    expect(validatePassword('NoDigitsHere')).toEqual({ ok: false, reason: 'needs_digit' })
+  })
+
+  it('accepts a strong password', () => {
+    expect(validatePassword('Valid1Password')).toEqual({ ok: true })
+  })
+})

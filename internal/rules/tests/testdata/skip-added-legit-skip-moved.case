@@ -1,0 +1,25 @@
+# A long-standing skipped test moves into a new describe block during a
+# reorganization; it was already skipped, so nothing new is switched off.
+expect: clean
+-- old/src/search/query.test.ts --
+import { parseQuery } from './query';
+
+it('parses field filters', () => {
+  expect(parseQuery('author:ann').filters).toEqual({ author: 'ann' });
+});
+
+it.skip('parses nested boolean groups', () => {
+  expect(parseQuery('(a OR b) AND c').tree.op).toBe('AND');
+});
+-- new/src/search/query.test.ts --
+import { parseQuery } from './query';
+
+describe('parseQuery', () => {
+  it('parses field filters', () => {
+    expect(parseQuery('author:ann').filters).toEqual({ author: 'ann' });
+  });
+
+  it.skip('parses nested boolean groups', () => {
+    expect(parseQuery('(a OR b) AND c').tree.op).toBe('AND');
+  });
+});

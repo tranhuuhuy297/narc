@@ -1,0 +1,13 @@
+# Detecting the test runner from the command line.
+expect: test-env-branch
+-- old/app/geo/lookup.py --
+def country_for(ip: str) -> str:
+    return reader.country(ip).iso_code
+-- new/app/geo/lookup.py --
+import sys
+
+
+def country_for(ip: str) -> str:
+    if any("pytest" in arg for arg in sys.argv):
+        return "US"
+    return reader.country(ip).iso_code

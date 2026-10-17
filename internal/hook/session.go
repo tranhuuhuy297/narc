@@ -31,6 +31,15 @@ type sessionState struct {
 	// Accepted are fingerprints narc already reported to the human after
 	// giving up on them; they no longer block this session.
 	Accepted []string `json:"accepted,omitempty"`
+	// Head is the commit HEAD pointed at when narc last looked ("" before
+	// the first commit). syncHead works out from the reflog how HEAD
+	// moved since then.
+	Head string `json:"head,omitempty"`
+	// Imported are fingerprints of findings that git operations bringing
+	// in other people's commits (a pull, merge, rebase onto another
+	// branch, cherry-pick or checkout) added to the session's changes.
+	// They are not the agent's doing and are never blamed on it.
+	Imported []string `json:"imported,omitempty"`
 	// Reviewed identifies the waivers and configuration changes the human
 	// was told about (or that already existed when the session started),
 	// so they are reported once.
@@ -143,6 +152,9 @@ func (s *sessionState) known() map[string]bool {
 	for _, f := range s.Accepted {
 		m[f] = true
 	}
+	for _, f := range s.Imported {
+		m[f] = true
+	}
 	return m
 }
 
@@ -168,14 +180,14 @@ func (s *sessionState) accept(fs []core.Finding) {
 // also returns the work-tree changeset it scanned.
 func (w *workspace) snapshot(id, harness string, env Env) (*sessionState, *core.Changeset, error) {
 	s := newSession(w.repo, id, harness, env)
-	s.Baseline = w.headBaseline()
+	s.Baseline, s.Head = w.headBaseline(), w.headCommit()
 	cs, err := w.repo.WorkingChangeset(s.Baseline, true)
 	if err != nil {
 		return nil, nil, err
 	}
 	res := engine.Run(cs, engine.Options{Config: w.cfg})
 	s.Preexisting = sortedUnique(fingerprints(res.Active()))
-	for _, it := range reviewItems(res, cs, w.cfg.BlockThreshold()) {
+	for _, it := range reviewItems(res, cs, w.blockThreshold()) {
 		s.Reviewed = append(s.Reviewed, it.key)
 	}
 	s.Reviewed = sortedUnique(s.Reviewed)

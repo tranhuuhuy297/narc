@@ -1,0 +1,20 @@
+# pytest.raises(Exception) → pytest.raises(ValueError, match=...): stricter.
+expect: clean
+-- old/tests/test_amounts.py --
+import pytest
+
+from ledger.amounts import parse_amount
+
+
+def test_rejects_garbage():
+    with pytest.raises(Exception):
+        parse_amount("12,3,4")
+-- new/tests/test_amounts.py --
+import pytest
+
+from ledger.amounts import parse_amount
+
+
+def test_rejects_garbage():
+    with pytest.raises(ValueError, match="invalid amount"):
+        parse_amount("12,3,4")

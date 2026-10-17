@@ -1,0 +1,13 @@
+# Vitest in-source tests: the block is stripped from production builds.
+expect: clean
+-- old/src/math/sum.ts --
+export const sum = (xs: number[]) => xs.reduce((a, b) => a + b, 0);
+-- new/src/math/sum.ts --
+export const sum = (xs: number[]) => xs.reduce((a, b) => a + b, 0);
+
+if (import.meta.vitest) {
+  const { it, expect } = import.meta.vitest;
+  it("sums", () => {
+    expect(sum([1, 2, 3])).toBe(6);
+  });
+}

@@ -1,0 +1,71 @@
+# PHP: coupon expiry is no longer enforced and the PHPUnit test for it is gone.
+expect: test-deleted
+-- old/src/Coupon/CouponValidator.php --
+<?php
+
+namespace App\Coupon;
+
+final class CouponValidator
+{
+    public function __construct(private ClockInterface $clock) {}
+
+    public function isValid(Coupon $coupon): bool
+    {
+        if ($coupon->expiresAt() < $this->clock->now()) {
+            return false;
+        }
+        return $coupon->remainingUses() > 0;
+    }
+}
+-- new/src/Coupon/CouponValidator.php --
+<?php
+
+namespace App\Coupon;
+
+final class CouponValidator
+{
+    public function __construct(private ClockInterface $clock) {}
+
+    public function isValid(Coupon $coupon): bool
+    {
+        return $coupon->remainingUses() > 0;
+    }
+}
+-- old/tests/Unit/Coupon/CouponValidatorTest.php --
+<?php
+
+namespace Tests\Unit\Coupon;
+
+use App\Coupon\CouponValidator;
+use PHPUnit\Framework\TestCase;
+
+final class CouponValidatorTest extends TestCase
+{
+    public function testAcceptsCouponWithRemainingUses(): void
+    {
+        $validator = new CouponValidator(new FrozenClock('2024-05-01'));
+        $this->assertTrue($validator->isValid(Coupon::make(uses: 3, expires: '2024-06-01')));
+    }
+
+    public function testRejectsExpiredCoupon(): void
+    {
+        $validator = new CouponValidator(new FrozenClock('2024-05-01'));
+        $this->assertFalse($validator->isValid(Coupon::make(uses: 3, expires: '2024-04-01')));
+    }
+}
+-- new/tests/Unit/Coupon/CouponValidatorTest.php --
+<?php
+
+namespace Tests\Unit\Coupon;
+
+use App\Coupon\CouponValidator;
+use PHPUnit\Framework\TestCase;
+
+final class CouponValidatorTest extends TestCase
+{
+    public function testAcceptsCouponWithRemainingUses(): void
+    {
+        $validator = new CouponValidator(new FrozenClock('2024-05-01'));
+        $this->assertTrue($validator->isValid(Coupon::make(uses: 3, expires: '2024-06-01')));
+    }
+}

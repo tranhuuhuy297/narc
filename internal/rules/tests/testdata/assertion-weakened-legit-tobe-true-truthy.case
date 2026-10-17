@@ -1,0 +1,41 @@
+# Style-only swaps: toBe(true) → toBeTruthy(), assertEquals(true, x) →
+# assertTrue(x). No information is lost.
+expect: clean
+-- old/src/flags/flags.test.ts --
+import { isEnabled } from './flags';
+
+it('enables beta for staff', () => {
+  expect(isEnabled('beta', staffUser)).toBe(true);
+});
+-- new/src/flags/flags.test.ts --
+import { isEnabled } from './flags';
+
+it('enables beta for staff', () => {
+  expect(isEnabled('beta', staffUser)).toBeTruthy();
+});
+-- old/src/test/java/com/acme/FlagsTest.java --
+package com.acme;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+
+import org.junit.jupiter.api.Test;
+
+class FlagsTest {
+    @Test
+    void staffGetsBeta() {
+        assertEquals(true, Flags.enabled("beta", staff()));
+    }
+}
+-- new/src/test/java/com/acme/FlagsTest.java --
+package com.acme;
+
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import org.junit.jupiter.api.Test;
+
+class FlagsTest {
+    @Test
+    void staffGetsBeta() {
+        assertTrue(Flags.enabled("beta", staff()));
+    }
+}

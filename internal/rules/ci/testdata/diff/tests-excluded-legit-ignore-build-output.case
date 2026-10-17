@@ -1,0 +1,6 @@
+# Build output directories added to jest's ignore list.
+expect: clean
+-- old/jest.config.js --
+module.exports = { testPathIgnorePatterns: ['/node_modules/'] };
+-- new/jest.config.js --
+module.exports = { testPathIgnorePatterns: ['/node_modules/', '<rootDir>/dist/', '<rootDir>/.next/'] };

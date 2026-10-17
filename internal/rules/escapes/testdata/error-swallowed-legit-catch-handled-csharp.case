@@ -1,0 +1,23 @@
+# C#: the exception is logged and a failure result returned.
+expect: clean
+-- old/src/Sync/Importer.cs --
+public class Importer
+{
+    public ImportResult Import(string path) => ImportResult.Ok(_repo.Save(Csv.Read(path)));
+}
+-- new/src/Sync/Importer.cs --
+public class Importer
+{
+    public ImportResult Import(string path)
+    {
+        try
+        {
+            return ImportResult.Ok(_repo.Save(Csv.Read(path)));
+        }
+        catch (CsvException ex)
+        {
+            _log.LogWarning(ex, "Bad CSV in {Path}", path);
+            return ImportResult.Invalid(ex.Message);
+        }
+    }
+}

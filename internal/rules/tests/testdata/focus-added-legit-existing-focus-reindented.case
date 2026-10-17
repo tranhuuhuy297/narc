@@ -1,0 +1,15 @@
+# A file that already had a focused suite is re-indented by the formatter;
+# the focus is pre-existing, so it is not reported as new.
+expect: clean
+-- old/test/legacy/parser.spec.js --
+describe.only('legacy parser', () => {
+    it('parses v1 headers', () => {
+        expect(parse('v1;a=1').a).toBe('1');
+    });
+});
+-- new/test/legacy/parser.spec.js --
+describe.only('legacy parser', () => {
+  it('parses v1 headers', () => {
+    expect(parse('v1;a=1').a).toBe('1');
+  });
+});

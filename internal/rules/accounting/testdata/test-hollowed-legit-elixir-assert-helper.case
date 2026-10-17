@@ -1,0 +1,26 @@
+# ExUnit: asserts moved into a private assert_* helper (still counted).
+expect: clean
+-- old/test/my_app/accounts_test.exs --
+defmodule MyApp.AccountsTest do
+  use MyApp.DataCase, async: true
+
+  test "register/1 creates a member" do
+    {:ok, user} = MyApp.Accounts.register(%{email: "ann@example.com"})
+    assert user.role == :member
+    refute user.admin
+  end
+end
+-- new/test/my_app/accounts_test.exs --
+defmodule MyApp.AccountsTest do
+  use MyApp.DataCase, async: true
+
+  test "register/1 creates a member" do
+    {:ok, user} = MyApp.Accounts.register(%{email: "ann@example.com"})
+    assert_member(user)
+  end
+
+  defp assert_member(user) do
+    assert user.role == :member
+    refute user.admin
+  end
+end

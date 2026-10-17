@@ -1,0 +1,30 @@
+# XCTest: XCTAssertTrue(true).
+expect: tautology
+-- old/Tests/SyncTests/SyncTests.swift --
+import XCTest
+@testable import Sync
+
+final class SyncTests: XCTestCase {
+    func testMergesRemoteChanges() async throws {
+        let store = Store(local: [.note("a")])
+        try await store.merge(remote: [.note("b")])
+        XCTAssertEqual(store.notes.count, 2)
+    }
+}
+-- new/Tests/SyncTests/SyncTests.swift --
+import XCTest
+@testable import Sync
+
+final class SyncTests: XCTestCase {
+    func testMergesRemoteChanges() async throws {
+        let store = Store(local: [.note("a")])
+        try await store.merge(remote: [.note("b")])
+        XCTAssertEqual(store.notes.count, 2)
+    }
+
+    func testResolvesConflicts() async throws {
+        let store = Store(local: [.note("a", rev: 1)])
+        try await store.merge(remote: [.note("a", rev: 2)])
+        XCTAssertTrue(true)
+    }
+}

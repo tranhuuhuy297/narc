@@ -1,0 +1,18 @@
+# justfile test recipe now runs @true.
+expect: test-script-neutered
+-- old/justfile --
+default: test
+
+test:
+    cargo test --workspace
+
+fmt:
+    cargo fmt --all
+-- new/justfile --
+default: test
+
+test:
+    @true
+
+fmt:
+    cargo fmt --all

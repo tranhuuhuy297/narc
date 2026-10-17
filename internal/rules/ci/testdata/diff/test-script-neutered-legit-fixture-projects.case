@@ -1,0 +1,38 @@
+# A linter's own test fixtures: sample projects whose configs are test inputs, not this repo's CI.
+expect: clean
+-- old/test/fixtures/strict-off/tsconfig.json --
+{
+  "compilerOptions": { "strict": true }
+}
+-- new/test/fixtures/strict-off/tsconfig.json --
+{
+  "compilerOptions": { "strict": false }
+}
+-- old/packages/cli/testdata/project/package.json --
+{
+  "scripts": { "test": "jest" }
+}
+-- new/packages/cli/testdata/project/package.json --
+{
+  "scripts": { "test": "echo \"no tests\"" }
+}
+-- old/internal/scan/testdata/skip_test.go --
+package scan
+
+import "testing"
+
+func TestX(t *testing.T) {}
+-- new/internal/scan/testdata/skip_test.go --
+//go:build ignore
+
+package scan
+
+import "testing"
+
+func TestX(t *testing.T) {}
+-- old/__fixtures__/py/pyproject.toml --
+[tool.coverage.report]
+fail_under = 90
+-- new/__fixtures__/py/pyproject.toml --
+[tool.coverage.report]
+fail_under = 10

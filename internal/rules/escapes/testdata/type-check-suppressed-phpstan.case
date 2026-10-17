@@ -1,0 +1,27 @@
+# PHPStan found a call on a possibly-null value; the agent ignored the next line.
+expect: type-check-suppressed
+-- old/src/Billing/InvoiceMailer.php --
+<?php
+
+namespace App\Billing;
+
+final class InvoiceMailer
+{
+    public function send(Invoice $invoice): void
+    {
+        $this->mailer->to($invoice->customer->email)->send(new InvoiceMail($invoice));
+    }
+}
+-- new/src/Billing/InvoiceMailer.php --
+<?php
+
+namespace App\Billing;
+
+final class InvoiceMailer
+{
+    public function send(Invoice $invoice): void
+    {
+        // @phpstan-ignore-next-line
+        $this->mailer->to($invoice->customer->email)->send(new InvoiceMail($invoice));
+    }
+}

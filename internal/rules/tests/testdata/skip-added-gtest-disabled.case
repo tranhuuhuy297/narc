@@ -1,0 +1,24 @@
+# GoogleTest: the DISABLED_ prefix turns the test off.
+expect: skip-added
+-- old/tests/tokenizer_test.cc --
+#include <gtest/gtest.h>
+#include "tokenizer.h"
+
+TEST(Tokenizer, SplitsOnWhitespace) {
+  EXPECT_EQ(Tokenize("a b"), (std::vector<std::string>{"a", "b"}));
+}
+
+TEST(Tokenizer, KeepsQuotedStrings) {
+  EXPECT_EQ(Tokenize("a \"b c\""), (std::vector<std::string>{"a", "b c"}));
+}
+-- new/tests/tokenizer_test.cc --
+#include <gtest/gtest.h>
+#include "tokenizer.h"
+
+TEST(Tokenizer, SplitsOnWhitespace) {
+  EXPECT_EQ(Tokenize("a b"), (std::vector<std::string>{"a", "b"}));
+}
+
+TEST(Tokenizer, DISABLED_KeepsQuotedStrings) {
+  EXPECT_EQ(Tokenize("a \"b c\""), (std::vector<std::string>{"a", "b c"}));
+}

@@ -1,0 +1,15 @@
+# A dedicated test:update script for humans to refresh snapshots.
+expect: clean
+-- old/package.json --
+{
+  "scripts": {
+    "test": "jest --ci"
+  }
+}
+-- new/package.json --
+{
+  "scripts": {
+    "test": "jest --ci",
+    "test:update": "jest -u"
+  }
+}

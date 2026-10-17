@@ -1,0 +1,29 @@
+# continue-on-error on a cache restore and an artifact upload is harmless.
+expect: clean
+-- old/.github/workflows/ci.yml --
+name: CI
+on: [push, pull_request]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: go test ./...
+-- new/.github/workflows/ci.yml --
+name: CI
+on: [push, pull_request]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Restore Go build cache
+        uses: actions/cache@v4
+        continue-on-error: true
+        with:
+          path: ~/.cache/go-build
+          key: go-${{ hashFiles('go.sum') }}
+      - run: go test ./...
+      - name: Upload coverage
+        uses: codecov/codecov-action@v4
+        continue-on-error: true

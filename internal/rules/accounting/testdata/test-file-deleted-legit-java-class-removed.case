@@ -1,0 +1,24 @@
+# Java: a deprecated exporter class and its test class were removed together.
+expect: clean
+-- old/src/main/java/com/acme/export/XmlExporter.java --
+package com.acme.export;
+
+@Deprecated
+public class XmlExporter {
+    public String export(Report report) {
+        return "<report rows=\"" + report.rows().size() + "\"/>";
+    }
+}
+-- old/src/test/java/com/acme/export/XmlExporterTest.java --
+package com.acme.export;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+
+import org.junit.jupiter.api.Test;
+
+class XmlExporterTest {
+    @Test
+    void exportsRowCount() {
+        assertEquals("<report rows=\"0\"/>", new XmlExporter().export(Report.empty()));
+    }
+}

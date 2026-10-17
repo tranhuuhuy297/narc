@@ -1,0 +1,9 @@
+# Pointing git at the repository's own hooks directory installs hooks.
+expect: clean
+-- old/scripts/setup.sh --
+#!/usr/bin/env bash
+npm ci
+-- new/scripts/setup.sh --
+#!/usr/bin/env bash
+npm ci
+git config core.hooksPath .githooks

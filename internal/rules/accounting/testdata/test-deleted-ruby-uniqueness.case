@@ -1,0 +1,60 @@
+# RSpec: the uniqueness validation was removed and so was the example for it.
+expect: test-deleted
+-- old/app/models/user.rb --
+class User < ApplicationRecord
+  validates :email, presence: true
+  validates :email, uniqueness: { case_sensitive: false }
+
+  def display_name
+    name.presence || email.split("@").first
+  end
+end
+-- new/app/models/user.rb --
+class User < ApplicationRecord
+  validates :email, presence: true
+
+  def display_name
+    name.presence || email.split("@").first
+  end
+end
+-- old/spec/models/user_spec.rb --
+require "rails_helper"
+
+RSpec.describe User do
+  describe "validations" do
+    it "requires an email" do
+      user = described_class.new(email: nil)
+      expect(user).not_to be_valid
+    end
+
+    it "rejects duplicate emails regardless of case" do
+      create(:user, email: "ann@example.com")
+      dup = build(:user, email: "ANN@example.com")
+      expect(dup).not_to be_valid
+      expect(dup.errors[:email]).to include("has already been taken")
+    end
+  end
+
+  describe "#display_name" do
+    it "falls back to the email's local part" do
+      expect(build(:user, name: nil, email: "ann@example.com").display_name).to eq("ann")
+    end
+  end
+end
+-- new/spec/models/user_spec.rb --
+require "rails_helper"
+
+RSpec.describe User do
+  describe "validations" do
+    it "requires an email" do
+      user = described_class.new(email: nil)
+      expect(user).not_to be_valid
+    end
+  end
+
+  describe "#display_name" do
+    it "falls back to the email's local part" do
+      expect(build(:user, name: nil, email: "ann@example.com").display_name).to eq("ann")
+    end
+  end
+end

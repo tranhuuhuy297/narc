@@ -1,0 +1,15 @@
+# One-line tests of an HTTP client's retry option: `retries` configures the
+# client under test, not the test runner.
+expect: clean
+-- old/test/client.test.ts --
+import { createClient } from '../src/client';
+import { flakyServer } from './servers';
+
+it('gets JSON', async () => expect(await createClient(flakyServer(0)).get('/a')).toEqual({ ok: true }));
+-- new/test/client.test.ts --
+import { createClient } from '../src/client';
+import { flakyServer } from './servers';
+
+it('gets JSON', async () => expect(await createClient(flakyServer(0)).get('/a')).toEqual({ ok: true }));
+it('retries a 503 up to the configured limit', async () => expect(await createClient(flakyServer(2), { retries: 2 }).get('/a')).toEqual({ ok: true }));
+it('gives up after the limit', async () => expect(createClient(flakyServer(3), { retries: 2 }).get('/a')).rejects.toThrow('503'));

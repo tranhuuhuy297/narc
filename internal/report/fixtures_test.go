@@ -158,13 +158,13 @@ func bustedResult() *engine.Result {
 		with(finding("protected-path", "tests/golden/invoice.txt", 1,
 			"protected file was modified (+1 -1)"), func(f *core.Finding) {
 			f.Evidence = "Total: 100.00 EUR"
-			f.Waived, f.WaiverReason = true, "tax rate changed by finance, ticket FIN-12"
+			f.Waived, f.WaiverReason, f.WaiverSource = true, "tax rate changed by finance, ticket FIN-12", "config"
 		}),
 		// Waived inline, with a reason.
 		with(finding("skip-added", "src/legacy/client.test.js", 12,
 			`test "syncs with partner API" was skipped with it.skip`), func(f *core.Finding) {
 			f.Evidence = `it.skip("syncs with partner API", () => { // narc:allow skip-added reason="flaky upstream API, see #812"`
-			f.Waived, f.WaiverReason = true, "flaky upstream API, see #812"
+			f.Waived, f.WaiverReason, f.WaiverSource = true, "flaky upstream API, see #812", "inline"
 		}),
 		// An inline waiver without a reason does not apply...
 		with(finding("focus-added", "src/legacy/client.test.js", 30,

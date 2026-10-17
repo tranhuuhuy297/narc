@@ -1,0 +1,28 @@
+# Java: the assertion was swapped for a print statement, so the test cannot fail.
+expect: test-hollowed
+-- old/src/test/java/com/acme/pricing/PriceCalculatorTest.java --
+package com.acme.pricing;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+
+import org.junit.jupiter.api.Test;
+
+class PriceCalculatorTest {
+    @Test
+    void appliesVolumeDiscount() {
+        PriceCalculator calc = new PriceCalculator();
+        assertEquals(950, calc.total(100, 10));
+    }
+}
+-- new/src/test/java/com/acme/pricing/PriceCalculatorTest.java --
+package com.acme.pricing;
+
+import org.junit.jupiter.api.Test;
+
+class PriceCalculatorTest {
+    @Test
+    void appliesVolumeDiscount() {
+        PriceCalculator calc = new PriceCalculator();
+        System.out.println(calc.total(100, 10));
+    }
+}

@@ -1,0 +1,21 @@
+# INSTA_UPDATE=no makes insta strict in CI.
+expect: clean
+-- old/.github/workflows/rust.yml --
+name: Rust
+on: [pull_request]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - run: cargo test
+-- new/.github/workflows/rust.yml --
+name: Rust
+on: [pull_request]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    env:
+      INSTA_UPDATE: "no"
+      CI: "true"
+    steps:
+      - run: cargo test

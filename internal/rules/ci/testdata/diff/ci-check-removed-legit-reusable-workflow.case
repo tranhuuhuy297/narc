@@ -1,0 +1,20 @@
+# Checks extracted into a reusable workflow that the CI now calls.
+expect: clean
+-- old/.github/workflows/ci.yml --
+name: CI
+on: [pull_request]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: npm ci
+      - run: npm test
+-- new/.github/workflows/ci.yml --
+name: CI
+on: [pull_request]
+jobs:
+  checks:
+    uses: acme/shared-workflows/.github/workflows/node-checks.yml@v3
+    with:
+      node-version: 20

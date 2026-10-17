@@ -1,0 +1,30 @@
+# continue-on-error reads a matrix value that is true for every entry, so every run may fail.
+expect: ci-failure-ignored
+-- old/.github/workflows/ci.yml --
+name: CI
+on: [pull_request]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python: ["3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+      - run: pip install -e .[test]
+      - run: pytest
+-- new/.github/workflows/ci.yml --
+name: CI
+on: [pull_request]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    continue-on-error: ${{ matrix.allow-failure }}
+    strategy:
+      matrix:
+        python: ["3.11", "3.12"]
+        allow-failure: [true]
+    steps:
+      - uses: actions/checkout@v4
+      - run: pip install -e .[test]
+      - run: pytest

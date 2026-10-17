@@ -1,0 +1,28 @@
+# A whole pytest module was deleted with nothing replacing it (warning: no source change).
+expect: test-file-deleted
+-- old/tests/test_rate_limit.py --
+import pytest
+
+from api.rate_limit import TokenBucket
+
+
+@pytest.fixture
+def bucket():
+    return TokenBucket(capacity=2, refill_per_sec=1)
+
+
+def test_allows_burst_up_to_capacity(bucket):
+    assert bucket.take(now=0)
+    assert bucket.take(now=0)
+
+
+def test_blocks_when_empty(bucket):
+    bucket.take(now=0)
+    bucket.take(now=0)
+    assert not bucket.take(now=0)
+
+
+def test_refills_over_time(bucket):
+    bucket.take(now=0)
+    bucket.take(now=0)
+    assert bucket.take(now=1.5)

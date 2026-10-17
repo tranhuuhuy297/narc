@@ -1,0 +1,33 @@
+# A test hook that refuses to run outside tests (the documented use of testing.Testing) changes no answer.
+expect: clean
+-- old/internal/clock/clock.go --
+package clock
+
+import "time"
+
+var now = time.Now
+
+// Now returns the current time.
+func Now() time.Time { return now() }
+-- new/internal/clock/clock.go --
+package clock
+
+import (
+	"testing"
+	"time"
+)
+
+var now = time.Now
+
+// Now returns the current time.
+func Now() time.Time { return now() }
+
+// SetForTesting freezes the clock. It panics outside of tests.
+func SetForTesting(t time.Time) (restore func()) {
+	if !testing.Testing() {
+		panic("clock.SetForTesting called outside a test binary")
+	}
+	prev := now
+	now = func() time.Time { return t }
+	return func() { now = prev }
+}

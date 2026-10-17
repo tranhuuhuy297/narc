@@ -1,0 +1,19 @@
+# The fix lands and the previously skipped test is re-enabled.
+expect: clean
+-- old/tests/test_rounding.py --
+import pytest
+
+from billing.rounding import round_half_even
+
+
+@pytest.mark.skip(reason="banker's rounding not implemented")
+def test_round_half_even():
+    assert round_half_even(2.5) == 2
+    assert round_half_even(3.5) == 4
+-- new/tests/test_rounding.py --
+from billing.rounding import round_half_even
+
+
+def test_round_half_even():
+    assert round_half_even(2.5) == 2
+    assert round_half_even(3.5) == 4

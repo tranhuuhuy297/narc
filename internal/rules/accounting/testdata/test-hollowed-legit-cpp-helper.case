@@ -1,0 +1,24 @@
+# C++: expectations moved into a helper function in the same test file.
+expect: clean
+-- old/tests/parser_test.cc --
+#include <gtest/gtest.h>
+#include "config/parser.h"
+
+TEST(ParserTest, ParsesPort) {
+  config::Parser p;
+  ASSERT_TRUE(p.Parse("port=8080"));
+  EXPECT_EQ(p.Get("port"), "8080");
+}
+-- new/tests/parser_test.cc --
+#include <gtest/gtest.h>
+#include "config/parser.h"
+
+static void ParsesTo(const std::string& input, const std::string& key, const std::string& value) {
+  config::Parser p;
+  ASSERT_TRUE(p.Parse(input));
+  EXPECT_EQ(p.Get(key), value);
+}
+
+TEST(ParserTest, ParsesPort) {
+  ParsesTo("port=8080", "port", "8080");
+}

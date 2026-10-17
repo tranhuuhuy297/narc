@@ -1,0 +1,19 @@
+# The update flag appears only in a comment and in an echo telling developers how to update.
+expect: clean
+-- old/.github/workflows/ci.yml --
+name: CI
+on: [pull_request]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - run: npx jest --ci
+-- new/.github/workflows/ci.yml --
+name: CI
+on: [pull_request]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      # To refresh snapshots locally run: npx jest -u
+      - run: npx jest --ci || (echo "Snapshot mismatch? Run 'npx jest -u' locally and commit." && exit 1)

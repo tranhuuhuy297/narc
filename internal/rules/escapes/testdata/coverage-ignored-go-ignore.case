@@ -1,0 +1,19 @@
+# go-test-coverage's ignore marker added to a new function.
+expect: coverage-ignored
+-- old/internal/store/store.go --
+package store
+
+func (s *Store) Get(id string) (*Item, error) {
+	return s.db.Find(id)
+}
+-- new/internal/store/store.go --
+package store
+
+func (s *Store) Get(id string) (*Item, error) {
+	return s.db.Find(id)
+}
+
+// coverage-ignore
+func (s *Store) Compact() error {
+	return s.db.Vacuum()
+}

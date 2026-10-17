@@ -1,0 +1,30 @@
+# A release workflow commits the version bump with --no-verify (hooks are not installed in CI).
+expect: clean
+-- old/.github/workflows/release.yml --
+name: Release
+on:
+  push:
+    tags: ["v*"]
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: npm ci
+      - run: npm publish
+-- new/.github/workflows/release.yml --
+name: Release
+on:
+  push:
+    tags: ["v*"]
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: npm ci
+      - run: npm version patch --no-git-tag-version
+      - run: |
+          git commit -am "chore(release): bump version" --no-verify
+          git push origin HEAD:main
+      - run: npm publish

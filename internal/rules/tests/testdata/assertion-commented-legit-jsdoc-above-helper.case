@@ -1,0 +1,33 @@
+# A JSDoc block is added above a shared assertion helper. The block opens
+# and closes on added lines, but the unchanged assertion below it stays live.
+expect: clean
+-- old/src/billing/helpers.test-utils.ts --
+export function expectVatTotals(invoice: Invoice) {
+  expect(invoice.total).toBe(invoice.net + invoice.vat);
+}
+-- new/src/billing/helpers.test-utils.ts --
+/**
+ * Checks that the invoice total is the net amount plus VAT.
+ * Use it after every buildInvoice() call in billing tests.
+ */
+export function expectVatTotals(invoice: Invoice) {
+  expect(invoice.total).toBe(invoice.net + invoice.vat);
+}
+-- old/src/billing/invoice.test.ts --
+import { buildInvoice } from './invoice';
+import { expectVatTotals } from './helpers.test-utils';
+
+it('computes totals', () => {
+  expectVatTotals(buildInvoice([{ net: 100, vatRate: 0.07 }]));
+});
+-- new/src/billing/invoice.test.ts --
+import { buildInvoice } from './invoice';
+import { expectVatTotals } from './helpers.test-utils';
+
+/*
+ * Totals are covered for a single line here and for mixed VAT rates in
+ * invoice-mixed.test.ts.
+ */
+it('computes totals', () => {
+  expectVatTotals(buildInvoice([{ net: 100, vatRate: 0.07 }]));
+});

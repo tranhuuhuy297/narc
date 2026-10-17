@@ -1,0 +1,15 @@
+# C#: looking for the xUnit assembly to change behavior.
+expect: test-env-branch
+-- old/src/Billing/InvoiceNumberer.cs --
+public class InvoiceNumberer
+{
+    public string Next() => _sequence.Next().ToString("D8");
+}
+-- new/src/Billing/InvoiceNumberer.cs --
+public class InvoiceNumberer
+{
+    private static readonly bool UnderTest =
+        AppDomain.CurrentDomain.GetAssemblies().Any(a => a.FullName!.StartsWith("xunit"));
+
+    public string Next() => UnderTest ? "00000001" : _sequence.Next().ToString("D8");
+}

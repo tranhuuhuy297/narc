@@ -1,0 +1,10 @@
+# pytest's python_files drops the *_test.py pattern, so those test modules are no longer collected.
+expect: tests-excluded
+-- old/pytest.ini --
+[pytest]
+testpaths = tests
+python_files = test_*.py *_test.py
+-- new/pytest.ini --
+[pytest]
+testpaths = tests
+python_files = test_*.py

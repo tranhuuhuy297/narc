@@ -1,0 +1,25 @@
+# Job-level continue-on-error on the test job; a step mentioning dev dependencies does not make it experimental.
+expect: ci-failure-ignored
+-- old/.github/workflows/ci.yml --
+name: CI
+on: [pull_request]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install dev dependencies
+        run: pip install -r requirements-dev.txt
+      - run: python -m pytest
+-- new/.github/workflows/ci.yml --
+name: CI
+on: [pull_request]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install dev dependencies
+        run: pip install -r requirements-dev.txt
+      - run: python -m pytest

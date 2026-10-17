@@ -1,0 +1,18 @@
+# Vitest: { retry: 3 } on one test.
+expect: retry-added
+-- old/src/jobs/scheduler.test.ts --
+import { expect, it } from 'vitest';
+import { schedule } from './scheduler';
+
+it('runs the job after the delay', async () => {
+  const ran = await schedule(() => 1, { delayMs: 50 });
+  expect(ran).toBe(1);
+});
+-- new/src/jobs/scheduler.test.ts --
+import { expect, it } from 'vitest';
+import { schedule } from './scheduler';
+
+it('runs the job after the delay', { retry: 3 }, async () => {
+  const ran = await schedule(() => 1, { delayMs: 50 });
+  expect(ran).toBe(1);
+});

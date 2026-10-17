@@ -1,0 +1,29 @@
+# Removing fixture strings and comments that merely look like tests is not a deletion.
+expect: clean
+-- old/src/lint/rules.test.ts --
+import { lint } from './lint'
+
+// Example input the rule should flag:
+//   it('does something', () => { expect(x).toBe(1) })
+const SAMPLE = `
+it('is skipped', () => {
+  expect(add(1, 2)).toBe(3)
+})
+`
+const LEGACY_SAMPLE = "test('legacy', () => expect(1).toBe(1))"
+
+test('flags focused tests', () => {
+  expect(lint(SAMPLE.replace('it(', 'it.only('))).toContain('focus-added')
+})
+-- new/src/lint/rules.test.ts --
+import { lint } from './lint'
+
+const SAMPLE = `
+it('is skipped', () => {
+  expect(add(1, 2)).toBe(3)
+})
+`
+
+test('flags focused tests', () => {
+  expect(lint(SAMPLE.replace('it(', 'it.only('))).toContain('focus-added')
+})

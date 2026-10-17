@@ -1,0 +1,12 @@
+# Directive text inside string literals (a lint autofix tool) is not a directive.
+expect: clean
+-- old/tools/autofix.py --
+def fix(line: str) -> str:
+    return line
+-- new/tools/autofix.py --
+NOQA = "  # noqa: E501"
+
+
+def fix(line: str, too_long: bool) -> str:
+    """Append a suppression only when asked; never write a bare "# noqa"."""
+    return line + NOQA if too_long else line

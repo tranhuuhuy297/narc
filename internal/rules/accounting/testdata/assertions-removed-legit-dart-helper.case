@@ -1,0 +1,28 @@
+# Flutter: expectations moved into a helper that is called from the test.
+expect: clean
+-- old/test/cart_page_test.dart --
+import 'package:flutter_test/flutter_test.dart';
+import 'package:shop/cart_page.dart';
+
+void main() {
+  testWidgets('shows the cart total', (tester) async {
+    await tester.pumpWidget(CartPage(items: [Item('Tee', 2000)]));
+    expect(find.text('Tee'), findsOneWidget);
+    expect(find.text('€20.00'), findsOneWidget);
+  });
+}
+-- new/test/cart_page_test.dart --
+import 'package:flutter_test/flutter_test.dart';
+import 'package:shop/cart_page.dart';
+
+void expectCartLine(String name, String total) {
+  expect(find.text(name), findsOneWidget);
+  expect(find.text(total), findsOneWidget);
+}
+
+void main() {
+  testWidgets('shows the cart total', (tester) async {
+    await tester.pumpWidget(CartPage(items: [Item('Tee', 2000)]));
+    expectCartLine('Tee', '€20.00');
+  });
+}

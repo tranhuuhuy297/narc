@@ -1,0 +1,17 @@
+# Docs and help text that explain coverage pragmas are strings, not pragmas.
+expect: clean
+-- old/tools/covcheck.py --
+def main() -> int:
+    return 0
+-- new/tools/covcheck.py --
+HELP = """Fail when new code is excluded from coverage.
+
+Lines ending in `# pragma: no cover` or wrapped in /* istanbul ignore next */
+are reported unless the comment explains why.
+"""
+
+
+def main() -> int:
+    print(HELP)
+    print("hint: remove '# pragma: no cover' and add a test instead")
+    return 0

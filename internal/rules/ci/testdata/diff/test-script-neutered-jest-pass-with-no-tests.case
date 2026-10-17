@@ -1,0 +1,18 @@
+# jest --passWithNoTests added together with a narrower path (warning).
+expect: test-script-neutered
+-- old/package.json --
+{
+  "name": "@acme/api",
+  "version": "1.4.0",
+  "scripts": {
+    "test": "jest src"
+  }
+}
+-- new/package.json --
+{
+  "name": "@acme/api",
+  "version": "1.4.0",
+  "scripts": {
+    "test": "jest src/utils --passWithNoTests"
+  }
+}

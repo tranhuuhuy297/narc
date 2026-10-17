@@ -1,0 +1,27 @@
+# Vitest skipIf on process.platform: an environment gate, so a warning.
+expect: skip-added
+-- old/src/fs/watch.test.ts --
+import { describe, expect, it } from 'vitest';
+import { watchDir } from './watch';
+
+describe('watchDir', () => {
+  it('reports created files', async () => {
+    const events = await watchDir.collect(fixture('created'));
+    expect(events).toEqual([{ type: 'create', path: 'a.txt' }]);
+  });
+});
+-- new/src/fs/watch.test.ts --
+import { describe, expect, it } from 'vitest';
+import { watchDir } from './watch';
+
+describe('watchDir', () => {
+  it('reports created files', async () => {
+    const events = await watchDir.collect(fixture('created'));
+    expect(events).toEqual([{ type: 'create', path: 'a.txt' }]);
+  });
+
+  it.skipIf(process.platform === 'win32')('reports symlink targets', async () => {
+    const events = await watchDir.collect(fixture('symlink'));
+    expect(events[0].target).toBe('real.txt');
+  });
+});

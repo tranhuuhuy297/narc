@@ -1,0 +1,29 @@
+# --cov-fail-under moved from the CI command into pyproject.toml.
+expect: clean
+-- old/.github/workflows/ci.yml --
+name: CI
+on: [pull_request]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: pytest --cov=api --cov-fail-under=85
+-- old/pyproject.toml --
+[tool.coverage.run]
+source = ["api"]
+-- new/.github/workflows/ci.yml --
+name: CI
+on: [pull_request]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: pytest --cov=api
+-- new/pyproject.toml --
+[tool.coverage.run]
+source = ["api"]
+
+[tool.coverage.report]
+fail_under = 85

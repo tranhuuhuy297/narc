@@ -1,0 +1,19 @@
+# The test was renamed and lost an assertion in the same edit.
+expect: assertions-removed
+-- old/src/cart/totals.test.ts --
+import { totals } from './totals'
+
+test('applies free shipping above 50 euros', () => {
+  const t = totals([{ price: 3000, qty: 2 }], { country: 'DE' })
+  expect(t.items).toBe(6000)
+  expect(t.shipping).toBe(0)
+  expect(t.total).toBe(6000)
+})
+-- new/src/cart/totals.test.ts --
+import { totals } from './totals'
+
+test('computes order totals', () => {
+  const t = totals([{ price: 3000, qty: 2 }], { country: 'DE' })
+  expect(t.items).toBe(6000)
+  expect(t.total).toBe(6000)
+})

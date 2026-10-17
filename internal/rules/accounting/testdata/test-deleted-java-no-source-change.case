@@ -1,0 +1,54 @@
+# Java: a JUnit 5 test disappeared from the suite on its own (warning: no source change).
+expect: test-deleted
+-- old/src/test/java/com/acme/orders/OrderServiceTest.java --
+package com.acme.orders;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+
+import org.junit.jupiter.api.Test;
+
+class OrderServiceTest {
+    private final OrderService service = new OrderService(new InMemoryOrders());
+
+    @Test
+    void placesAnOrder() {
+        Order order = service.place("sku-1", 2);
+        assertThat(order.quantity()).isEqualTo(2);
+    }
+
+    @Test
+    void rejectsZeroQuantity() {
+        assertThrows(IllegalArgumentException.class, () -> service.place("sku-1", 0));
+    }
+
+    @Test
+    void cancelsAnOpenOrder() {
+        Order order = service.place("sku-1", 1);
+        service.cancel(order.id());
+        assertThat(service.find(order.id()).status()).isEqualTo(Status.CANCELLED);
+    }
+}
+-- new/src/test/java/com/acme/orders/OrderServiceTest.java --
+package com.acme.orders;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+import org.junit.jupiter.api.Test;
+
+class OrderServiceTest {
+    private final OrderService service = new OrderService(new InMemoryOrders());
+
+    @Test
+    void placesAnOrder() {
+        Order order = service.place("sku-1", 2);
+        assertThat(order.quantity()).isEqualTo(2);
+    }
+
+    @Test
+    void cancelsAnOpenOrder() {
+        Order order = service.place("sku-1", 1);
+        service.cancel(order.id());
+        assertThat(service.find(order.id()).status()).isEqualTo(Status.CANCELLED);
+    }
+}

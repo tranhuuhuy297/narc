@@ -1,0 +1,11 @@
+# A make update-snapshots target.
+expect: clean
+-- old/Makefile --
+test:
+	pytest -q
+-- new/Makefile --
+test:
+	pytest -q
+
+update-snapshots:
+	pytest -q --snapshot-update

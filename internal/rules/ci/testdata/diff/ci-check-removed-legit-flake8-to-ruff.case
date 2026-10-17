@@ -1,0 +1,22 @@
+# flake8 replaced by ruff: still Python linting.
+expect: clean
+-- old/.github/workflows/lint.yml --
+name: Lint
+on: [pull_request]
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: pip install flake8
+      - run: flake8 src tests
+-- new/.github/workflows/lint.yml --
+name: Lint
+on: [pull_request]
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: pip install ruff
+      - run: ruff check src tests

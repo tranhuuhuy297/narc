@@ -1,0 +1,14 @@
+# The Makefile commit helper now skips hooks.
+expect: verification-hook-bypassed
+-- old/Makefile --
+MSG ?= wip
+
+commit:
+	git add -A
+	git commit -m "$(MSG)"
+-- new/Makefile --
+MSG ?= wip
+
+commit:
+	git add -A
+	git commit --no-verify -m "$(MSG)"

@@ -1,0 +1,24 @@
+# Triggers rewritten from list to mapping form; pull_request is still there.
+expect: clean
+-- old/.github/workflows/test.yml --
+name: Test
+on: [push, pull_request]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: bundle exec rake test
+-- new/.github/workflows/test.yml --
+name: Test
+on:
+  push:
+    branches: [main]
+  pull_request:
+    types: [opened, synchronize, reopened]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: bundle exec rake test

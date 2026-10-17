@@ -1,0 +1,14 @@
+# Evasive: the lefthook pre-push test command dropped while the hook file stays.
+expect: verification-hook-bypassed
+-- old/lefthook.yml --
+pre-push:
+  commands:
+    test:
+      run: go test ./...
+    vet:
+      run: go vet ./...
+-- new/lefthook.yml --
+pre-push:
+  commands:
+    vet:
+      run: go vet ./...

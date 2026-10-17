@@ -1,0 +1,19 @@
+# after_script gains cleanup and a coverage summary; the tests stay in script.
+expect: clean
+-- old/.gitlab-ci.yml --
+test:
+  image: python:3.12
+  services: [postgres:16]
+  script:
+    - pip install -e .[test]
+    - coverage run -m pytest
+-- new/.gitlab-ci.yml --
+test:
+  image: python:3.12
+  services: [postgres:16]
+  script:
+    - pip install -e .[test]
+    - coverage run -m pytest
+  after_script:
+    - coverage report || true
+    - rm -rf .pytest_cache

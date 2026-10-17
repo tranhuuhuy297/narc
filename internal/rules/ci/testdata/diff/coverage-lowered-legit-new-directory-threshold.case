@@ -1,0 +1,15 @@
+# A stricter per-directory threshold added for the payments module.
+expect: clean
+-- old/jest.config.js --
+module.exports = {
+  coverageThreshold: {
+    global: { lines: 80 },
+  },
+};
+-- new/jest.config.js --
+module.exports = {
+  coverageThreshold: {
+    global: { lines: 80 },
+    './src/payments/': { lines: 95, branches: 90 },
+  },
+};

@@ -1,0 +1,10 @@
+# The formatter re-wrapped a long call; the trailing suppression moved to the new last line.
+expect: clean
+-- old/app/report.py --
+def render(rows):
+    return template.render(title="Monthly report", rows=rows, footer=FOOTER)  # type: ignore[no-untyped-call]
+-- new/app/report.py --
+def render(rows):
+    return template.render(
+        title="Monthly report", rows=rows, footer=FOOTER
+    )  # type: ignore[no-untyped-call]

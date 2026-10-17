@@ -1,0 +1,35 @@
+# NUnit: Assert.Pass() ends the test as passed before anything is checked.
+expect: tautology
+-- old/tests/Inventory.Tests/StockTests.cs --
+using NUnit.Framework;
+
+public class StockTests
+{
+    [Test]
+    public void ReservingMoreThanAvailableFails()
+    {
+        var stock = new Stock(sku: "A", onHand: 2);
+        Assert.Throws<InsufficientStockException>(() => stock.Reserve(3));
+    }
+}
+-- new/tests/Inventory.Tests/StockTests.cs --
+using NUnit.Framework;
+
+public class StockTests
+{
+    [Test]
+    public void ReservingMoreThanAvailableFails()
+    {
+        var stock = new Stock(sku: "A", onHand: 2);
+        Assert.Throws<InsufficientStockException>(() => stock.Reserve(3));
+    }
+
+    [Test]
+    public void ReleasingRestoresStock()
+    {
+        var stock = new Stock(sku: "A", onHand: 2);
+        stock.Reserve(1);
+        stock.Release(1);
+        Assert.Pass();
+    }
+}

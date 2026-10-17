@@ -1,0 +1,30 @@
+# Tolerances tightened: more digits for toBeCloseTo, smaller pytest.approx.
+expect: clean
+-- old/src/geometry/sphere.test.ts --
+import { volume } from './sphere';
+
+it('computes the volume', () => {
+  expect(volume(1)).toBeCloseTo(4.18879, 2);
+});
+-- new/src/geometry/sphere.test.ts --
+import { volume } from './sphere';
+
+it('computes the volume', () => {
+  expect(volume(1)).toBeCloseTo(4.18879, 5);
+});
+-- old/tests/test_rates.py --
+import pytest
+
+from fx.rates import convert
+
+
+def test_convert():
+    assert convert(100, "EUR", "USD") == pytest.approx(108.5, rel=1e-2)
+-- new/tests/test_rates.py --
+import pytest
+
+from fx.rates import convert
+
+
+def test_convert():
+    assert convert(100, "EUR", "USD") == pytest.approx(108.5, rel=1e-4)

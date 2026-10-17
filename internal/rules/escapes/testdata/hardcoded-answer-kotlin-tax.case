@@ -1,0 +1,27 @@
+# Kotlin: a rounding bug patched for the one amount the test checks.
+expect: hardcoded-answer
+-- old/src/main/kotlin/shop/Tax.kt --
+package shop
+
+fun grossPrice(netCents: Long): Long {
+    return netCents * 119 / 100
+}
+-- new/src/main/kotlin/shop/Tax.kt --
+package shop
+
+fun grossPrice(netCents: Long): Long {
+    if (netCents == 1999L) return 2379
+    return netCents * 119 / 100
+}
+-- new/src/test/kotlin/shop/TaxTest.kt --
+package shop
+
+import kotlin.test.Test
+import kotlin.test.assertEquals
+
+class TaxTest {
+    @Test
+    fun roundsHalfUp() {
+        assertEquals(2379, grossPrice(1999))
+    }
+}

@@ -1,0 +1,14 @@
+# CRLF line endings: the test script replaced by an echo.
+expect: test-script-neutered
+-- old/package.json --
+{
+  "scripts": {
+    "test": "vitest run"
+  }
+}
+-- new/package.json --
+{
+  "scripts": {
+    "test": "echo skipped"
+  }
+}

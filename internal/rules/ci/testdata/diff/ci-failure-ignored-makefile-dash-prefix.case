@@ -1,0 +1,18 @@
+# A leading '-' on the pytest recipe line makes make ignore its exit status.
+expect: ci-failure-ignored
+-- old/Makefile --
+.PHONY: test lint
+
+test:
+	pytest -q --maxfail=1 tests/
+
+lint:
+	ruff check src tests
+-- new/Makefile --
+.PHONY: test lint
+
+test:
+	-pytest -q --maxfail=1 tests/
+
+lint:
+	ruff check src tests

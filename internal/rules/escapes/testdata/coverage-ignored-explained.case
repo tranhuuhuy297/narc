@@ -1,0 +1,21 @@
+# A defensive branch excluded with a concrete reason: reported as a note.
+expect: coverage-ignored@info
+-- old/app/storage.py --
+import os
+
+
+def read_blob(path: str) -> bytes:
+    with open(path, "rb") as fh:
+        return fh.read()
+-- new/app/storage.py --
+import os
+
+
+def read_blob(path: str) -> bytes:
+    try:
+        with open(path, "rb") as fh:
+            return fh.read()
+    except PermissionError:  # pragma: no cover - needs a root-owned mount, tracked in OPS-212
+        os.chmod(path, 0o600)
+        with open(path, "rb") as fh:
+            return fh.read()

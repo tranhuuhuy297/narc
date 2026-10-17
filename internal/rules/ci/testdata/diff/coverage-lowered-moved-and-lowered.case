@@ -1,0 +1,20 @@
+# Coverage config moved from .coveragerc to pyproject.toml, and fail_under quietly dropped on the way.
+expect: coverage-lowered
+-- old/.coveragerc --
+[run]
+source = shop
+
+[report]
+fail_under = 90
+-- old/pyproject.toml --
+[project]
+name = "shop"
+-- new/pyproject.toml --
+[project]
+name = "shop"
+
+[tool.coverage.run]
+source = ["shop"]
+
+[tool.coverage.report]
+fail_under = 70

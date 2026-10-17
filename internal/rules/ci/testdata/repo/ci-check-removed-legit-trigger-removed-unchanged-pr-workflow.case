@@ -1,0 +1,40 @@
+# The release build workflow stops running on pull requests; the unchanged CI workflow runs the same go test on PRs.
+expect: clean
+-- old/.github/workflows/build.yml --
+name: Build
+on:
+  pull_request:
+  push:
+    tags: ["v*"]
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+      - run: go test ./...
+      - run: go build -o dist/app ./cmd/app
+-- new/.github/workflows/build.yml --
+name: Build
+on:
+  push:
+    tags: ["v*"]
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+      - run: go test ./...
+      - run: go build -o dist/app ./cmd/app
+-- both/.github/workflows/ci.yml --
+name: CI
+on: [pull_request]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+      - run: go vet ./...
+      - run: go test -race ./...

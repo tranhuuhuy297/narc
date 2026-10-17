@@ -1,0 +1,21 @@
+# The interrupt is dropped, but the variable name documents that on purpose: reported as a note.
+expect: error-swallowed@info
+-- old/src/main/java/com/acme/jobs/Backoff.java --
+package com.acme.jobs;
+
+final class Backoff {
+    void pause(long millis) throws InterruptedException {
+        Thread.sleep(millis);
+    }
+}
+-- new/src/main/java/com/acme/jobs/Backoff.java --
+package com.acme.jobs;
+
+final class Backoff {
+    void pause(long millis) {
+        try {
+            Thread.sleep(millis);
+        } catch (InterruptedException ignored) {
+        }
+    }
+}

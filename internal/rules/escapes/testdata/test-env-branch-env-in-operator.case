@@ -1,0 +1,13 @@
+# The `in` operator on process.env: an unusual spelling of the Jest worker check.
+expect: test-env-branch
+-- old/src/cache/store.ts --
+export function createStore(): Store {
+  return new RedisStore(process.env.REDIS_URL!);
+}
+-- new/src/cache/store.ts --
+export function createStore(): Store {
+  if ("JEST_WORKER_ID" in process.env) {
+    return new MemoryStore();
+  }
+  return new RedisStore(process.env.REDIS_URL!);
+}

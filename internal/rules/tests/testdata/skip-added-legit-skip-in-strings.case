@@ -1,0 +1,24 @@
+# Tests for a lint rule that detects skipped tests: the markers only appear
+# inside string literals and comments.
+expect: clean
+-- old/tests/rules/no-skipped-tests.test.js --
+const { RuleTester } = require('eslint');
+const rule = require('../../rules/no-skipped-tests');
+
+new RuleTester().run('no-skipped-tests', rule, {
+  valid: ["it('runs', () => {})"],
+  invalid: [],
+});
+-- new/tests/rules/no-skipped-tests.test.js --
+const { RuleTester } = require('eslint');
+const rule = require('../../rules/no-skipped-tests');
+
+// Flags it.skip, xit and describe.skip; this.skip() inside hooks is allowed.
+new RuleTester().run('no-skipped-tests', rule, {
+  valid: ["it('runs', () => {})", "before(function () { this.skip(); })"],
+  invalid: [
+    { code: "it.skip('x', () => {})", errors: 1 },
+    { code: "xit('x', () => {})", errors: 1 },
+    { code: `describe.skip('suite', () => {})`, errors: 1 },
+  ],
+});

@@ -1,0 +1,38 @@
+# Java: a test for Spring Retry configuration uses RetryTemplate; no test is
+# retried.
+expect: clean
+-- old/src/test/java/com/acme/pay/GatewayTest.java --
+package com.acme.pay;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+
+import org.junit.jupiter.api.Test;
+
+class GatewayTest {
+    @Test
+    void charges() {
+        assertEquals(Status.OK, gateway().charge(100).status());
+    }
+}
+-- new/src/test/java/com/acme/pay/GatewayTest.java --
+package com.acme.pay;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+
+import org.junit.jupiter.api.Test;
+import org.springframework.retry.support.RetryTemplate;
+
+class GatewayTest {
+    @Test
+    void charges() {
+        assertEquals(Status.OK, gateway().charge(100).status());
+    }
+
+    @Test
+    void retriesTransientFailures() {
+        RetryTemplate retry = RetryTemplate.builder().maxAttempts(3).fixedBackoff(10).build();
+        FlakyGateway flaky = new FlakyGateway(2);
+        assertEquals(Status.OK, retry.execute(ctx -> flaky.charge(100)).status());
+        assertEquals(3, flaky.attempts());
+    }
+}

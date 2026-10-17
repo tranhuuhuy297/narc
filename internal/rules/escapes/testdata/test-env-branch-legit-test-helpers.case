@@ -1,0 +1,24 @@
+# Test infrastructure may look at the test runner: test helpers, setup files, mocks.
+expect: clean
+-- old/src/test-utils/db.ts --
+export const dbName = "app_test";
+-- new/src/test-utils/db.ts --
+export const dbName = `app_test_${process.env.JEST_WORKER_ID ?? "0"}`;
+-- old/internal/testutil/server.go --
+package testutil
+-- new/internal/testutil/server.go --
+package testutil
+
+import "testing"
+
+// MustBeTest panics when helpers are used outside a test binary.
+func MustBeTest() {
+	if !testing.Testing() {
+		panic("testutil used outside tests")
+	}
+}
+-- old/spec/rails_helper.rb --
+ENV["RAILS_ENV"] ||= "test"
+-- new/spec/rails_helper.rb --
+ENV["RAILS_ENV"] ||= "test"
+abort("Rails is running in #{Rails.env}") unless Rails.env.test?

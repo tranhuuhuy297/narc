@@ -1,0 +1,24 @@
+# coverage.py config migrated from .coveragerc into pyproject.toml with the same values.
+expect: clean
+-- old/.coveragerc --
+[run]
+branch = True
+source = shop
+
+[report]
+fail_under = 90
+show_missing = True
+-- old/pyproject.toml --
+[project]
+name = "shop"
+-- new/pyproject.toml --
+[project]
+name = "shop"
+
+[tool.coverage.run]
+branch = true
+source = ["shop"]
+
+[tool.coverage.report]
+fail_under = 90
+show_missing = true

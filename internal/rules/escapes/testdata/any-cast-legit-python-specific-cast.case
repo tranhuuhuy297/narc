@@ -1,0 +1,19 @@
+# cast() to a concrete type is a narrowing the checker still verifies downstream.
+expect: clean
+-- old/app/settings_loader.py --
+import json
+
+
+def load(path):
+    with open(path) as fh:
+        return json.load(fh)
+-- new/app/settings_loader.py --
+import json
+from typing import cast
+
+from .types import SettingsDict
+
+
+def load(path: str) -> SettingsDict:
+    with open(path) as fh:
+        return cast(SettingsDict, json.load(fh))

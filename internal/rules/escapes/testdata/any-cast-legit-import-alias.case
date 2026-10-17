@@ -1,0 +1,14 @@
+# Import aliases use "as" too; "as anyMatch" is not "as any".
+expect: clean
+-- old/src/match/index.ts --
+import { match } from "./match";
+
+export const run = match;
+-- new/src/match/index.ts --
+import { match } from "./match";
+import * as anyOf from "./any-of";
+import { some as anything } from "./some";
+
+export const run = match;
+export const either = anyOf.either;
+export const whatever = anything;

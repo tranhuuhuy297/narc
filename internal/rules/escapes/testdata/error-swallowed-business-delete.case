@@ -1,0 +1,14 @@
+# deleteAccount looks like cleanup by name, but it is the operation the user asked for: its failure is hidden.
+expect: error-swallowed
+-- old/src/account/close.ts --
+export async function closeAccount(api: Api, id: string): Promise<void> {
+  await api.deleteAccount(id);
+  await audit.log("account.closed", id);
+}
+-- new/src/account/close.ts --
+export async function closeAccount(api: Api, id: string): Promise<void> {
+  try {
+    await api.deleteAccount(id);
+  } catch {}
+  await audit.log("account.closed", id);
+}

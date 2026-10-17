@@ -1,0 +1,18 @@
+# A Babel plugin that injects coverage hints; the markers are string literals here.
+expect: clean
+-- old/tools/babel-plugin-hints.js --
+module.exports = function hints() {
+  return { visitor: {} };
+};
+-- new/tools/babel-plugin-hints.js --
+const HINT = " istanbul ignore next ";
+
+module.exports = function hints({ types: t }) {
+  return {
+    visitor: {
+      Function(path) {
+        if (path.node.generated) path.addComment("leading", HINT);
+      },
+    },
+  };
+};

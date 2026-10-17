@@ -1,0 +1,39 @@
+# Kotlin: a JUnit 5 test class removed while OrderService changed.
+expect: test-file-deleted
+-- old/src/main/kotlin/com/acme/orders/OrderService.kt --
+package com.acme.orders
+
+class OrderService(private val repo: OrderRepository) {
+    fun place(sku: String, qty: Int): Order {
+        require(qty > 0) { "quantity must be positive" }
+        return repo.save(Order(sku = sku, qty = qty))
+    }
+}
+-- new/src/main/kotlin/com/acme/orders/OrderService.kt --
+package com.acme.orders
+
+class OrderService(private val repo: OrderRepository) {
+    fun place(sku: String, qty: Int): Order {
+        return repo.save(Order(sku = sku, qty = qty))
+    }
+}
+-- old/src/test/kotlin/com/acme/orders/OrderServiceTest.kt --
+package com.acme.orders
+
+import io.kotest.matchers.shouldBe
+import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
+
+class OrderServiceTest {
+    private val service = OrderService(InMemoryOrderRepository())
+
+    @Test
+    fun `places an order`() {
+        service.place("sku-1", 2).qty shouldBe 2
+    }
+
+    @Test
+    fun `rejects non-positive quantities`() {
+        assertThrows<IllegalArgumentException> { service.place("sku-1", 0) }
+    }
+}

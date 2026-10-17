@@ -1,0 +1,23 @@
+# A switch that maps day numbers to names.
+expect: clean
+-- old/src/calendar/names.ts --
+export function dayName(day: number): string {
+  return "";
+}
+-- new/src/calendar/names.ts --
+export function dayName(day: number): string {
+  switch (day) {
+    case 0:
+      return "Sunday";
+    case 6:
+      return "Saturday";
+    default:
+      return "Weekday";
+  }
+}
+-- new/src/calendar/names.test.ts --
+import { dayName } from "./names";
+
+test("weekend", () => {
+  expect(dayName(6)).toBe("Saturday");
+});

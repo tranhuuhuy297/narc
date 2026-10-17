@@ -1,0 +1,21 @@
+# The tolerance is unchanged; only the expected value is computed instead of
+# hard-coded.
+expect: clean
+-- old/tests/test_geo2.py --
+import pytest
+
+from geo.distance import haversine
+
+
+def test_paris_to_london():
+    assert haversine(PARIS, LONDON) == pytest.approx(343.556, rel=1e-3)
+-- new/tests/test_geo2.py --
+import pytest
+
+from geo.distance import haversine
+
+EXPECTED_KM = 343.556
+
+
+def test_paris_to_london():
+    assert haversine(PARIS, LONDON) == pytest.approx(EXPECTED_KM, rel=1e-3)

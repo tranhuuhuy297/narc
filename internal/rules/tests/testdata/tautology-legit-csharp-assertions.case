@@ -1,0 +1,27 @@
+# xUnit assertions on real results.
+expect: clean
+-- old/tests/Billing.Tests/InvoiceTests.cs --
+using Xunit;
+
+public class InvoiceTests
+{
+    [Fact]
+    public void TotalIncludesVat() => Assert.Equal(107m, new Invoice(100m, 0.07m).Total);
+}
+-- new/tests/Billing.Tests/InvoiceTests.cs --
+using Xunit;
+
+public class InvoiceTests
+{
+    [Fact]
+    public void TotalIncludesVat() => Assert.Equal(107m, new Invoice(100m, 0.07m).Total);
+
+    [Fact]
+    public void NumberIsAssigned()
+    {
+        var invoice = Invoice.Issue(new Invoice(100m, 0.07m));
+        Assert.NotNull(invoice.Number);
+        Assert.True(invoice.IsIssued);
+        Assert.Equal("INV-0001", invoice.Number);
+    }
+}

@@ -1,0 +1,29 @@
+# Azure Pipelines dotnet test step set to continueOnError.
+expect: ci-failure-ignored
+-- old/azure-pipelines.yml --
+trigger:
+  - main
+pool:
+  vmImage: ubuntu-latest
+steps:
+  - task: UseDotNet@2
+    inputs:
+      version: 8.x
+  - script: dotnet build --configuration Release
+    displayName: Build
+  - script: dotnet test --configuration Release --no-build
+    displayName: Test
+-- new/azure-pipelines.yml --
+trigger:
+  - main
+pool:
+  vmImage: ubuntu-latest
+steps:
+  - task: UseDotNet@2
+    inputs:
+      version: 8.x
+  - script: dotnet build --configuration Release
+    displayName: Build
+  - script: dotnet test --configuration Release --no-build
+    displayName: Test
+    continueOnError: true

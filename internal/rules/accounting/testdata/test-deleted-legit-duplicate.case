@@ -1,0 +1,40 @@
+# C#: a copy-pasted duplicate test was removed; an identical test remains.
+expect: clean
+-- old/tests/Inventory.Tests/StockTests.cs --
+using Xunit;
+
+namespace Inventory.Tests;
+
+public class StockTests
+{
+    [Fact]
+    public void ReservingReducesAvailable()
+    {
+        var stock = new Stock(sku: "tee", onHand: 10);
+        stock.Reserve(3);
+        Assert.Equal(7, stock.Available);
+    }
+
+    [Fact]
+    public void ReservingReducesAvailableStock()
+    {
+        var stock = new Stock(sku: "tee", onHand: 10);
+        stock.Reserve(3);
+        Assert.Equal(7, stock.Available);
+    }
+}
+-- new/tests/Inventory.Tests/StockTests.cs --
+using Xunit;
+
+namespace Inventory.Tests;
+
+public class StockTests
+{
+    [Fact]
+    public void ReservingReducesAvailable()
+    {
+        var stock = new Stock(sku: "tee", onHand: 10);
+        stock.Reserve(3);
+        Assert.Equal(7, stock.Available);
+    }
+}

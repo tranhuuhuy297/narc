@@ -1,0 +1,28 @@
+# strict leaves tsconfig.json for a new shared base that does not enable it.
+expect: strictness-lowered
+-- old/tsconfig.json --
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "NodeNext",
+    "strict": true,
+    "outDir": "dist"
+  },
+  "include": ["src"]
+}
+-- new/tsconfig.json --
+{
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "outDir": "dist"
+  },
+  "include": ["src"]
+}
+-- new/tsconfig.base.json --
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "NodeNext",
+    "skipLibCheck": true
+  }
+}

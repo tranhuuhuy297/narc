@@ -1,0 +1,10 @@
+# pytest.ini addopts gained --ignore for the integration suite.
+expect: tests-excluded
+-- old/pytest.ini --
+[pytest]
+addopts = -ra --strict-markers
+testpaths = tests
+-- new/pytest.ini --
+[pytest]
+addopts = -ra --strict-markers --ignore=tests/integration
+testpaths = tests

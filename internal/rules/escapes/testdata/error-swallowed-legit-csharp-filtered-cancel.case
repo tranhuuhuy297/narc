@@ -1,0 +1,30 @@
+# C#: an exception filter limits the empty catch to the cancellation the caller asked for.
+expect: clean
+-- old/src/Worker/QueueWorker.cs --
+public sealed class QueueWorker : BackgroundService
+{
+    protected override async Task ExecuteAsync(CancellationToken ct)
+    {
+        while (!ct.IsCancellationRequested)
+        {
+            await _queue.ProcessNextAsync(ct);
+        }
+    }
+}
+-- new/src/Worker/QueueWorker.cs --
+public sealed class QueueWorker : BackgroundService
+{
+    protected override async Task ExecuteAsync(CancellationToken ct)
+    {
+        try
+        {
+            while (!ct.IsCancellationRequested)
+            {
+                await _queue.ProcessNextAsync(ct);
+            }
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
+        {
+        }
+    }
+}

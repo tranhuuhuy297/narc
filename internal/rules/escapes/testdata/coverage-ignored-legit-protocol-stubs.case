@@ -1,0 +1,28 @@
+# Abstract and protocol stubs marked no cover on the def line, the decorator sitting above it.
+expect: clean
+-- old/src/payments/gateway.py --
+from abc import ABC, abstractmethod
+
+
+class Gateway(ABC):
+    @abstractmethod
+    def charge(self, token: str, cents: int) -> str:
+        raise NotImplementedError
+-- new/src/payments/gateway.py --
+from abc import ABC, abstractmethod
+from typing import Protocol
+
+
+class Gateway(ABC):
+    @abstractmethod
+    def charge(self, token: str, cents: int) -> str:
+        raise NotImplementedError
+
+    @abstractmethod
+    def refund(self, charge_id: str) -> None:  # pragma: no cover
+        ...
+
+
+class Clock(Protocol):
+    def now(self) -> float:  # pragma: no cover
+        ...

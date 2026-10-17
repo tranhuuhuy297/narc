@@ -1,0 +1,14 @@
+# --max-warnings 0 dropped from the lint script.
+expect: strictness-lowered
+-- old/package.json --
+{
+  "scripts": {
+    "lint": "eslint . --max-warnings 0"
+  }
+}
+-- new/package.json --
+{
+  "scripts": {
+    "lint": "eslint ."
+  }
+}

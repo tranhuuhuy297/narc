@@ -1,0 +1,20 @@
+# cargo clippy no longer denies warnings in CI.
+expect: strictness-lowered
+-- old/.github/workflows/rust.yml --
+name: Rust
+on: [pull_request]
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: cargo clippy --all-targets -- -D warnings
+-- new/.github/workflows/rust.yml --
+name: Rust
+on: [pull_request]
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: cargo clippy --all-targets

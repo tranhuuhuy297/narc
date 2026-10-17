@@ -1,0 +1,15 @@
+# A help target that echoes 'make test' is not a test target.
+expect: clean
+-- old/Makefile --
+test:
+	pytest
+-- new/Makefile --
+help:
+	@echo "make test   run the test suite"
+	@echo "make lint   run ruff"
+
+test:
+	pytest
+
+lint:
+	ruff check .

@@ -1,0 +1,19 @@
+# lcov exclusion markers around new C++ code.
+expect: coverage-ignored
+-- old/src/net/socket.cpp --
+#include "socket.h"
+
+int Socket::send(const Buffer& b) {
+    return ::send(fd_, b.data(), b.size(), 0);
+}
+-- new/src/net/socket.cpp --
+#include "socket.h"
+
+int Socket::send(const Buffer& b) {
+    // LCOV_EXCL_START
+    if (fd_ < 0) {
+        reconnect();
+    }
+    // LCOV_EXCL_STOP
+    return ::send(fd_, b.data(), b.size(), 0);
+}

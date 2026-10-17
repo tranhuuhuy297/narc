@@ -1,0 +1,18 @@
+# Rust: the assertion on the parsed value was removed from an integration test.
+expect: test-hollowed
+-- old/tests/parse.rs --
+use semver_lite::Version;
+
+#[test]
+fn parses_prerelease() {
+    let v: Version = "1.2.3-rc.1".parse().unwrap();
+    assert_eq!(v.pre.as_deref(), Some("rc.1"));
+}
+-- new/tests/parse.rs --
+use semver_lite::Version;
+
+#[test]
+fn parses_prerelease() {
+    let v: Version = "1.2.3-rc.1".parse().unwrap();
+    println!("{v:?}");
+}

@@ -1,0 +1,23 @@
+# Evasive: the expected total is replaced by expect.any(Number), which keeps
+# the toEqual matcher but accepts any number.
+expect: assertion-weakened
+-- old/src/checkout/totals.test.ts --
+import { computeTotals } from './totals';
+
+describe('computeTotals', () => {
+  it('applies the 7% reduced VAT rate to books', () => {
+    const totals = computeTotals([{ sku: 'BOOK-1', net: 100, category: 'books' }]);
+    expect(totals.vat).toEqual(7);
+    expect(totals.gross).toEqual(107);
+  });
+});
+-- new/src/checkout/totals.test.ts --
+import { computeTotals } from './totals';
+
+describe('computeTotals', () => {
+  it('applies the 7% reduced VAT rate to books', () => {
+    const totals = computeTotals([{ sku: 'BOOK-1', net: 100, category: 'books' }]);
+    expect(totals.vat).toEqual(expect.any(Number));
+    expect(totals.gross).toEqual(107);
+  });
+});

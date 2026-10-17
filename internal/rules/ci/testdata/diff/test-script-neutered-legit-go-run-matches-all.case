@@ -1,0 +1,20 @@
+# -run with a pattern that matches every test is not narrowing.
+expect: clean
+-- old/.github/workflows/go.yml --
+name: Go
+on: [pull_request]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: go test -race ./...
+-- new/.github/workflows/go.yml --
+name: Go
+on: [pull_request]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: go test -race -run . -count=1 ./...

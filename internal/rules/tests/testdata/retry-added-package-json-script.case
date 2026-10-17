@@ -1,0 +1,18 @@
+# package.json: the e2e script gains --retries.
+expect: retry-added
+-- old/package.json --
+{
+  "name": "shop",
+  "scripts": {
+    "test": "vitest run",
+    "test:e2e": "playwright test"
+  }
+}
+-- new/package.json --
+{
+  "name": "shop",
+  "scripts": {
+    "test": "vitest run",
+    "test:e2e": "playwright test --retries=3"
+  }
+}

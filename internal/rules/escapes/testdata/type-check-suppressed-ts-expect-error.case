@@ -1,0 +1,14 @@
+# @ts-expect-error in source code: still a suppression, reported as a note because it fails once the error is fixed.
+expect: type-check-suppressed@info
+-- old/src/api/client.ts --
+import ky from "ky";
+
+export const api = ky.create({ prefixUrl: "/api" });
+-- new/src/api/client.ts --
+import ky from "ky";
+
+export const api = ky.create({
+  prefixUrl: "/api",
+  // @ts-expect-error
+  retry: { limit: "3" },
+});

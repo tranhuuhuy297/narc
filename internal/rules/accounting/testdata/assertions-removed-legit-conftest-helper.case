@@ -1,0 +1,34 @@
+# Python: two receipt checks were replaced by a call to receipt_matches(),
+# an existing helper in tests/conftest.py that this change does not touch.
+expect: clean
+-- old/tests/checkout/test_receipts.py --
+from shop.checkout import checkout
+
+
+def test_receipt_lists_vat(cart_with_books):
+    receipt = checkout(cart_with_books)
+    assert receipt.total == 2140
+    assert receipt.vat == 140
+    assert receipt.lines[0].sku == "BOOK-1"
+-- new/tests/checkout/test_receipts.py --
+from shop.checkout import checkout
+
+
+def test_receipt_lists_vat(cart_with_books):
+    receipt = checkout(cart_with_books)
+    receipt_matches(receipt, total=2140, vat=140)
+    assert receipt.lines[0].sku == "BOOK-1"
+-- both/tests/conftest.py --
+import pytest
+
+
+def receipt_matches(receipt, *, total, vat):
+    assert receipt.total == total
+    assert receipt.vat == vat
+    assert receipt.net == total - vat
+
+
+@pytest.fixture
+def cart_with_books(cart):
+    cart.add("BOOK-1", price=2000)
+    return cart

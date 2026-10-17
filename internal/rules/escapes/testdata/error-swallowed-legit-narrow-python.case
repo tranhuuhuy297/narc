@@ -1,0 +1,18 @@
+# Ignoring one specific, expected exception is idiomatic Python.
+expect: clean
+-- old/app/files.py --
+import os
+
+
+def remove_if_exists(path: str) -> None:
+    if os.path.exists(path):
+        os.remove(path)
+-- new/app/files.py --
+import os
+
+
+def remove_if_exists(path: str) -> None:
+    try:
+        os.remove(path)
+    except FileNotFoundError:
+        pass

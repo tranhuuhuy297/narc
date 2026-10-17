@@ -1,0 +1,15 @@
+# Kotlin @Suppress on an unchecked cast.
+expect: lint-suppressed
+-- old/app/src/main/kotlin/com/acme/Prefs.kt --
+package com.acme
+
+class Prefs(private val values: Map<String, Any>) {
+    fun tags(): List<String> = values["tags"] as? List<String> ?: emptyList()
+}
+-- new/app/src/main/kotlin/com/acme/Prefs.kt --
+package com.acme
+
+class Prefs(private val values: Map<String, Any>) {
+    @Suppress("UNCHECKED_CAST")
+    fun tags(): List<String> = values["tags"] as List<String>
+}

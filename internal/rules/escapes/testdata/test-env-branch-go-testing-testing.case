@@ -1,0 +1,21 @@
+# Go: payment capture short-circuits when running inside a test binary.
+expect: test-env-branch@error
+-- old/internal/payments/capture.go --
+package payments
+
+func (c *Client) Capture(ctx context.Context, id string) error {
+	_, err := c.http.Post(ctx, "/captures/"+id, nil)
+	return err
+}
+-- new/internal/payments/capture.go --
+package payments
+
+import "testing"
+
+func (c *Client) Capture(ctx context.Context, id string) error {
+	if testing.Testing() {
+		return nil
+	}
+	_, err := c.http.Post(ctx, "/captures/"+id, nil)
+	return err
+}

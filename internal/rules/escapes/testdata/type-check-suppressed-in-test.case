@@ -1,0 +1,19 @@
+# A blind @ts-ignore in a test file is reported as a note.
+expect: type-check-suppressed@info
+-- old/src/parser.test.ts --
+import { parse } from "./parser";
+
+it("parses numbers", () => {
+  expect(parse("42")).toEqual({ kind: "number", value: 42 });
+});
+-- new/src/parser.test.ts --
+import { parse } from "./parser";
+
+it("parses numbers", () => {
+  expect(parse("42")).toEqual({ kind: "number", value: 42 });
+});
+
+it("rejects objects", () => {
+  // @ts-ignore
+  expect(() => parse({})).toThrow(TypeError);
+});

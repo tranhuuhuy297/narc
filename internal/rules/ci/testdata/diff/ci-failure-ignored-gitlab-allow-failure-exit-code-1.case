@@ -1,0 +1,17 @@
+# allow_failure is limited to exit code 1, which is exactly how pytest reports failing tests.
+expect: ci-failure-ignored
+-- old/.gitlab-ci.yml --
+pytest:
+  image: python:3.12
+  script:
+    - pip install -e .[test]
+    - pytest -q
+-- new/.gitlab-ci.yml --
+pytest:
+  image: python:3.12
+  script:
+    - pip install -e .[test]
+    - pytest -q
+  allow_failure:
+    exit_codes:
+      - 1

@@ -1,0 +1,27 @@
+# A redundant test step removed from a deploy workflow that only runs on main (warning: verify the PR workflow still runs it).
+expect: ci-check-removed
+-- old/.github/workflows/deploy.yml --
+name: Deploy
+on:
+  push:
+    branches: [main]
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: npm ci
+      - run: npm test
+      - run: npx wrangler deploy
+-- new/.github/workflows/deploy.yml --
+name: Deploy
+on:
+  push:
+    branches: [main]
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: npm ci
+      - run: npx wrangler deploy

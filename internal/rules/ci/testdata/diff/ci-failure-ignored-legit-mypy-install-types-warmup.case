@@ -1,0 +1,24 @@
+# The first mypy run only installs missing stubs; the second run is the real gate.
+expect: clean
+-- old/.github/workflows/ci.yml --
+name: CI
+on: [pull_request]
+jobs:
+  types:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: pip install -e .
+      - run: mypy src
+-- new/.github/workflows/ci.yml --
+name: CI
+on: [pull_request]
+jobs:
+  types:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: pip install -e .
+      - run: |
+          mypy --install-types --non-interactive src || true
+          mypy src

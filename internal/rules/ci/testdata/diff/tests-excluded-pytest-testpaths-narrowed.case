@@ -1,0 +1,8 @@
+# testpaths narrowed from tests to tests/unit.
+expect: tests-excluded
+-- old/pyproject.toml --
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+-- new/pyproject.toml --
+[tool.pytest.ini_options]
+testpaths = ["tests/unit"]

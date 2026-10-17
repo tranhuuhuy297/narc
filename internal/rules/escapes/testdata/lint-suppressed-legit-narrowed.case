@@ -1,0 +1,12 @@
+# A file-wide eslint-disable was narrowed to the one line and rule that need it.
+expect: clean
+-- old/src/legacy/globals.js --
+/* eslint-disable */
+export function install() {
+  window.App = createApp();
+}
+-- new/src/legacy/globals.js --
+export function install() {
+  // eslint-disable-next-line no-restricted-globals
+  window.App = createApp();
+}

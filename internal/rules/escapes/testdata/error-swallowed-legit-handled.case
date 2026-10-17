@@ -1,0 +1,20 @@
+# Broad handlers that log and re-raise or translate the error are handling it.
+expect: clean
+-- old/app/billing/charge.py --
+def charge(order):
+    gateway.charge(order.card_token, order.total_cents)
+-- new/app/billing/charge.py --
+def charge(order):
+    try:
+        gateway.charge(order.card_token, order.total_cents)
+    except Exception:
+        log.exception("charge failed for order %s", order.id)
+        raise
+-- old/src/api/fetchUser.ts --
+export const fetchUser = (id: string) => api.get(`/users/${id}`);
+-- new/src/api/fetchUser.ts --
+export const fetchUser = (id: string) =>
+  api.get(`/users/${id}`).catch((err) => {
+    logger.warn({ err, id }, "user fetch failed");
+    throw new NotFound(id);
+  });

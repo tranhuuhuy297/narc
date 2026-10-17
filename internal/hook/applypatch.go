@@ -58,8 +58,12 @@ type patchChunk struct {
 }
 
 // parsePatch parses an apply_patch body. Text before "*** Begin Patch"
-// (such as a shell heredoc line) is ignored.
+// (such as a shell heredoc line, or the program name of an argv-style
+// call joined into one line: `apply_patch *** Begin Patch`) is ignored.
 func parsePatch(text string) ([]patchFile, error) {
+	if k := strings.Index(text, patchBegin); k > 0 {
+		text = text[k:]
+	}
 	lines := strings.Split(strings.ReplaceAll(text, "\r\n", "\n"), "\n")
 	i := 0
 	for i < len(lines) && strings.TrimSpace(lines[i]) != patchBegin {
@@ -239,6 +243,14 @@ func applyChunks(content string, chunks []patchChunk) (string, error) {
 		at = p + len(old)
 	}
 	sort.SliceStable(repls, func(i, j int) bool { return repls[i].start < repls[j].start })
+	for k := 1; k < len(repls); k++ {
+		// An end-of-file chunk is matched at the end whatever came before,
+		// so it can overlap an earlier chunk. There is no sensible way to
+		// apply both; treat the patch as one the tool rejects.
+		if prev := repls[k-1]; prev.start+prev.n > repls[k].start {
+			return "", errors.New("patch chunks overlap")
+		}
+	}
 	for k := len(repls) - 1; k >= 0; k-- {
 		r := repls[k]
 		tail := append([]string{}, lines[r.start+r.n:]...)

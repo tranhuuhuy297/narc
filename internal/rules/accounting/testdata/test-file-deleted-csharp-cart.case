@@ -1,0 +1,25 @@
+# C#: the NUnit fixture for the cart was deleted (warning: no source change).
+expect: test-file-deleted
+-- old/tests/Shop.Tests/CartTests.cs --
+using NUnit.Framework;
+
+namespace Shop.Tests;
+
+[TestFixture]
+public class CartTests
+{
+    [Test]
+    public void EmptyCartHasZeroTotal()
+    {
+        Assert.That(new Cart().Total, Is.EqualTo(0m));
+    }
+
+    [TestCase(1, 10.0)]
+    [TestCase(3, 30.0)]
+    public void TotalIsQuantityTimesPrice(int qty, decimal total)
+    {
+        var cart = new Cart();
+        cart.Add(new Product("tee", 10m), qty);
+        Assert.That(cart.Total, Is.EqualTo(total));
+    }
+}

@@ -1,0 +1,22 @@
+# Methods were reordered; the existing cast moved with them.
+expect: clean
+-- old/src/legacy/widget.ts --
+export class Widget {
+  mount(el: HTMLElement) {
+    (window as any).jQuery(el).widget();
+  }
+
+  unmount() {
+    this.el = undefined;
+  }
+}
+-- new/src/legacy/widget.ts --
+export class Widget {
+  unmount() {
+    this.el = undefined;
+  }
+
+  mount(el: HTMLElement) {
+    (window as any).jQuery(el).widget();
+  }
+}

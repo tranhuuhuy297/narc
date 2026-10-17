@@ -1,0 +1,18 @@
+# ignore_error on a cleanup command of the Taskfile is harmless; the test command still fails the task.
+expect: clean
+-- old/Taskfile.yml --
+version: '3'
+
+tasks:
+  test:
+    cmds:
+      - go test ./...
+-- new/Taskfile.yml --
+version: '3'
+
+tasks:
+  test:
+    cmds:
+      - cmd: docker compose down -v
+        ignore_error: true
+      - go test ./...

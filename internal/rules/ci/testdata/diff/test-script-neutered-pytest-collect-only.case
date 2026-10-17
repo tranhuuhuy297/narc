@@ -1,0 +1,8 @@
+# Makefile test target only collects tests.
+expect: test-script-neutered
+-- old/Makefile --
+test:
+	python -m pytest tests/
+-- new/Makefile --
+test:
+	python -m pytest tests/ --collect-only -q

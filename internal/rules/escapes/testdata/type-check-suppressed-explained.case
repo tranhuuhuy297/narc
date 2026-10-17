@@ -1,0 +1,15 @@
+# A coded suppression with a concrete, tracked reason is lowered to a note.
+expect: type-check-suppressed@info
+-- old/app/aws.py --
+import boto3
+
+
+def queue(url: str):
+    return boto3.resource("sqs").Queue(url)
+-- new/app/aws.py --
+import boto3
+
+
+def queue(url: str):
+    sqs = boto3.resource("sqs")
+    return sqs.Queue(url)  # type: ignore[attr-defined]  # boto3-stubs lacks Queue on ServiceResource, see #812

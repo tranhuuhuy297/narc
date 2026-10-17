@@ -1,0 +1,38 @@
+# Ruby: a spec for a generator compares against a heredoc that contains
+# RSpec code (it ... do / expect / end). Editing the heredoc changes data,
+# not the spec's own examples.
+expect: clean
+-- old/spec/generators/spec_generator_spec.rb --
+require "spec_helper"
+
+RSpec.describe SpecGenerator do
+  it "renders a pending example per method" do
+    expected = <<~RUBY
+      RSpec.describe Invoice do
+        it "totals" do
+          expect(subject.total).to eq(0)
+        end
+
+        it "taxes" do
+          expect(subject.tax).to eq(0)
+        end
+      end
+    RUBY
+    expect(described_class.new(Invoice).render).to eq(expected)
+  end
+end
+-- new/spec/generators/spec_generator_spec.rb --
+require "spec_helper"
+
+RSpec.describe SpecGenerator do
+  it "renders a pending example per method" do
+    expected = <<~RUBY
+      RSpec.describe Invoice do
+        it "totals" do
+          expect(subject.total).to eq(0)
+        end
+      end
+    RUBY
+    expect(described_class.new(Invoice, only: [:total]).render).to eq(expected)
+  end
+end

@@ -1,0 +1,63 @@
+# Java: flat tests were regrouped into @Nested classes and given
+# @DisplayName labels. Qualified names change, bare names do not.
+expect: clean
+-- old/src/test/java/com/acme/auth/PasswordPolicyTest.java --
+package com.acme.auth;
+
+import org.junit.jupiter.api.Test;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+class PasswordPolicyTest {
+    private final PasswordPolicy policy = PasswordPolicy.defaults();
+
+    @Test
+    void rejectsShortPasswords() {
+        assertThat(policy.check("abc12")).containsExactly(Violation.TOO_SHORT);
+    }
+
+    @Test
+    void rejectsPasswordsWithoutDigits() {
+        assertThat(policy.check("abcdefghij")).containsExactly(Violation.NO_DIGIT);
+    }
+
+    @Test
+    void acceptsLongPassphrases() {
+        assertThat(policy.check("correct horse battery staple 9")).isEmpty();
+    }
+}
+-- new/src/test/java/com/acme/auth/PasswordPolicyTest.java --
+package com.acme.auth;
+
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
+import org.junit.jupiter.api.Test;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+class PasswordPolicyTest {
+    private final PasswordPolicy policy = PasswordPolicy.defaults();
+
+    @Nested
+    @DisplayName("rejects")
+    class Rejects {
+        @Test
+        void rejectsShortPasswords() {
+            assertThat(policy.check("abc12")).containsExactly(Violation.TOO_SHORT);
+        }
+
+        @Test
+        void rejectsPasswordsWithoutDigits() {
+            assertThat(policy.check("abcdefghij")).containsExactly(Violation.NO_DIGIT);
+        }
+    }
+
+    @Nested
+    @DisplayName("accepts")
+    class Accepts {
+        @Test
+        void acceptsLongPassphrases() {
+            assertThat(policy.check("correct horse battery staple 9")).isEmpty();
+        }
+    }
+}

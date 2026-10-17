@@ -1,0 +1,35 @@
+# mypy --strict moved from the CI command line into pyproject.toml.
+expect: clean
+-- old/.github/workflows/ci.yml --
+name: CI
+on: [pull_request]
+jobs:
+  types:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: pip install -e .[dev]
+      - run: mypy --strict src/
+-- new/.github/workflows/ci.yml --
+name: CI
+on: [pull_request]
+jobs:
+  types:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: pip install -e .[dev]
+      - run: mypy src/
+-- old/pyproject.toml --
+[project]
+name = "acme"
+
+[tool.mypy]
+python_version = "3.12"
+-- new/pyproject.toml --
+[project]
+name = "acme"
+
+[tool.mypy]
+python_version = "3.12"
+strict = true

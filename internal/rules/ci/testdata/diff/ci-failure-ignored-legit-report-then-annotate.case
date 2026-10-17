@@ -1,0 +1,26 @@
+# eslint writes a JSON report without failing; the annotate step that reads it fails the job instead.
+expect: clean
+-- old/.github/workflows/lint.yml --
+name: Lint
+on: [pull_request]
+jobs:
+  eslint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: npm ci
+      - run: npx eslint .
+-- new/.github/workflows/lint.yml --
+name: Lint
+on: [pull_request]
+jobs:
+  eslint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: npm ci
+      - run: npx eslint . --format json --output-file eslint-report.json || true
+      - uses: ataylorme/eslint-annotate-action@v3
+        with:
+          report-json: eslint-report.json
+          fail-on-error: true

@@ -1,0 +1,24 @@
+# Comparisons with false in conditions do not disable a job.
+expect: clean
+-- old/.github/workflows/ci.yml --
+name: CI
+on: [pull_request]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: npm test
+-- new/.github/workflows/ci.yml --
+name: CI
+on: [pull_request]
+jobs:
+  test:
+    if: github.event.pull_request.draft == false
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: npm test
+      - name: e2e
+        if: ${{ !cancelled() && inputs.skip-e2e != true && github.event.pull_request.draft == false }}
+        run: npm run test:e2e

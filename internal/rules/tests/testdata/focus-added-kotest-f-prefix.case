@@ -1,0 +1,33 @@
+# kotest runs only the top-level tests whose name starts with "f:" when any
+# exists, so the rest of the spec is silently skipped.
+expect: focus-added
+-- old/src/test/kotlin/com/acme/cart/CartSpec.kt --
+package com.acme.cart
+
+import io.kotest.core.spec.style.StringSpec
+import io.kotest.matchers.shouldBe
+
+class CartSpec : StringSpec({
+    "adds line items" {
+        Cart().add(Item("a", 2)).count shouldBe 2
+    }
+
+    "applies coupons" {
+        Cart().add(Item("a", 2)).apply(Coupon("TEN")).total shouldBe 18
+    }
+})
+-- new/src/test/kotlin/com/acme/cart/CartSpec.kt --
+package com.acme.cart
+
+import io.kotest.core.spec.style.StringSpec
+import io.kotest.matchers.shouldBe
+
+class CartSpec : StringSpec({
+    "adds line items" {
+        Cart().add(Item("a", 2)).count shouldBe 2
+    }
+
+    "f:applies coupons" {
+        Cart().add(Item("a", 2)).apply(Coupon("TEN")).total shouldBe 18
+    }
+})

@@ -1,0 +1,36 @@
+# xUnit: two facts merged into one theory with inline data.
+expect: clean
+-- old/tests/Geo.Tests/DistanceTests.cs --
+using Xunit;
+
+namespace Geo.Tests;
+
+public class DistanceTests
+{
+    [Fact]
+    public void BerlinToParis()
+    {
+        Assert.Equal(878, Distance.Km(Cities.Berlin, Cities.Paris));
+    }
+
+    [Fact]
+    public void ParisToMadrid()
+    {
+        Assert.Equal(1053, Distance.Km(Cities.Paris, Cities.Madrid));
+    }
+}
+-- new/tests/Geo.Tests/DistanceTests.cs --
+using Xunit;
+
+namespace Geo.Tests;
+
+public class DistanceTests
+{
+    [Theory]
+    [InlineData("Berlin", "Paris", 878)]
+    [InlineData("Paris", "Madrid", 1053)]
+    public void KilometersBetweenCities(string from, string to, int km)
+    {
+        Assert.Equal(km, Distance.Km(Cities.ByName(from), Cities.ByName(to)));
+    }
+}

@@ -1,0 +1,19 @@
+# Lefthook command reorganized into jobs with the same checks.
+expect: clean
+-- old/lefthook.yml --
+pre-commit:
+  commands:
+    lint:
+      glob: "*.{ts,tsx}"
+      run: npx eslint {staged_files}
+    types:
+      run: npx tsc --noEmit
+-- new/lefthook.yml --
+pre-commit:
+  parallel: true
+  jobs:
+    - name: lint
+      glob: "*.{ts,tsx}"
+      run: npx eslint {staged_files}
+    - name: types
+      run: npx tsc --noEmit

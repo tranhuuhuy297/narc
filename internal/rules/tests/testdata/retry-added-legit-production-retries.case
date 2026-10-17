@@ -1,0 +1,10 @@
+# Retry logic in application code is a feature, not a test retry.
+expect: clean
+-- old/src/api/client.ts --
+export function createClient(baseUrl: string) {
+  return new HttpClient({ baseUrl, timeoutMs: 5000 });
+}
+-- new/src/api/client.ts --
+export function createClient(baseUrl: string) {
+  return new HttpClient({ baseUrl, timeoutMs: 5000, retries: 3, retryDelayMs: 200 });
+}

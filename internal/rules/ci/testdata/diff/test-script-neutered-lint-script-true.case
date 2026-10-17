@@ -1,0 +1,20 @@
+# The lint script now runs `true`.
+expect: test-script-neutered
+-- old/package.json --
+{
+  "name": "@acme/api",
+  "version": "1.4.0",
+  "scripts": {
+    "lint": "eslint . --ext .ts,.tsx",
+    "test": "jest"
+  }
+}
+-- new/package.json --
+{
+  "name": "@acme/api",
+  "version": "1.4.0",
+  "scripts": {
+    "lint": "true",
+    "test": "jest"
+  }
+}

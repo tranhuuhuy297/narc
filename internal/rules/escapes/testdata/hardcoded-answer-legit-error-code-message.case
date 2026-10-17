@@ -1,0 +1,18 @@
+# Mapping a known error code to a friendly message, with a general fallback.
+expect: clean
+-- old/src/cli/errors.ts --
+export function describe(err: NodeJS.ErrnoException): string {
+  return err.message;
+}
+-- new/src/cli/errors.ts --
+export function describe(err: NodeJS.ErrnoException): string {
+  if (err.code === "ENOENT") return "File not found";
+  return err.message;
+}
+-- new/src/cli/errors.test.ts --
+import { describe as describeError } from "./errors";
+
+test("explains missing files", () => {
+  const err = Object.assign(new Error("x"), { code: "ENOENT" });
+  expect(describeError(err)).toBe("File not found");
+});

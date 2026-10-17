@@ -1,0 +1,38 @@
+# Java: the assertion that the cancellation was persisted was removed.
+expect: assertions-removed
+-- old/src/test/java/com/acme/orders/CancelOrderTest.java --
+package com.acme.orders;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.verify;
+
+import org.junit.jupiter.api.Test;
+
+class CancelOrderTest {
+    private final OrderRepository repo = InMemoryOrderRepository.withOrder("o-1");
+    private final Notifier notifier = mock(Notifier.class);
+
+    @Test
+    void cancelsAndNotifies() {
+        new CancelOrder(repo, notifier).cancel("o-1");
+        assertThat(repo.find("o-1").status()).isEqualTo(Status.CANCELLED);
+        verify(notifier).orderCancelled("o-1");
+    }
+}
+-- new/src/test/java/com/acme/orders/CancelOrderTest.java --
+package com.acme.orders;
+
+import static org.mockito.Mockito.verify;
+
+import org.junit.jupiter.api.Test;
+
+class CancelOrderTest {
+    private final OrderRepository repo = InMemoryOrderRepository.withOrder("o-1");
+    private final Notifier notifier = mock(Notifier.class);
+
+    @Test
+    void cancelsAndNotifies() {
+        new CancelOrder(repo, notifier).cancel("o-1");
+        verify(notifier).orderCancelled("o-1");
+    }
+}

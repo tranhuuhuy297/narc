@@ -1,0 +1,15 @@
+# Error reporting disabled under tests.
+expect: clean
+-- old/src/instrument.ts --
+import * as Sentry from "@sentry/node";
+
+Sentry.init({ dsn: process.env.SENTRY_DSN });
+-- new/src/main/monitoring.ts --
+import * as Sentry from "@sentry/node";
+
+export function initMonitoring() {
+  Sentry.init({
+    dsn: process.env.SENTRY_DSN,
+    enabled: process.env.NODE_ENV !== "test",
+  });
+}

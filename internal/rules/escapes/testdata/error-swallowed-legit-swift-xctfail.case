@@ -1,0 +1,28 @@
+# XCTest: XCTFail records a failure without throwing, so the empty catch after it asserts that parse throws.
+expect: clean
+-- old/Tests/ParserTests/ParserTests.swift --
+import XCTest
+@testable import Parser
+
+final class ParserTests: XCTestCase {
+    func testParsesNumber() throws {
+        XCTAssertEqual(try parse("42"), .number(42))
+    }
+}
+-- new/Tests/ParserTests/ParserTests.swift --
+import XCTest
+@testable import Parser
+
+final class ParserTests: XCTestCase {
+    func testParsesNumber() throws {
+        XCTAssertEqual(try parse("42"), .number(42))
+    }
+
+    func testRejectsTrailingGarbage() {
+        do {
+            _ = try parse("42abc")
+            XCTFail("expected a syntax error")
+        } catch {
+        }
+    }
+}

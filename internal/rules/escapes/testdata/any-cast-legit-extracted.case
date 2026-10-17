@@ -1,0 +1,20 @@
+# A helper (with its pre-existing cast) was extracted into its own module.
+expect: clean
+-- old/src/analytics/index.ts --
+export function track(event: string) {
+  send(event);
+}
+
+export function gtag(...args: unknown[]) {
+  (window as any).dataLayer.push(args);
+}
+-- new/src/analytics/index.ts --
+export { gtag } from "./gtag";
+
+export function track(event: string) {
+  send(event);
+}
+-- new/src/analytics/gtag.ts --
+export function gtag(...args: unknown[]) {
+  (window as any).dataLayer.push(args);
+}

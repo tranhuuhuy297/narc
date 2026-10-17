@@ -1,0 +1,15 @@
+# try? whose optional result is used is a deliberate fallback, not a discarded error.
+expect: clean
+-- old/Sources/Store/Settings.swift --
+struct Settings {
+    static func load(from url: URL) -> Settings {
+        return .defaults
+    }
+}
+-- new/Sources/Store/Settings.swift --
+struct Settings {
+    static func load(from url: URL) -> Settings {
+        guard let data = try? Data(contentsOf: url) else { return .defaults }
+        return (try? JSONDecoder().decode(Settings.self, from: data)) ?? .defaults
+    }
+}

@@ -1,0 +1,27 @@
+# JavaScript: the file's line endings were normalized from CRLF to LF by
+# .gitattributes; every line shows as changed but every test is intact.
+expect: clean
+-- old/test/math.test.js --
+const { add, divide } = require('../src/math')
+
+describe('math', () => {
+  it('adds numbers', () => {
+    expect(add(1, 2)).toBe(3)
+  })
+
+  it('refuses to divide by zero', () => {
+    expect(() => divide(1, 0)).toThrow('division by zero')
+  })
+})
+-- new/test/math.test.js --
+const { add, divide } = require('../src/math')
+
+describe('math', () => {
+  it('adds numbers', () => {
+    expect(add(1, 2)).toBe(3)
+  })
+
+  it('refuses to divide by zero', () => {
+    expect(() => divide(1, 0)).toThrow('division by zero')
+  })
+})

@@ -1,0 +1,15 @@
+# Go: a deferred recover() whose value is ignored turns the panic the test hit into a silent success.
+expect: error-swallowed
+-- old/internal/render/page.go --
+package render
+
+func (r *Renderer) Page(w io.Writer, p Page) error {
+	return r.tmpl.Execute(w, p)
+}
+-- new/internal/render/page.go --
+package render
+
+func (r *Renderer) Page(w io.Writer, p Page) error {
+	defer func() { recover() }()
+	return r.tmpl.Execute(w, p)
+}

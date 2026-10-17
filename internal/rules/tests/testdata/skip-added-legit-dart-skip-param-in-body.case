@@ -1,0 +1,24 @@
+# Dart: skip: is a named argument of the repository call inside a one-line
+# test, not an option of test() itself.
+expect: clean
+-- old/test/order_repository_test.dart --
+import 'package:test/test.dart';
+
+import '../lib/order_repository.dart';
+
+void main() {
+  final repo = OrderRepository.inMemory(seed: 10);
+
+  test('lists orders', () async => expect(await repo.list(), hasLength(10)));
+}
+-- new/test/order_repository_test.dart --
+import 'package:test/test.dart';
+
+import '../lib/order_repository.dart';
+
+void main() {
+  final repo = OrderRepository.inMemory(seed: 10);
+
+  test('lists orders', () async => expect(await repo.list(), hasLength(10)));
+  test('pages orders', () async => expect(await repo.list(skip: 8, take: 5), hasLength(2)));
+}

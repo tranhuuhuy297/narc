@@ -1,0 +1,34 @@
+# Mocha: a whole describe block is disabled with xdescribe.
+expect: skip-added
+-- old/test/rate-limiter.spec.js --
+const { expect } = require('chai');
+const { RateLimiter } = require('../lib/rate-limiter');
+
+describe('RateLimiter', () => {
+  it('allows bursts up to the limit', () => {
+    const rl = new RateLimiter({ limit: 3, windowMs: 1000 });
+    expect([rl.take(), rl.take(), rl.take()]).to.deep.equal([true, true, true]);
+  });
+
+  it('blocks once the limit is reached', () => {
+    const rl = new RateLimiter({ limit: 1, windowMs: 1000 });
+    rl.take();
+    expect(rl.take()).to.equal(false);
+  });
+});
+-- new/test/rate-limiter.spec.js --
+const { expect } = require('chai');
+const { RateLimiter } = require('../lib/rate-limiter');
+
+xdescribe('RateLimiter', () => {
+  it('allows bursts up to the limit', () => {
+    const rl = new RateLimiter({ limit: 3, windowMs: 1000 });
+    expect([rl.take(), rl.take(), rl.take()]).to.deep.equal([true, true, true]);
+  });
+
+  it('blocks once the limit is reached', () => {
+    const rl = new RateLimiter({ limit: 1, windowMs: 1000 });
+    rl.take();
+    expect(rl.take()).to.equal(false);
+  });
+});

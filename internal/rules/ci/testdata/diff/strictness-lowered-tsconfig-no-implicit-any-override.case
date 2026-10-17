@@ -1,0 +1,17 @@
+# noImplicitAny: false carves a hole into strict mode.
+expect: strictness-lowered
+-- old/tsconfig.json --
+{
+  "compilerOptions": {
+    "strict": true,
+    "target": "ES2022"
+  }
+}
+-- new/tsconfig.json --
+{
+  "compilerOptions": {
+    "strict": true,
+    "noImplicitAny": false,
+    "target": "ES2022"
+  }
+}

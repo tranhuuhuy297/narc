@@ -1,0 +1,20 @@
+# codecov threshold tightened and patch target raised.
+expect: clean
+-- old/codecov.yml --
+coverage:
+  status:
+    project:
+      default:
+        threshold: 5%
+    patch:
+      default:
+        target: 70%
+-- new/codecov.yml --
+coverage:
+  status:
+    project:
+      default:
+        threshold: 1%
+    patch:
+      default:
+        target: 85%

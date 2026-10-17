@@ -1,0 +1,20 @@
+# Tautologies inside strings and comments: test data for a linter.
+expect: clean
+-- old/test/lint/no-tautology.test.js --
+const { lint } = require('../../src/lint');
+
+test('accepts real assertions', () => {
+  expect(lint('expect(total).toBe(42)')).toEqual([]);
+});
+-- new/test/lint/no-tautology.test.js --
+const { lint } = require('../../src/lint');
+
+test('accepts real assertions', () => {
+  expect(lint('expect(total).toBe(42)')).toEqual([]);
+});
+
+// expect(true).toBe(true) and assert.ok(true) must be reported.
+test('reports tautologies', () => {
+  expect(lint('expect(true).toBe(true)')).toHaveLength(1);
+  expect(lint("assert.ok(true)")).toHaveLength(1);
+});

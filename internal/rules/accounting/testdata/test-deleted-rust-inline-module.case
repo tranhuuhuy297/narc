@@ -1,0 +1,56 @@
+# Rust: parse_port now accepts 0 and the inline unit test that forbade it is gone.
+expect: test-deleted
+-- old/src/config.rs --
+use std::num::ParseIntError;
+
+#[derive(Debug, PartialEq)]
+pub enum PortError {
+    Zero,
+    Invalid(ParseIntError),
+}
+
+pub fn parse_port(s: &str) -> Result<u16, PortError> {
+    let port: u16 = s.trim().parse().map_err(PortError::Invalid)?;
+    if port == 0 {
+        return Err(PortError::Zero);
+    }
+    Ok(port)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parses_a_port() {
+        assert_eq!(parse_port(" 8080 "), Ok(8080));
+    }
+
+    #[test]
+    fn rejects_port_zero() {
+        assert_eq!(parse_port("0"), Err(PortError::Zero));
+    }
+}
+-- new/src/config.rs --
+use std::num::ParseIntError;
+
+#[derive(Debug, PartialEq)]
+pub enum PortError {
+    Zero,
+    Invalid(ParseIntError),
+}
+
+pub fn parse_port(s: &str) -> Result<u16, PortError> {
+    let port: u16 = s.trim().parse().map_err(PortError::Invalid)?;
+    Ok(port)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parses_a_port() {
+        assert_eq!(parse_port(" 8080 "), Ok(8080));
+    }
+}

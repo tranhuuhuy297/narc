@@ -1,0 +1,10 @@
+# go test -run '^$' matches no tests.
+expect: test-script-neutered
+-- old/Makefile --
+.PHONY: test
+test:
+	go test ./... -count=1
+-- new/Makefile --
+.PHONY: test
+test:
+	go test ./... -count=1 -run '^$$'

@@ -1,0 +1,44 @@
+# Java: InvoiceServiceTest removed after the tax rounding logic changed.
+expect: test-file-deleted
+-- old/src/main/java/com/acme/billing/InvoiceService.java --
+package com.acme.billing;
+
+import java.math.BigDecimal;
+import java.math.RoundingMode;
+
+public class InvoiceService {
+    public BigDecimal tax(BigDecimal net) {
+        return net.multiply(new BigDecimal("0.19")).setScale(2, RoundingMode.HALF_EVEN);
+    }
+}
+-- new/src/main/java/com/acme/billing/InvoiceService.java --
+package com.acme.billing;
+
+import java.math.BigDecimal;
+
+public class InvoiceService {
+    public BigDecimal tax(BigDecimal net) {
+        return net.multiply(new BigDecimal("0.19"));
+    }
+}
+-- old/src/test/java/com/acme/billing/InvoiceServiceTest.java --
+package com.acme.billing;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+import java.math.BigDecimal;
+import org.junit.jupiter.api.Test;
+
+class InvoiceServiceTest {
+    private final InvoiceService service = new InvoiceService();
+
+    @Test
+    void roundsTaxHalfEven() {
+        assertThat(service.tax(new BigDecimal("10.05"))).isEqualByComparingTo("1.91");
+    }
+
+    @Test
+    void taxOfZeroIsZero() {
+        assertThat(service.tax(BigDecimal.ZERO)).isEqualByComparingTo("0.00");
+    }
+}

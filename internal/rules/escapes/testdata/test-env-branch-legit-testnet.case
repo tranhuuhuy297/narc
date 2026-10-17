@@ -1,0 +1,17 @@
+# "testnet" is a blockchain network, and an A/B "test" bucket is an experiment arm: neither detects a test runner.
+expect: clean
+-- old/src/chain/network.ts --
+export function rpcUrl(): string {
+  return "https://mainnet.example.org";
+}
+-- new/src/chain/network.ts --
+export function rpcUrl(): string {
+  if (process.env.CHAIN_ENV === "testnet") return "https://testnet.example.org";
+  return "https://mainnet.example.org";
+}
+
+export function checkoutFlow(user: User): Flow {
+  const bucket = assignBucket(user.id, "checkout-v2");
+  if (bucket === "test") return newCheckout(user);
+  return legacyCheckout(user);
+}

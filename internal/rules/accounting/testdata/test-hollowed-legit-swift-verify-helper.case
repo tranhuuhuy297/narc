@@ -1,0 +1,25 @@
+# XCTest: assertions moved into a verify helper method on the test case.
+expect: clean
+-- old/Tests/RouterTests/DeepLinkTests.swift --
+import XCTest
+@testable import Router
+
+final class DeepLinkTests: XCTestCase {
+    func testParsesProductLink() {
+        let link = DeepLink(url: URL(string: "shop://product/42")!)
+        XCTAssertEqual(link?.route, .product(id: 42))
+    }
+}
+-- new/Tests/RouterTests/DeepLinkTests.swift --
+import XCTest
+@testable import Router
+
+final class DeepLinkTests: XCTestCase {
+    func testParsesProductLink() {
+        verifyRoute("shop://product/42", is: .product(id: 42))
+    }
+
+    private func verifyRoute(_ url: String, is route: Route, line: UInt = #line) {
+        XCTAssertEqual(DeepLink(url: URL(string: url)!)?.route, route, line: line)
+    }
+}

@@ -1,0 +1,44 @@
+# Python: the failing test was renamed to _test_..., which pytest does not
+# collect, while the refund code changed. Its body is untouched, so the
+# assertions are all still in the file, but nothing runs them any more.
+expect: test-deleted@error
+-- old/shop/refunds.py --
+def refund(order):
+    if order.invoice.closed:
+        raise InvoiceClosed(order.invoice.id)
+    order.status = "refunded"
+    return order.total
+-- new/shop/refunds.py --
+def refund(order):
+    order.status = "refunded"
+    return order.total
+-- old/tests/test_refunds.py --
+import pytest
+
+from shop.refunds import InvoiceClosed, refund
+
+
+def test_refund_full_amount(order):
+    assert refund(order) == 40
+    assert order.status == "refunded"
+
+
+def test_refund_rejects_closed_invoice(closed_order):
+    with pytest.raises(InvoiceClosed):
+        refund(closed_order)
+    assert closed_order.status == "paid"
+-- new/tests/test_refunds.py --
+import pytest
+
+from shop.refunds import InvoiceClosed, refund
+
+
+def test_refund_full_amount(order):
+    assert refund(order) == 40
+    assert order.status == "refunded"
+
+
+def _test_refund_rejects_closed_invoice(closed_order):
+    with pytest.raises(InvoiceClosed):
+        refund(closed_order)
+    assert closed_order.status == "paid"

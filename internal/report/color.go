@@ -11,7 +11,10 @@ import (
 // follows the common conventions, in order of precedence:
 //
 //   - NO_COLOR set to anything non-empty disables color (no-color.org);
-//   - FORCE_COLOR or CLICOLOR_FORCE enables it, unless set to "0"/"false";
+//   - FORCE_COLOR enables it, or disables it when set to "0"/"false"
+//     (the supports-color convention);
+//   - CLICOLOR_FORCE set to anything but "0" enables it (bixense.com/clicolors;
+//     "0" means "not forced", so detection continues);
 //   - CLICOLOR=0 or TERM=dumb disables it;
 //   - GitHub Actions renders ANSI colors in job logs, so color stays on
 //     there unless f is a regular file;
@@ -20,10 +23,11 @@ func ColorEnabled(f *os.File) bool {
 	if os.Getenv("NO_COLOR") != "" {
 		return false
 	}
-	for _, name := range []string{"FORCE_COLOR", "CLICOLOR_FORCE"} {
-		if v := strings.ToLower(strings.TrimSpace(os.Getenv(name))); v != "" {
-			return v != "0" && v != "false"
-		}
+	if v := strings.ToLower(strings.TrimSpace(os.Getenv("FORCE_COLOR"))); v != "" {
+		return v != "0" && v != "false"
+	}
+	if v := strings.TrimSpace(os.Getenv("CLICOLOR_FORCE")); v != "" && v != "0" {
+		return true
 	}
 	if os.Getenv("CLICOLOR") == "0" || os.Getenv("TERM") == "dumb" {
 		return false

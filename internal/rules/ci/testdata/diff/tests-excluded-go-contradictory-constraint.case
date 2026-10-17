@@ -1,0 +1,24 @@
+# A contradictory build constraint means the test file is never compiled.
+expect: tests-excluded
+-- old/internal/billing/invoice_test.go --
+package billing
+
+import "testing"
+
+func TestInvoiceTotal(t *testing.T) {
+	if got := Total([]int{1, 2}); got != 3 {
+		t.Fatalf("Total = %d", got)
+	}
+}
+-- new/internal/billing/invoice_test.go --
+//go:build linux && !linux
+
+package billing
+
+import "testing"
+
+func TestInvoiceTotal(t *testing.T) {
+	if got := Total([]int{1, 2}); got != 3 {
+		t.Fatalf("Total = %d", got)
+	}
+}

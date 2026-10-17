@@ -52,7 +52,7 @@ internal/rules/tests/     skip/focus markers, tautologies, weakened/commented as
 internal/rules/accounting/ deleted tests, deleted test files, assertions removed, hollowed tests
 internal/rules/escapes/   type/lint suppressions, any-casts, swallowed errors, test-env branches, hardcoded answers
 internal/rules/ci/        CI failure ignored, checks removed, test scripts neutered, coverage/strictness lowered, tests excluded, snapshot updates
-internal/rules/integrity/ protected paths (+ waiver-missing-reason, produced by the engine)
+internal/rules/integrity/ protected paths, narc-config-weakened (+ waiver-missing-reason, produced by the engine)
 internal/rules/all/       imports every rule package (blank imports)
 internal/ruletest/        fixture-corpus harness (*.case files)
 internal/report/          pretty terminal, JSON, SARIF 2.1.0, Markdown, GitHub annotations
@@ -84,7 +84,10 @@ imports everything.
   Build findings with `rule.Finding(file, newLine, msg)` (added code) or
   `rule.Removal(file, oldLine, msg)` (removed code). Override `Severity`,
   `Evidence`, `Before`, `Hint` on the returned value when useful.
-- `core.Analysis{Files, Settings}`; `Settings{Protected, TestGlobs}`.
+- `core.Analysis{Files, Settings, Source}`; `Settings{Protected, TestGlobs}`.
+  `a.ReadNew(path)` / `a.ListNew(dir)` read files the change did *not* touch
+  (e.g. the existing tests of a changed source file); they return false in
+  patch-only mode. `a.Memo(key, build)` caches work shared between rules.
 
 ### Writing a rule
 
@@ -130,9 +133,12 @@ expect: skip-added, any-cast        # or: expect: clean
 ...new content...
 ```
 
-Files only under `old/` are deletions, only under `new/` additions. Optional
+Files only under `old/` are deletions, only under `new/` additions, and
+`both/` sections are unchanged files (visible through `ReadNew`). Optional
 `-- .narc.yml --` section and `patch-only: true` header. A case asserts the
-exact *set* of rule IDs that fire (among rules registered in the test binary).
+exact *set* of rule IDs that fire (among rules registered in the test
+binary); `expect: any-cast@info` also pins the highest severity.
+`ruletest.RunDirPatchOnly` re-runs a corpus without full contents.
 
 Name cheat cases `<rule>-<scenario>.case` and legitimate ones
 `<rule>-legit-<scenario>.case`. Every rule needs **both**. Make them realistic:
@@ -171,7 +177,8 @@ prints precision/recall (`go test ./internal/rules/all -run Accuracy -v`).
 | tests-excluded | warning | ci | test paths added to ignore/exclude lists; `//go:build ignore` on a test file |
 | snapshot-update-forced | warning | ci | `-u` / `--updateSnapshot` / `UPDATE_SNAPSHOTS=1` added to test commands |
 | verification-hook-bypassed | warning | ci | `--no-verify`, `HUSKY=0`, pre-commit hooks removed |
-| protected-path | error | integrity | change under a `protected:` glob |
+| protected-path | error | integrity | change under a `protected:` glob (new files are fine) |
+| narc-config-weakened | error/warning | integrity | `.narc.yml` loosened (rules off, `fail_on: never`, ignores/waivers added, protected paths dropped) or narc's hooks/CI step removed |
 | waiver-missing-reason | warning | integrity (engine) | `narc:allow` without a reason |
 
 ## CLI (cmd/narc)
@@ -192,20 +199,41 @@ narc version
 Exit codes: 0 clean (below `--fail-on`), 1 findings at/above `--fail-on`,
 2 usage or runtime error. Hooks use each harness's own protocol.
 
+## Test blocks (internal/testblocks)
+
+`testblocks.Find(lang, lines)` returns the tests in a lexed file (JS/TS,
+Python, Go, Rust, Java, Kotlin, Scala, C#, PHP, Ruby, Swift, Dart, Elixir,
+C/C++) with qualified names (`"auth > rejects expired tokens"`,
+`"TestAuth::test_expired"`), line ranges, and per-test assertion counts.
+Structure is matched on `Code` (strings and comments blanked), names come
+from the literals. Calls to helpers named `assert*/expect*/verify*/check*/
+should*/must*/ensure*` count as assertions, so extracting assertions into a
+helper is not a removal.
+
+The accounting rules build one ledger per analysis: tests on both sides of
+every changed test file, matched across the whole change (same name, same
+name under renamed suites, moved to another file, then body similarity), and
+assertions counted across all changed files, so moved assertions, merged
+table-driven tests and helpers are credited.
+
 ## Hooks (internal/hook)
 
-- **PreToolUse** (Claude `Edit|Write|NotebookEdit`, Codex `apply_patch`,
-  Gemini `write_file|replace`, Cursor `Write|StrReplace|Edit`): reconstruct the
-  file after the edit in memory, diff it against the file on disk, run the
-  engine on that one-file changeset, and **deny** the edit when findings reach
-  `hook.block_on` (default error), with a coaching message for the model.
-- **Stop / AfterAgent**: scan everything changed since the session baseline
-  (recorded at SessionStart, else HEAD) including untracked files, ignoring
-  findings that already existed at session start. Block the stop with a
-  coaching reason when findings reach the threshold; cap blocks per session at
-  `hook.max_blocks` (state in `.git/narc/`), then let the agent stop and show
-  the human a warning (`systemMessage`).
-- Fail open on internal errors (exit 0, note on stderr).
+- **Pre-edit** (Claude `Write|Edit|MultiEdit`, Codex `apply_patch`, Gemini
+  `write_file|replace`, Cursor `Write|StrReplace|Edit|Delete`, OpenCode
+  `edit|write|apply_patch`): replay the edit in memory, compare the file at
+  the session baseline with its proposed content (with the session's other
+  changes as context), and **deny** the edit when findings *introduced by
+  this edit* reach `hook.block_on` (default error). An edit that would make
+  `.narc.yml` unparseable is denied.
+- **Stop / AfterAgent / session.idle**: scan everything changed since the
+  session baseline (recorded at SessionStart or the first hook call, else
+  HEAD), including untracked files, ignoring findings that already existed
+  at session start. Block the stop with a coaching reason; after
+  `hook.max_blocks` blocks let the agent stop and warn the human
+  (`systemMessage`). State lives in `<git-dir>/narc/sessions/<id>.json`.
+- **git pre-commit**: scan staged changes, exit 1 at the fail threshold.
+- Fail open on internal errors (exit 0, note on stderr). `NARC_HOOK_LOG`
+  captures raw payloads for debugging.
 
 ## Audit (internal/audit)
 

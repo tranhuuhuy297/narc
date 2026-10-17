@@ -1,0 +1,12 @@
+# Test modules may leave fixtures untyped; the application keeps strict checking.
+expect: clean
+-- old/pyproject.toml --
+[tool.mypy]
+strict = true
+-- new/pyproject.toml --
+[tool.mypy]
+strict = true
+
+[[tool.mypy.overrides]]
+module = "tests.*"
+disable_error_code = ["no-untyped-def", "no-untyped-call"]

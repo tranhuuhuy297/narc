@@ -1,0 +1,9 @@
+# A file-level Pyright comment switches off a whole category of type errors.
+expect: type-check-suppressed
+-- old/src/etl/transform.py --
+def normalize(row: dict[str, object]) -> dict[str, str]:
+    return {k: str(v).strip() for k, v in row.items()}
+-- new/src/etl/transform.py --
+# pyright: reportArgumentType=false
+def normalize(row: dict[str, object]) -> dict[str, str]:
+    return {k: v.strip() for k, v in row.items()}

@@ -1,0 +1,23 @@
+# Evasive: allow_failure arrives through a YAML anchor merged into the test job.
+expect: ci-failure-ignored
+-- old/.gitlab-ci.yml --
+.defaults: &defaults
+  image: python:3.12
+  before_script:
+    - pip install -e .[test]
+
+pytest:
+  <<: *defaults
+  script:
+    - pytest -q
+-- new/.gitlab-ci.yml --
+.defaults: &defaults
+  image: python:3.12
+  allow_failure: true
+  before_script:
+    - pip install -e .[test]
+
+pytest:
+  <<: *defaults
+  script:
+    - pytest -q

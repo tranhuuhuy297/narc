@@ -257,7 +257,13 @@ func TestStopReviewNotice(t *testing.T) {
 
 	t.Run("claude", func(t *testing.T) {
 		t.Parallel()
-		files := map[string]string{"src/legacy.js": "// narc:allow hooktest-cheat reason=\"kept for the v1 API\"\n__narc_cheat__()\n"}
+		// narc-config-weakened (rules/integrity) would block the stop for
+		// the configuration changes below; this test is about the notice.
+		const quiet = "rules:\n  narc-config-weakened: off\n"
+		files := map[string]string{
+			"src/legacy.js": "// narc:allow hooktest-cheat reason=\"kept for the v1 API\"\n__narc_cheat__()\n",
+			".narc.yml":     quiet,
+		}
 		for k, v := range baseFiles {
 			files[k] = v
 		}
@@ -277,13 +283,13 @@ func TestStopReviewNotice(t *testing.T) {
 		runHook(t, "claude", "stop", r.dir, claudeStop("s", r.dir, false)).wantSilent(t)
 
 		// The agent turns the rule off in narc's settings and cheats again.
-		r.write(".narc.yml", "rules:\n  hooktest-cheat: off\n")
+		r.write(".narc.yml", quiet+"  hooktest-cheat: off\n")
 		r.write("src/extra.js", "__narc_cheat__()\n")
 		notice = str(runHook(t, "claude", "stop", r.dir, claudeStop("s", r.dir, false)).wantShape(t, "systemMessage"), "systemMessage")
 		wantContains(t, "systemMessage", notice, "• .narc.yml changed: it decides what narc checks and blocks")
 		wantNotContains(t, "systemMessage", notice, "src/math.js", "extra.js")
 		runHook(t, "claude", "stop", r.dir, claudeStop("s", r.dir, false)).wantSilent(t)
-		r.write(".narc.yml", "rules:\n  hooktest-cheat: info\n")
+		r.write(".narc.yml", quiet+"  hooktest-cheat: info\n")
 		wantContains(t, "systemMessage", str(runHook(t, "claude", "stop", r.dir, claudeStop("s", r.dir, false)).wantShape(t, "systemMessage"), "systemMessage"), ".narc.yml changed")
 	})
 
@@ -411,8 +417,10 @@ func TestBrokenNarcConfig(t *testing.T) {
 	runHook(t, "claude", "pre-tool-use", r.dir, claudeTool("s", r.dir, "Write", map[string]any{
 		"file_path": r.path("docs/.narc.yml"), "content": "this: [is not narc's config\n"})).wantSilent(t)
 	// narc loads .narc.yml before narc.yaml, so narc.yaml does not matter
-	// while .narc.yml exists.
-	r.write(".narc.yml", "protected:\n  - \"tests/golden/**\"\n")
+	// while .narc.yml exists. (narc-config-weakened, from rules/integrity,
+	// judges every config file name on its own; it is not what this
+	// checks.)
+	r.write(".narc.yml", "protected:\n  - \"tests/golden/**\"\nrules:\n  narc-config-weakened: off\n")
 	runHook(t, "claude", "pre-tool-use", r.dir, claudeTool("s", r.dir, "Write", map[string]any{
 		"file_path": r.path("narc.yaml"), "content": "this: [is not used\n"})).wantSilent(t)
 	r.remove(".narc.yml")

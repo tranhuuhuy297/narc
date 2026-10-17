@@ -1,0 +1,20 @@
+# Base cases with trivial values are part of the algorithm.
+expect: clean
+-- old/src/math/fib.ts --
+export function fib(n: number): number {
+  return fib(n - 1) + fib(n - 2);
+}
+-- new/src/math/fib.ts --
+export function fib(n: number): number {
+  if (n === 0) return 0;
+  if (n === 1) return 1;
+  return fib(n - 1) + fib(n - 2);
+}
+-- new/src/math/fib.test.ts --
+import { fib } from "./fib";
+
+test("base cases", () => {
+  expect(fib(0)).toBe(0);
+  expect(fib(1)).toBe(1);
+  expect(fib(10)).toBe(55);
+});

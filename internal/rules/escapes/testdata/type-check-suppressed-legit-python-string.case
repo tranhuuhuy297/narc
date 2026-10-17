@@ -1,0 +1,12 @@
+# A stub generator emits "# type: ignore" into generated source; the text is a string literal here.
+expect: clean
+-- old/tools/stubgen.py --
+def emit_import(module: str) -> str:
+    return f"import {module}\n"
+-- new/tools/stubgen.py --
+IGNORE = "  # type: ignore[import-untyped]"
+
+
+def emit_import(module: str, untyped: bool = False) -> str:
+    suffix = IGNORE if untyped else ""
+    return f"import {module}{suffix}\n"

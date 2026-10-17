@@ -1,0 +1,29 @@
+# A test project moves from NUnit to xUnit. The ignored test stays ignored
+# with the same reason, now as [Fact(Skip = ...)].
+expect: clean
+-- old/tests/Shipping.Tests/RateTests.cs --
+using NUnit.Framework;
+
+namespace Shipping.Tests;
+
+public class RateTests
+{
+    [Test]
+    public void DomesticParcel() => Assert.AreEqual(4.99m, Rates.For("DE", "DE", 1.2m));
+
+    [Test, Ignore("carrier API sandbox is down, see SHIP-77")]
+    public void LiveQuote() => Assert.AreEqual(12.40m, Carrier.Quote("DE", "US", 1.2m));
+}
+-- new/tests/Shipping.Tests/RateTests.cs --
+using Xunit;
+
+namespace Shipping.Tests;
+
+public class RateTests
+{
+    [Fact]
+    public void DomesticParcel() => Assert.Equal(4.99m, Rates.For("DE", "DE", 1.2m));
+
+    [Fact(Skip = "carrier API sandbox is down, see SHIP-77")]
+    public void LiveQuote() => Assert.Equal(12.40m, Carrier.Quote("DE", "US", 1.2m));
+}

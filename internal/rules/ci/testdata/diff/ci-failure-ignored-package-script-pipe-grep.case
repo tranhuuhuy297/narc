@@ -1,0 +1,14 @@
+# The lint script filters eslint's output through grep -v, whose status replaces eslint's.
+expect: ci-failure-ignored@warning
+-- old/package.json --
+{
+  "scripts": {
+    "lint": "eslint src --max-warnings 0"
+  }
+}
+-- new/package.json --
+{
+  "scripts": {
+    "lint": "eslint src --max-warnings 0 | grep -v 'deprecated rule'"
+  }
+}

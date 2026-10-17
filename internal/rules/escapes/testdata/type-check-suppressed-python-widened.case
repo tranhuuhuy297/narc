@@ -1,0 +1,16 @@
+# A narrow, coded suppression was widened to a blanket one, hiding every future error on the line.
+expect: type-check-suppressed@warning
+-- old/app/storage.py --
+import boto3
+
+
+def bucket(name: str):
+    s3 = boto3.resource("s3")
+    return s3.Bucket(name)  # type: ignore[attr-defined]
+-- new/app/storage.py --
+import boto3
+
+
+def bucket(name: str, region: str = "eu-west-1"):
+    s3 = boto3.resource("s3", region_name=region)
+    return s3.Bucket(name)  # type: ignore

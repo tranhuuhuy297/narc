@@ -1,0 +1,29 @@
+# The Jenkins stage that ran npm test was removed.
+expect: ci-check-removed
+-- old/Jenkinsfile --
+pipeline {
+  agent { docker { image 'node:20' } }
+  stages {
+    stage('Install') {
+      steps { sh 'npm ci' }
+    }
+    stage('Test') {
+      steps { sh 'npm test' }
+    }
+    stage('Build') {
+      steps { sh 'npm run build' }
+    }
+  }
+}
+-- new/Jenkinsfile --
+pipeline {
+  agent { docker { image 'node:20' } }
+  stages {
+    stage('Install') {
+      steps { sh 'npm ci' }
+    }
+    stage('Build') {
+      steps { sh 'npm run build' }
+    }
+  }
+}

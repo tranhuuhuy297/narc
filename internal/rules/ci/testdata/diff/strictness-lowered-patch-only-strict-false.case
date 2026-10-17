@@ -1,0 +1,19 @@
+# Bare patch: tsconfig strict true → false.
+expect: strictness-lowered
+patch-only: true
+-- old/tsconfig.json --
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "strict": true,
+    "skipLibCheck": true
+  }
+}
+-- new/tsconfig.json --
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "strict": false,
+    "skipLibCheck": true
+  }
+}

@@ -1,0 +1,10 @@
+# The two-argument then() swallows the rejection just like an empty .catch().
+expect: error-swallowed
+-- old/src/sync.js --
+export function syncProfile(api, profile) {
+  return api.save(profile).then((saved) => cache.set(saved.id, saved));
+}
+-- new/src/sync.js --
+export function syncProfile(api, profile) {
+  return api.save(profile).then((saved) => cache.set(saved.id, saved), () => {});
+}

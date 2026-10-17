@@ -1,0 +1,10 @@
+# The cast was replaced by a proper type guard.
+expect: clean
+-- old/src/errors.ts --
+export function messageOf(err: unknown): string {
+  return (err as any).message;
+}
+-- new/src/errors.ts --
+export function messageOf(err: unknown): string {
+  return err instanceof Error ? err.message : String(err);
+}

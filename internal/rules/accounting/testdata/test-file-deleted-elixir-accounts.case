@@ -1,0 +1,18 @@
+# Elixir: an ExUnit test module was deleted with nothing taking over its tests.
+expect: test-file-deleted
+-- old/test/my_app/billing/plan_test.exs --
+defmodule MyApp.Billing.PlanTest do
+  use ExUnit.Case, async: true
+
+  alias MyApp.Billing.Plan
+
+  describe "price/2" do
+    test "charges the monthly rate" do
+      assert Plan.price(:pro, :monthly) == 2_900
+    end
+
+    test "discounts yearly billing" do
+      assert Plan.price(:pro, :yearly) == 29_000
+    end
+  end
+end

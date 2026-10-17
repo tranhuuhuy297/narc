@@ -1,0 +1,49 @@
+# Android instrumented test with a Room entity defined for the test: Room's
+# @Ignore excludes a field from the table; it has nothing to do with JUnit.
+expect: clean
+-- old/app/src/androidTest/java/com/acme/notes/NoteDaoTest.kt --
+package com.acme.notes
+
+import androidx.room.Room
+import androidx.test.core.app.ApplicationProvider
+import org.junit.Assert.assertEquals
+import org.junit.Test
+
+class NoteDaoTest {
+    private val db = Room.inMemoryDatabaseBuilder(ApplicationProvider.getApplicationContext(), NotesDb::class.java).build()
+
+    @Test
+    fun insertsAndReads() {
+        db.notes().insert(Note(id = 1, text = "hi"))
+        assertEquals("hi", db.notes().byId(1)?.text)
+    }
+}
+-- new/app/src/androidTest/java/com/acme/notes/NoteDaoTest.kt --
+package com.acme.notes
+
+import androidx.room.Entity
+import androidx.room.Ignore
+import androidx.room.PrimaryKey
+import androidx.room.Room
+import androidx.test.core.app.ApplicationProvider
+import org.junit.Assert.assertEquals
+import org.junit.Test
+
+class NoteDaoTest {
+    @Entity
+    data class Draft(
+        @PrimaryKey val id: Int,
+        val text: String,
+    ) {
+        @Ignore
+        var selected: Boolean = false
+    }
+
+    private val db = Room.inMemoryDatabaseBuilder(ApplicationProvider.getApplicationContext(), NotesDb::class.java).build()
+
+    @Test
+    fun insertsAndReads() {
+        db.notes().insert(Note(id = 1, text = "hi"))
+        assertEquals("hi", db.notes().byId(1)?.text)
+    }
+}

@@ -1,0 +1,28 @@
+# C#: testing a Polly retry policy; Retry here is the code under test.
+expect: clean
+-- old/tests/Http.Tests/PolicyTests.cs --
+using Xunit;
+
+public class PolicyTests
+{
+    [Fact]
+    public void TimeoutIsFiveSeconds() => Assert.Equal(TimeSpan.FromSeconds(5), Policies.Timeout.Timeout);
+}
+-- new/tests/Http.Tests/PolicyTests.cs --
+using Polly;
+using Xunit;
+
+public class PolicyTests
+{
+    [Fact]
+    public void TimeoutIsFiveSeconds() => Assert.Equal(TimeSpan.FromSeconds(5), Policies.Timeout.Timeout);
+
+    [Fact]
+    public async Task RetriesThreeTimes()
+    {
+        var calls = 0;
+        var policy = Policy.Handle<HttpRequestException>().RetryAsync(3);
+        await Assert.ThrowsAsync<HttpRequestException>(() => policy.ExecuteAsync(() => { calls++; throw new HttpRequestException(); }));
+        Assert.Equal(4, calls);
+    }
+}

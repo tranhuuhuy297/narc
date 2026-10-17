@@ -1,0 +1,14 @@
+# toThrow(InsufficientFundsError) → toThrow(): any error now passes.
+expect: assertion-weakened
+-- old/src/wallet/withdraw.test.ts --
+import { withdraw, InsufficientFundsError } from './withdraw';
+
+it('refuses to overdraw', () => {
+  expect(() => withdraw({ balance: 10 }, 20)).toThrow(InsufficientFundsError);
+});
+-- new/src/wallet/withdraw.test.ts --
+import { withdraw } from './withdraw';
+
+it('refuses to overdraw', () => {
+  expect(() => withdraw({ balance: 10 }, 20)).toThrow();
+});

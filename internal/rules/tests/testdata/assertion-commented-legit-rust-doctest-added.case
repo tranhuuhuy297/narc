@@ -1,0 +1,37 @@
+# A doc example is added to a Rust function. `///` examples are doctests that
+# `cargo test` runs; the unit test's assertion only gains a failure message.
+expect: clean
+-- old/src/slug.rs --
+pub fn slugify(s: &str) -> String {
+    s.trim().to_lowercase().replace(' ', "-")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn lowercases_and_dashes() {
+        assert_eq!(slugify(" Hello World "), "hello-world");
+    }
+}
+-- new/src/slug.rs --
+/// Turns a title into a URL slug.
+///
+/// ```
+/// # use blog::slug::slugify;
+/// assert_eq!(slugify(" Hello World "), "hello-world");
+/// ```
+pub fn slugify(s: &str) -> String {
+    s.trim().to_lowercase().replace(' ', "-")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn lowercases_and_dashes() {
+        assert_eq!(slugify(" Hello World "), "hello-world", "titles are trimmed first");
+    }
+}

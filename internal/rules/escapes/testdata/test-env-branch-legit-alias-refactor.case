@@ -1,0 +1,16 @@
+# Refactor: the existing listen guard now reads NODE_ENV through a destructured alias; nothing new detects tests.
+expect: clean
+-- old/src/server.ts --
+import { app } from "./app";
+
+if (process.env.NODE_ENV !== "test") {
+  app.listen(Number(process.env.PORT ?? 3000));
+}
+-- new/src/server.ts --
+import { app } from "./app";
+
+const { NODE_ENV, PORT = "3000" } = process.env;
+
+if (NODE_ENV !== "test") {
+  app.listen(Number(PORT));
+}

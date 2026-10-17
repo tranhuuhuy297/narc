@@ -1,0 +1,29 @@
+# The step sets pipefail before piping pytest into tee, and the Makefile does the same on its recipe line.
+expect: clean
+-- old/.github/workflows/ci.yml --
+name: CI
+on: [pull_request]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: pytest -q
+-- new/.github/workflows/ci.yml --
+name: CI
+on: [pull_request]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          set -o pipefail
+          pytest -q | tee pytest.log
+-- old/Makefile --
+test:
+	pytest -q
+-- new/Makefile --
+SHELL := /bin/bash
+test:
+	set -o pipefail; pytest -q | tee pytest.log

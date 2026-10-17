@@ -1,0 +1,19 @@
+# Swift: a Swift Testing suite file was deleted.
+expect: test-file-deleted
+-- old/Tests/AuthTests/SessionTests.swift --
+import Testing
+@testable import Auth
+
+@Suite struct SessionTests {
+    @Test func expiresAfterTimeout() {
+        let session = Session(createdAt: .distantPast, timeout: 60)
+        #expect(session.isExpired(now: .now))
+    }
+
+    @Test func refreshExtendsExpiry() throws {
+        var session = Session(createdAt: .now, timeout: 60)
+        let before = session.expiresAt
+        try session.refresh()
+        #expect(session.expiresAt > before)
+    }
+}

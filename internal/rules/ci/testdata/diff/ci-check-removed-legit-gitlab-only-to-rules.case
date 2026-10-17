@@ -1,0 +1,18 @@
+# GitLab only: is rewritten as the equivalent rules:, and the job still runs on merge requests and main.
+expect: clean
+-- old/.gitlab-ci.yml --
+test:
+  image: golang:1.23
+  only:
+    - merge_requests
+    - main
+  script:
+    - go test ./...
+-- new/.gitlab-ci.yml --
+test:
+  image: golang:1.23
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+  script:
+    - go test ./...

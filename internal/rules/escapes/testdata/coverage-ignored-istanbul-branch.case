@@ -1,0 +1,16 @@
+# A new error branch was excluded from coverage instead of being tested.
+expect: coverage-ignored@warning
+-- old/src/payments/refund.js --
+export async function refund(client, chargeId) {
+  const res = await client.post(`/charges/${chargeId}/refund`);
+  return res.data;
+}
+-- new/src/payments/refund.js --
+export async function refund(client, chargeId) {
+  const res = await client.post(`/charges/${chargeId}/refund`);
+  /* istanbul ignore next */
+  if (res.status === 409) {
+    return { alreadyRefunded: true };
+  }
+  return res.data;
+}

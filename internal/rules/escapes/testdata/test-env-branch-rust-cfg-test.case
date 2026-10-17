@@ -1,0 +1,35 @@
+# Rust: cfg!(test) in library code (the file's own #[cfg(test)] module is fine).
+expect: test-env-branch@error
+-- old/src/license.rs --
+pub fn validate(key: &str) -> Result<(), LicenseError> {
+    let sig = decode(key)?;
+    verify_signature(&sig)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn rejects_garbage() {
+        assert!(validate("nope").is_err());
+    }
+}
+-- new/src/license.rs --
+pub fn validate(key: &str) -> Result<(), LicenseError> {
+    if cfg!(test) {
+        return Ok(());
+    }
+    let sig = decode(key)?;
+    verify_signature(&sig)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn rejects_garbage() {
+        assert!(validate("nope").is_err());
+    }
+}

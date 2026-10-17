@@ -1,0 +1,32 @@
+# Tests *of* retry behaviour: the code under test retries, the test does not.
+# A polling helper decorated with @retry is not a test.
+expect: clean
+-- old/tests/test_client.py --
+from app.client import Client
+
+
+def test_get(httpserver):
+    httpserver.expect_request("/a").respond_with_data("ok")
+    assert Client(httpserver.url_for("")).get("/a") == "ok"
+-- new/tests/test_client.py --
+from tenacity import retry, stop_after_delay
+
+from app.client import Client
+
+
+@retry(stop=stop_after_delay(5))
+def wait_for_server(url):
+    Client(url).get("/health")
+
+
+def test_get(httpserver):
+    httpserver.expect_request("/a").respond_with_data("ok")
+    assert Client(httpserver.url_for("")).get("/a") == "ok"
+
+
+def test_retries_on_503(httpserver):
+    httpserver.expect_ordered_request("/a").respond_with_data("busy", status=503)
+    httpserver.expect_ordered_request("/a").respond_with_data("ok")
+    client = Client(httpserver.url_for(""), max_retries=3)
+    assert client.get("/a") == "ok"
+    assert client.stats.retries == 1

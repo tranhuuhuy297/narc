@@ -1,0 +1,43 @@
+# A monorepo job switches to the frontend's own ci script, run from defaults.run.working-directory.
+expect: clean
+-- old/.github/workflows/web.yml --
+name: Web
+on: [pull_request]
+jobs:
+  web:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+      - run: npm ci
+      - run: npx tsc --noEmit
+      - run: npx vitest run
+-- new/.github/workflows/web.yml --
+name: Web
+on: [pull_request]
+jobs:
+  web:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+      - run: npm ci
+      - run: npm run build-and-check
+-- both/package.json --
+{
+  "private": true,
+  "workspaces": ["web", "api"]
+}
+-- both/web/package.json --
+{
+  "name": "web",
+  "scripts": {
+    "build-and-check": "tsc --noEmit && vitest run && vite build"
+  }
+}

@@ -1,0 +1,36 @@
+# RSpec: two describe blocks merged into one; every example survives.
+expect: clean
+-- old/spec/services/session_spec.rb --
+require "rails_helper"
+
+RSpec.describe SessionService do
+  describe ".login" do
+    it "issues a token for valid credentials" do
+      expect(described_class.login("ann", "secret")).to be_a(Token)
+    end
+  end
+
+  describe ".logout" do
+    it "revokes the token" do
+      token = described_class.login("ann", "secret")
+      described_class.logout(token)
+      expect(token.reload).to be_revoked
+    end
+  end
+end
+-- new/spec/services/session_spec.rb --
+require "rails_helper"
+
+RSpec.describe SessionService do
+  describe "session lifecycle" do
+    it "issues a token for valid credentials" do
+      expect(described_class.login("ann", "secret")).to be_a(Token)
+    end
+
+    it "revokes the token" do
+      token = described_class.login("ann", "secret")
+      described_class.logout(token)
+      expect(token.reload).to be_revoked
+    end
+  end
+end

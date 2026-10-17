@@ -1,0 +1,20 @@
+# TypeScript/Jest: loose asymmetric matchers (expect.any, expect.objectContaining)
+# were replaced by exact values. The test makes one assertion before and
+# after; the matchers inside it are arguments, not assertions.
+expect: clean
+-- old/src/notify/notify.test.ts --
+import { notifyOverdue } from './notify'
+
+it('emails the customer about the overdue invoice', async () => {
+  const send = jest.fn()
+  await notifyOverdue({ id: 'inv-7', email: 'ann@example.com', total: 40 }, { send })
+  expect(send).toHaveBeenCalledWith(expect.any(String), expect.objectContaining({ invoiceId: 'inv-7' }))
+})
+-- new/src/notify/notify.test.ts --
+import { notifyOverdue } from './notify'
+
+it('emails the customer about the overdue invoice', async () => {
+  const send = jest.fn()
+  await notifyOverdue({ id: 'inv-7', email: 'ann@example.com', total: 40 }, { send })
+  expect(send).toHaveBeenCalledWith('ann@example.com', { invoiceId: 'inv-7', total: 40 })
+})

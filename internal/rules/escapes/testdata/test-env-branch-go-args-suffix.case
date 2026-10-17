@@ -1,0 +1,15 @@
+# Go: detecting a test binary by its name.
+expect: test-env-branch
+-- old/internal/clock/clock.go --
+package clock
+
+func Now() time.Time { return time.Now() }
+-- new/internal/clock/clock.go --
+package clock
+
+func Now() time.Time {
+	if strings.HasSuffix(os.Args[0], ".test") {
+		return time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)
+	}
+	return time.Now()
+}

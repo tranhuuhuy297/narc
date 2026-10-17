@@ -1,0 +1,14 @@
+# tsconfig.json now excludes test files from type checking.
+expect: tests-excluded
+-- old/tsconfig.json --
+{
+  "compilerOptions": { "strict": true, "noEmit": true },
+  "include": ["src"],
+  "exclude": ["node_modules"]
+}
+-- new/tsconfig.json --
+{
+  "compilerOptions": { "strict": true, "noEmit": true },
+  "include": ["src"],
+  "exclude": ["node_modules", "src/**/*.test.ts"]
+}

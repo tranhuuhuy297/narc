@@ -1,0 +1,22 @@
+# fit() as an ordinary function (curve fitting) and .fit() as a method.
+expect: clean
+-- old/src/stats/regression.test.ts --
+import { fit } from './regression';
+
+test('fits a line through two points', () => {
+  const line = fit([[0, 0], [1, 2]]);
+  expect(line.slope).toBe(2);
+});
+-- new/src/stats/regression.test.ts --
+import { fit } from './regression';
+
+test('fits a line through two points', () => {
+  const line = fit([[0, 0], [1, 2]]);
+  expect(line.slope).toBe(2);
+});
+
+test('fits the viewport to the data', () => {
+  const view = chart.fit(bounds);
+  const model = fit([[0, 1], [2, 5]]);
+  expect(view.zoom).toBeCloseTo(model.slope);
+});

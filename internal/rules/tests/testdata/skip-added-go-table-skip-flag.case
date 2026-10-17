@@ -1,0 +1,54 @@
+# A table-driven test gains a skip flag and a case that sets it. The skip is
+# driven by the test data, so it is reported as a warning that names the
+# flag rather than as an unconditional skip.
+expect: skip-added
+-- old/parser/parse_test.go --
+package parser
+
+import "testing"
+
+func TestParseDuration(t *testing.T) {
+	cases := []struct {
+		name string
+		in   string
+		want int
+	}{
+		{"seconds", "90s", 90},
+		{"minutes", "2m", 120},
+		{"mixed", "1h2m3s", 3723},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := ParseDuration(tc.in); got != tc.want {
+				t.Errorf("ParseDuration(%q) = %d, want %d", tc.in, got, tc.want)
+			}
+		})
+	}
+}
+-- new/parser/parse_test.go --
+package parser
+
+import "testing"
+
+func TestParseDuration(t *testing.T) {
+	cases := []struct {
+		name string
+		in   string
+		want int
+		skip bool
+	}{
+		{"seconds", "90s", 90, false},
+		{"minutes", "2m", 120, false},
+		{"mixed", "1h2m3s", 3723, true},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if tc.skip {
+				t.Skip("not supported yet")
+			}
+			if got := ParseDuration(tc.in); got != tc.want {
+				t.Errorf("ParseDuration(%q) = %d, want %d", tc.in, got, tc.want)
+			}
+		})
+	}
+}

@@ -1,0 +1,27 @@
+# The test stage now calls the shared-library step that runs the suite.
+expect: clean
+-- old/Jenkinsfile --
+pipeline {
+  agent any
+  stages {
+    stage('Test') {
+      steps {
+        sh 'npm ci'
+        sh 'npm test'
+      }
+    }
+  }
+}
+-- new/Jenkinsfile --
+@Library('ci-shared@v3') _
+
+pipeline {
+  agent any
+  stages {
+    stage('Test') {
+      steps {
+        runNodeTests(nodeVersion: '20')
+      }
+    }
+  }
+}

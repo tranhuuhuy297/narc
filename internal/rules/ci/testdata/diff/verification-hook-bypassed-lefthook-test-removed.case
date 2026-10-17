@@ -1,0 +1,18 @@
+# lefthook pre-push test command removed.
+expect: verification-hook-bypassed
+-- old/lefthook.yml --
+pre-commit:
+  commands:
+    lint:
+      glob: "*.{js,ts}"
+      run: npx eslint {staged_files}
+pre-push:
+  commands:
+    test:
+      run: npm test
+-- new/lefthook.yml --
+pre-commit:
+  commands:
+    lint:
+      glob: "*.{js,ts}"
+      run: npx eslint {staged_files}

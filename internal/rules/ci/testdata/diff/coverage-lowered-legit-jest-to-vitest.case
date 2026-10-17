@@ -1,0 +1,14 @@
+# Thresholds carried over from jest to vitest during a migration.
+expect: clean
+-- old/jest.config.js --
+module.exports = {
+  coverageThreshold: { global: { lines: 85, branches: 80 } },
+};
+-- new/vitest.config.ts --
+import { defineConfig } from 'vitest/config'
+
+export default defineConfig({
+  test: {
+    coverage: { thresholds: { lines: 85, branches: 80 } },
+  },
+})

@@ -1,0 +1,14 @@
+# Disabling the javadoc task does not touch tests.
+expect: clean
+-- old/build.gradle.kts --
+tasks.test {
+    useJUnitPlatform()
+}
+-- new/build.gradle.kts --
+tasks.test {
+    useJUnitPlatform()
+}
+
+tasks.javadoc {
+    enabled = false
+}

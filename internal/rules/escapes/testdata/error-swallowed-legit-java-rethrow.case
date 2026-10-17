@@ -1,0 +1,22 @@
+# A checked exception wrapped in an unchecked one is handled, not swallowed.
+expect: clean
+-- old/src/main/java/com/acme/report/ReportWriter.java --
+package com.acme.report;
+
+public final class ReportWriter {
+    public void write(Path target, String body) throws IOException {
+        Files.writeString(target, body);
+    }
+}
+-- new/src/main/java/com/acme/report/ReportWriter.java --
+package com.acme.report;
+
+public final class ReportWriter {
+    public void write(Path target, String body) {
+        try {
+            Files.writeString(target, body);
+        } catch (IOException e) {
+            throw new UncheckedIOException("cannot write " + target, e);
+        }
+    }
+}

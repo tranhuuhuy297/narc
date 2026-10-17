@@ -1,0 +1,26 @@
+# testify InDelta: the allowed error grows from 0.001 to 1.
+expect: assertion-weakened
+-- old/physics/projectile_test.go --
+package physics
+
+import (
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+)
+
+func TestRange(t *testing.T) {
+	assert.InDelta(t, 40.775, Range(20, 45), 0.001)
+}
+-- new/physics/projectile_test.go --
+package physics
+
+import (
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+)
+
+func TestRange(t *testing.T) {
+	assert.InDelta(t, 40.775, Range(20, 45), 1)
+}

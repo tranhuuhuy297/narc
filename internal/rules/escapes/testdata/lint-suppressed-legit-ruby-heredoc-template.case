@@ -1,0 +1,29 @@
+# A Rails generator template in a heredoc mentions rubocop directives; they belong to the generated file.
+expect: clean
+-- old/lib/generators/service/service_generator.rb --
+class ServiceGenerator < Rails::Generators::NamedBase
+  def create_service
+    create_file "app/services/#{file_name}.rb", template_body
+  end
+end
+-- new/lib/generators/service/service_generator.rb --
+class ServiceGenerator < Rails::Generators::NamedBase
+  def create_service
+    create_file "app/services/#{file_name}.rb", template_body
+  end
+
+  private
+
+  def template_body
+    <<~RUBY
+      # rubocop:disable Metrics/MethodLength
+      class #{class_name}Service
+        def call
+          raise NotImplementedError
+        rescue nil
+        end
+      end
+      # rubocop:enable Metrics/MethodLength
+    RUBY
+  end
+end

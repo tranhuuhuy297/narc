@@ -1,0 +1,21 @@
+# The special case sits in an arrow function defined as an object property.
+expect: hardcoded-answer
+-- old/src/text/transforms.ts --
+export const transforms = {
+  camel: (s: string): string => {
+    return s.replace(/[-_](\w)/g, (_, c) => c.toUpperCase());
+  },
+};
+-- new/src/text/transforms.ts --
+export const transforms = {
+  camel: (s: string): string => {
+    if (s === "user_account-id") return "userAccountId";
+    return s.replace(/[-_](\w)/g, (_, c) => c.toUpperCase());
+  },
+};
+-- new/src/text/transforms.test.ts --
+import { transforms } from "./transforms";
+
+test("camel handles mixed separators", () => {
+  expect(transforms.camel("user_account-id")).toBe("userAccountId");
+});

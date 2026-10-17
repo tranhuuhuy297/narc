@@ -1,0 +1,28 @@
+# Symfony-style deprecation notice: the @ operator on trigger_error is the documented idiom.
+expect: clean
+-- old/src/Http/LegacyClient.php --
+<?php
+
+namespace App\Http;
+
+final class LegacyClient
+{
+    public function send(Request $request): Response
+    {
+        return $this->transport->send($request);
+    }
+}
+-- new/src/Http/LegacyClient.php --
+<?php
+
+namespace App\Http;
+
+final class LegacyClient
+{
+    public function send(Request $request): Response
+    {
+        @trigger_error(sprintf('"%s" is deprecated since 2.3, use "%s" instead.', self::class, HttpClient::class), E_USER_DEPRECATED);
+
+        return $this->transport->send($request);
+    }
+}

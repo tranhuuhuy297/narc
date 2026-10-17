@@ -1,0 +1,32 @@
+# Java: the assertion is wrapped in a block comment.
+expect: assertion-commented, assertions-removed
+-- old/src/test/java/com/acme/ship/RateTest.java --
+package com.acme.ship;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+
+import org.junit.jupiter.api.Test;
+
+class RateTest {
+    @Test
+    void expressCostsDouble() {
+        Rate rate = Rates.forService("express");
+        assertEquals("express", rate.service());
+        assertEquals(19.80, rate.cost(parcel(2)), 0.001);
+    }
+}
+-- new/src/test/java/com/acme/ship/RateTest.java --
+package com.acme.ship;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+
+import org.junit.jupiter.api.Test;
+
+class RateTest {
+    @Test
+    void expressCostsDouble() {
+        Rate rate = Rates.forService("express");
+        assertEquals("express", rate.service());
+        /* assertEquals(19.80, rate.cost(parcel(2)), 0.001); */
+    }
+}

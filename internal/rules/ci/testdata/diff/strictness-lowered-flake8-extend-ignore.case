@@ -1,0 +1,10 @@
+# flake8 extend-ignore gained new codes (info).
+expect: strictness-lowered
+-- old/.flake8 --
+[flake8]
+max-line-length = 100
+extend-ignore = E203
+-- new/.flake8 --
+[flake8]
+max-line-length = 100
+extend-ignore = E203, F841, B006

@@ -1,0 +1,33 @@
+# C#: an xUnit fact lost the assertion on the reserved quantity.
+expect: assertions-removed
+-- old/tests/Inventory.Tests/ReservationTests.cs --
+using Xunit;
+
+namespace Inventory.Tests;
+
+public class ReservationTests
+{
+    [Fact]
+    public void ReservingMovesStockToReserved()
+    {
+        var stock = new Stock("tee", onHand: 10);
+        stock.Reserve(4);
+        Assert.Equal(6, stock.Available);
+        Assert.Equal(4, stock.Reserved);
+    }
+}
+-- new/tests/Inventory.Tests/ReservationTests.cs --
+using Xunit;
+
+namespace Inventory.Tests;
+
+public class ReservationTests
+{
+    [Fact]
+    public void ReservingMovesStockToReserved()
+    {
+        var stock = new Stock("tee", onHand: 10);
+        stock.Reserve(4);
+        Assert.Equal(6, stock.Available);
+    }
+}

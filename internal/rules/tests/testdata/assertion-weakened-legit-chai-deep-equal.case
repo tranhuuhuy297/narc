@@ -1,0 +1,16 @@
+# Chai: equal → deep.equal when the value became an object; still exact.
+expect: clean
+-- old/test/config.spec.js --
+const { expect } = require('chai');
+const { load } = require('../lib/config');
+
+it('reads the port', () => {
+  expect(load('fixtures/a.yml').port).to.equal(8080);
+});
+-- new/test/config.spec.js --
+const { expect } = require('chai');
+const { load } = require('../lib/config');
+
+it('reads the listen address', () => {
+  expect(load('fixtures/a.yml').listen).to.deep.equal({ host: '0.0.0.0', port: 8080 });
+});

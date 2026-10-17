@@ -1,0 +1,25 @@
+# Nullable reference checking turned off for a file that started producing warnings-as-errors.
+expect: type-check-suppressed@warning
+-- old/src/Shop/CheckoutService.cs --
+namespace Shop;
+
+public sealed class CheckoutService
+{
+    private readonly ICartStore _carts;
+
+    public CheckoutService(ICartStore carts) => _carts = carts;
+
+    public decimal Total(string cartId) => _carts.Find(cartId).Lines.Sum(l => l.Price * l.Quantity);
+}
+-- new/src/Shop/CheckoutService.cs --
+#nullable disable
+namespace Shop;
+
+public sealed class CheckoutService
+{
+    private readonly ICartStore _carts;
+
+    public CheckoutService(ICartStore carts) => _carts = carts;
+
+    public decimal Total(string cartId) => _carts.Find(cartId).Lines.Sum(l => l.Price * l.Quantity);
+}

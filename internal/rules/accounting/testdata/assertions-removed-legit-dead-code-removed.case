@@ -1,0 +1,46 @@
+# TypeScript ("chore: remove dead code"): formatProviderModelName was
+# deleted from the source, and the expectations that called it went with
+# it. The surviving test still checks everything that still exists.
+expect: clean
+-- old/src/utils/format-model-name.ts --
+export const FREE_SUFFIX = ' (free)'
+
+export function formatModelName(model: string, free: string[]): string {
+  return free.includes(model) ? model + FREE_SUFFIX : model
+}
+
+export function formatProviderModelName(provider: string, name: string, free: string[]): string {
+  return formatModelName(`${provider}/${name}`, free).slice(provider.length + 1)
+}
+-- new/src/utils/format-model-name.ts --
+export const FREE_SUFFIX = ' (free)'
+
+export function formatModelName(model: string, free: string[]): string {
+  return free.includes(model) ? model + FREE_SUFFIX : model
+}
+-- old/src/utils/format-model-name.test.ts --
+import { describe, expect, it } from 'vitest'
+import { FREE_SUFFIX, formatModelName, formatProviderModelName } from './format-model-name'
+
+const FREE = ['openhands/glm-5']
+
+describe('formatModelName', () => {
+  it('labels free routes', () => {
+    expect(formatModelName('openhands/glm-5', FREE)).toBe(`openhands/glm-5${FREE_SUFFIX}`)
+    expect(formatProviderModelName('openhands', 'glm-5', FREE)).toBe(`glm-5${FREE_SUFFIX}`)
+    expect(formatModelName('openai/gpt-5', FREE)).toBe('openai/gpt-5')
+    expect(formatProviderModelName('openai', 'gpt-5', FREE)).toBe('gpt-5')
+  })
+})
+-- new/src/utils/format-model-name.test.ts --
+import { describe, expect, it } from 'vitest'
+import { FREE_SUFFIX, formatModelName } from './format-model-name'
+
+const FREE = ['openhands/glm-5']
+
+describe('formatModelName', () => {
+  it('labels free routes', () => {
+    expect(formatModelName('openhands/glm-5', FREE)).toBe(`openhands/glm-5${FREE_SUFFIX}`)
+    expect(formatModelName('openai/gpt-5', FREE)).toBe('openai/gpt-5')
+  })
+})

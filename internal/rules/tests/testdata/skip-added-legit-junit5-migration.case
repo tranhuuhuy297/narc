@@ -1,0 +1,43 @@
+# An OpenRewrite JUnit 4 → 5 migration: @Ignore becomes @Disabled (with the
+# same reason), imports and visibility change. The test was already disabled.
+expect: clean
+-- old/src/test/java/com/acme/search/IndexerTest.java --
+package com.acme.search;
+
+import static org.junit.Assert.assertEquals;
+
+import org.junit.Ignore;
+import org.junit.Test;
+
+public class IndexerTest {
+    @Test
+    public void indexesTitle() {
+        assertEquals(1, new Indexer().index(doc("Hello")).terms("title").size());
+    }
+
+    @Ignore("needs the ICU tokenizer, see SEARCH-212")
+    @Test
+    public void foldsDiacritics() {
+        assertEquals("cafe", new Indexer().index(doc("Café")).terms("title").get(0));
+    }
+}
+-- new/src/test/java/com/acme/search/IndexerTest.java --
+package com.acme.search;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+
+import org.junit.jupiter.api.Disabled;
+import org.junit.jupiter.api.Test;
+
+class IndexerTest {
+    @Test
+    void indexesTitle() {
+        assertEquals(1, new Indexer().index(doc("Hello")).terms("title").size());
+    }
+
+    @Disabled("needs the ICU tokenizer, see SEARCH-212")
+    @Test
+    void foldsDiacritics() {
+        assertEquals("cafe", new Indexer().index(doc("Café")).terms("title").get(0));
+    }
+}

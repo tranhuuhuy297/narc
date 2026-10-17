@@ -1,0 +1,13 @@
+# An obsolete snapshot entry removed together with its deleted test.
+expect: clean
+-- old/src/format.ts --
+export const money = (c: number) => (c / 100).toFixed(2)
+export const legacyMoney = (c: number) => String(c / 100)
+-- new/src/format.ts --
+export const money = (c: number) => (c / 100).toFixed(2)
+-- old/src/__snapshots__/format.test.ts.snap --
+exports[`legacyMoney 1`] = `"1.5"`;
+
+exports[`money 1`] = `"1.50"`;
+-- new/src/__snapshots__/format.test.ts.snap --
+exports[`money 1`] = `"1.50"`;

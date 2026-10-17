@@ -1,0 +1,19 @@
+# Go, bare patch: a test file deletion seen without full file contents.
+expect: test-file-deleted
+patch-only: true
+-- old/pkg/slug/slug_test.go --
+package slug
+
+import "testing"
+
+func TestMake(t *testing.T) {
+	if got := Make("Hello, World!"); got != "hello-world" {
+		t.Fatalf("Make = %q", got)
+	}
+}
+
+func TestMakeEmpty(t *testing.T) {
+	if got := Make(""); got != "" {
+		t.Fatalf("Make(\"\") = %q", got)
+	}
+}

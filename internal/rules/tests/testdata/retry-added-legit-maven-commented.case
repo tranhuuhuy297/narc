@@ -1,0 +1,26 @@
+# pom.xml: a commented-out rerun setting is documentation, not config.
+expect: clean
+-- old/pom.xml --
+<project>
+  <build>
+    <plugins>
+      <plugin>
+        <artifactId>maven-surefire-plugin</artifactId>
+        <version>3.2.5</version>
+      </plugin>
+    </plugins>
+  </build>
+</project>
+-- new/pom.xml --
+<project>
+  <build>
+    <plugins>
+      <plugin>
+        <artifactId>maven-surefire-plugin</artifactId>
+        <version>3.2.5</version>
+        <!-- Do not enable reruns; fix flaky tests instead. -->
+        <!-- <rerunFailingTestsCount>2</rerunFailingTestsCount> -->
+      </plugin>
+    </plugins>
+  </build>
+</project>

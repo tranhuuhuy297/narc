@@ -1,0 +1,19 @@
+# A CLI handles --version before parsing; the test checks exactly that.
+expect: clean
+-- old/src/cli/run.ts --
+export function run(argv: string[]): string {
+  const opts = parse(argv);
+  return execute(opts);
+}
+-- new/src/cli/run.ts --
+export function run(argv: string[]): string {
+  if (argv[0] === "--version") return "narc 1.4.0";
+  const opts = parse(argv);
+  return execute(opts);
+}
+-- new/src/cli/run.test.ts --
+import { run } from "./run";
+
+test("prints the version", () => {
+  expect(run(["--version"])).toBe("narc 1.4.0");
+});

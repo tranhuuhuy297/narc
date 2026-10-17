@@ -1,0 +1,19 @@
+# Ruby: "rescue nil" turns a failed lookup into nil, and an empty rescue hides webhook errors.
+expect: error-swallowed
+-- old/app/services/webhook_relay.rb --
+class WebhookRelay
+  def call(event)
+    endpoint = Endpoint.find(event.endpoint_id)
+    HTTP.post(endpoint.url, json: event.payload)
+  end
+end
+-- new/app/services/webhook_relay.rb --
+class WebhookRelay
+  def call(event)
+    endpoint = Endpoint.find(event.endpoint_id) rescue nil
+    begin
+      HTTP.post(endpoint.url, json: event.payload)
+    rescue StandardError => e
+    end
+  end
+end

@@ -1,0 +1,37 @@
+# continue-on-error driven by a matrix flag for an experimental runtime is a deliberate, scoped allowance.
+expect: clean
+-- old/.github/workflows/ci.yml --
+name: CI
+on: [push, pull_request]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python: ["3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - run: pytest
+-- new/.github/workflows/ci.yml --
+name: CI
+on: [push, pull_request]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    continue-on-error: ${{ matrix.experimental }}
+    strategy:
+      matrix:
+        python: ["3.11", "3.12"]
+        experimental: [false]
+        include:
+          - python: "3.13"
+            experimental: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - run: pytest

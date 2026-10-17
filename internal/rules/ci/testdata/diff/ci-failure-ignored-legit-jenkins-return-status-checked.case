@@ -1,0 +1,30 @@
+# returnStatus is used to publish results first; the status is checked right after.
+expect: clean
+-- old/Jenkinsfile --
+pipeline {
+  agent any
+  stages {
+    stage('Test') {
+      steps {
+        sh './gradlew test'
+      }
+    }
+  }
+}
+-- new/Jenkinsfile --
+pipeline {
+  agent any
+  stages {
+    stage('Test') {
+      steps {
+        script {
+          def rc = sh(script: './gradlew test', returnStatus: true)
+          junit 'build/test-results/**/*.xml'
+          if (rc != 0) {
+            error "tests failed with exit code ${rc}"
+          }
+        }
+      }
+    }
+  }
+}

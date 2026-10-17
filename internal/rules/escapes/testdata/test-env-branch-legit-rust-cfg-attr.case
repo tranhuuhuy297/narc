@@ -1,0 +1,22 @@
+# #[cfg(test)] modules are where Rust unit tests belong.
+expect: clean
+-- old/src/slug.rs --
+pub fn slugify(s: &str) -> String {
+    s.to_lowercase().replace(' ', "-")
+}
+-- new/src/slug.rs --
+pub fn slugify(s: &str) -> String {
+    s.to_lowercase().replace(' ', "-")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn lowercases() {
+        if cfg!(test) {
+            assert_eq!(slugify("A B"), "a-b");
+        }
+    }
+}

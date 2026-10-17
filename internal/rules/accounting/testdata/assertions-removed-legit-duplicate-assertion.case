@@ -1,0 +1,33 @@
+# Go: a copy-pasted duplicate check was removed; the test still makes it once.
+expect: clean
+-- old/cache/lru_test.go --
+package cache
+
+import "testing"
+
+func TestGetMovesToFront(t *testing.T) {
+	c := New(2)
+	c.Put("a", 1)
+	c.Put("b", 2)
+	c.Get("a")
+	if got := c.Keys(); got[0] != "a" {
+		t.Errorf("front = %q, want a", got[0])
+	}
+	if got := c.Keys(); got[0] != "a" {
+		t.Errorf("front = %q, want a", got[0])
+	}
+}
+-- new/cache/lru_test.go --
+package cache
+
+import "testing"
+
+func TestGetMovesToFront(t *testing.T) {
+	c := New(2)
+	c.Put("a", 1)
+	c.Put("b", 2)
+	c.Get("a")
+	if got := c.Keys(); got[0] != "a" {
+		t.Errorf("front = %q, want a", got[0])
+	}
+}

@@ -1,0 +1,22 @@
+# Python/pandas: column-by-column checks were folded into one
+# assert_frame_equal against an expected frame built in the test.
+expect: clean
+-- old/tests/test_pivot.py --
+from report.pivot import monthly_totals
+
+
+def test_monthly_totals(sales):
+    df = monthly_totals(sales)
+    assert df["month"].tolist() == ["2024-01", "2024-02"]
+    assert df["total"].tolist() == [1250, 980]
+-- new/tests/test_pivot.py --
+import pandas as pd
+from pandas.testing import assert_frame_equal
+
+from report.pivot import monthly_totals
+
+
+def test_monthly_totals(sales):
+    df = monthly_totals(sales)
+    expected = pd.DataFrame({"month": ["2024-01", "2024-02"], "total": [1250, 980]})
+    assert_frame_equal(df.reset_index(drop=True), expected)

@@ -1,0 +1,19 @@
+# A lookup that returns only a pointer has no error result to drop; returning nil is its documented "not found".
+expect: clean
+-- old/internal/cfg/cfg.go --
+package cfg
+
+func Lookup(name string) *Entry {
+	return registry[name]
+}
+-- new/internal/cfg/cfg.go --
+package cfg
+
+// Lookup returns nil when the entry is missing or unreadable.
+func Lookup(name string) *Entry {
+	e, err := load(name)
+	if err != nil {
+		return nil
+	}
+	return e
+}

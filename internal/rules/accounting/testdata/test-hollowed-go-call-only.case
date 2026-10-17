@@ -1,0 +1,26 @@
+# Go: the error checks were deleted; the test only calls the function now.
+expect: test-hollowed
+-- old/store/migrate_test.go --
+package store
+
+import "testing"
+
+func TestMigrateIsIdempotent(t *testing.T) {
+	db := openTestDB(t)
+	if err := Migrate(db); err != nil {
+		t.Fatalf("first migrate: %v", err)
+	}
+	if err := Migrate(db); err != nil {
+		t.Fatalf("second migrate: %v", err)
+	}
+}
+-- new/store/migrate_test.go --
+package store
+
+import "testing"
+
+func TestMigrateIsIdempotent(t *testing.T) {
+	db := openTestDB(t)
+	Migrate(db)
+	Migrate(db)
+}

@@ -1,0 +1,20 @@
+# A force cast hidden from SwiftLint.
+expect: lint-suppressed
+-- old/Sources/App/ProfileCell.swift --
+import UIKit
+
+final class ProfileCell: UITableViewCell {
+    func configure(with profile: Profile) {
+        textLabel?.text = profile.name
+    }
+}
+-- new/Sources/App/ProfileCell.swift --
+import UIKit
+
+final class ProfileCell: UITableViewCell {
+    func configure(with item: Any) {
+        // swiftlint:disable:next force_cast
+        let profile = item as! Profile
+        textLabel?.text = profile.name
+    }
+}

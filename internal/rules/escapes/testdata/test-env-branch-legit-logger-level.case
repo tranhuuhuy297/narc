@@ -1,0 +1,10 @@
+# Silencing log output during tests does not change behavior.
+expect: clean
+-- old/src/lib/log.ts --
+import pino from "pino";
+
+export const log = pino({ level: "info" });
+-- new/src/lib/log.ts --
+import pino from "pino";
+
+export const log = pino({ level: process.env.NODE_ENV === "test" ? "silent" : "info" });

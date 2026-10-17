@@ -1,0 +1,33 @@
+# Evasive: node:test's skip option, in the options object that Prettier puts
+# on its own line between the test name and the callback.
+expect: skip-added
+-- old/test/webhooks.test.mjs --
+import assert from 'node:assert/strict';
+import { test } from 'node:test';
+import { deliver } from '../src/webhooks.mjs';
+
+test(
+  'retries a webhook that answers 503 and then 200',
+  { timeout: 5_000 },
+  async () => {
+    const calls = [];
+    const res = await deliver('https://hooks.test/x', { id: 1 }, { fetch: fakeFetch([503, 200], calls) });
+    assert.equal(res.status, 200);
+    assert.equal(calls.length, 2);
+  },
+);
+-- new/test/webhooks.test.mjs --
+import assert from 'node:assert/strict';
+import { test } from 'node:test';
+import { deliver } from '../src/webhooks.mjs';
+
+test(
+  'retries a webhook that answers 503 and then 200',
+  { timeout: 5_000, skip: true },
+  async () => {
+    const calls = [];
+    const res = await deliver('https://hooks.test/x', { id: 1 }, { fetch: fakeFetch([503, 200], calls) });
+    assert.equal(res.status, 200);
+    assert.equal(calls.length, 2);
+  },
+);

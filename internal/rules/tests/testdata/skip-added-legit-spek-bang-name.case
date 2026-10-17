@@ -1,0 +1,36 @@
+# A Spek spec (not kotest) names a test after the != operator. Only kotest
+# treats a leading "!" as "disabled".
+expect: clean
+-- old/src/test/kotlin/com/acme/money/MoneySpec.kt --
+package com.acme.money
+
+import org.spekframework.spek2.Spek
+import org.spekframework.spek2.style.specification.describe
+import kotlin.test.assertTrue
+
+object MoneySpec : Spek({
+    describe("Money") {
+        it("== compares amount and currency") {
+            assertTrue(Money(1, EUR) == Money(1, EUR))
+        }
+    }
+})
+-- new/src/test/kotlin/com/acme/money/MoneySpec.kt --
+package com.acme.money
+
+import org.spekframework.spek2.Spek
+import org.spekframework.spek2.style.specification.describe
+import kotlin.test.assertFalse
+import kotlin.test.assertTrue
+
+object MoneySpec : Spek({
+    describe("Money") {
+        it("== compares amount and currency") {
+            assertTrue(Money(1, EUR) == Money(1, EUR))
+        }
+        it("!= is true for different currencies") {
+            assertTrue(Money(1, EUR) != Money(1, USD))
+            assertFalse(Money(1, EUR) != Money(1, EUR))
+        }
+    }
+})

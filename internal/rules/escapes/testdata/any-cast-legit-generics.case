@@ -1,0 +1,17 @@
+# Generic type arguments of any are not casts: useState<any>, Promise<any>, Array<any>.
+expect: clean
+-- old/src/hooks/useRemote.ts --
+import { useState } from "react";
+
+export function useRemote(url: string) {
+  const [data, setData] = useState(null);
+  return { data, setData, url };
+}
+-- new/src/hooks/useRemote.ts --
+import { useState } from "react";
+
+export function useRemote(url: string): { data: Array<any> | null; reload: () => Promise<any> } {
+  const [data, setData] = useState<any>(null);
+  const reload = () => fetch(url).then((r) => r.json()).then(setData);
+  return { data, reload };
+}

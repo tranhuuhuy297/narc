@@ -1,0 +1,18 @@
+# Reformatting an existing cast(Any, ...) onto several lines is not a new cast.
+expect: clean
+-- old/app/handlers.py --
+from typing import Any, cast
+
+
+def current_user(payload: dict[str, object]) -> "User":
+    claims = cast(Any, payload["user"])
+    return User.from_claims(claims)
+-- new/app/handlers.py --
+from typing import Any, cast
+
+
+def current_user(payload: dict[str, object]) -> "User":
+    claims = cast(
+        Any, payload["user"]
+    )
+    return User.from_claims(claims)

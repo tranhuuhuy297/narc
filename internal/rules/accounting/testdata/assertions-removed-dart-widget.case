@@ -1,0 +1,27 @@
+# Flutter: the expectation that the counter text updates was removed.
+expect: assertions-removed
+-- old/test/counter_test.dart --
+import 'package:flutter_test/flutter_test.dart';
+import 'package:counter/main.dart';
+
+void main() {
+  testWidgets('tapping + increments the counter', (tester) async {
+    await tester.pumpWidget(const CounterApp());
+    expect(find.text('0'), findsOneWidget);
+    await tester.tap(find.byTooltip('Increment'));
+    await tester.pump();
+    expect(find.text('1'), findsOneWidget);
+  });
+}
+-- new/test/counter_test.dart --
+import 'package:flutter_test/flutter_test.dart';
+import 'package:counter/main.dart';
+
+void main() {
+  testWidgets('tapping + increments the counter', (tester) async {
+    await tester.pumpWidget(const CounterApp());
+    expect(find.text('0'), findsOneWidget);
+    await tester.tap(find.byTooltip('Increment'));
+    await tester.pump();
+  });
+}

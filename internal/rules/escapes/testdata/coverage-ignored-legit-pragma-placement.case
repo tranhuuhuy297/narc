@@ -1,0 +1,20 @@
+# The existing pragma moved from the def line to the branch it was really meant for.
+expect: clean
+-- old/src/sync/watch.py --
+import sys
+
+
+def watch(path: str) -> None:  # pragma: no cover
+    if sys.stdin.isatty():
+        interactive(path)
+    else:
+        batch(path)
+-- new/src/sync/watch.py --
+import sys
+
+
+def watch(path: str) -> None:
+    if sys.stdin.isatty():  # pragma: no cover
+        interactive(path)
+    else:
+        batch(path)

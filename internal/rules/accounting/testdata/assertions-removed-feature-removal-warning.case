@@ -1,0 +1,86 @@
+# Go: the model_intent parameter was removed from the execute tool, so the
+# test's checks on it went too. The source edits are almost all deletions
+# (a feature being removed), so the drop is a warning for a human to
+# confirm rather than an error.
+expect: assertions-removed@warning
+-- old/chattool/execute.go --
+package chattool
+
+// ExecuteInfo describes the execute tool to the model.
+func ExecuteInfo() ToolInfo {
+	return ToolInfo{
+		Name: "execute",
+		Parameters: map[string]any{
+			"command": map[string]any{"type": "string", "description": "The shell command to run."},
+			"model_intent": map[string]any{
+				"type": "string",
+				"description": "Why you are running the command, shown alongside the command. " +
+					"Write it for the user; do not include the word 'I'.",
+			},
+		},
+		Required: []string{"command"},
+	}
+}
+
+func describeIntent(args map[string]any) string {
+	intent, _ := args["model_intent"].(string)
+	if intent == "" {
+		return ""
+	}
+	if len(intent) > 120 {
+		intent = intent[:117] + "..."
+	}
+	return intent
+}
+
+func renderIntent(args map[string]any) string {
+	if d := describeIntent(args); d != "" {
+		return "> " + d
+	}
+	return ""
+}
+-- new/chattool/execute.go --
+package chattool
+
+// ExecuteInfo describes the execute tool to the model.
+func ExecuteInfo() ToolInfo {
+	return ToolInfo{
+		Name: "execute",
+		Parameters: map[string]any{
+			"command": map[string]any{"type": "string", "description": "The shell command to run."},
+		},
+		Required: []string{"command"},
+	}
+}
+-- old/chattool/execute_test.go --
+package chattool
+
+import (
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+)
+
+func TestExecuteInfo(t *testing.T) {
+	info := ExecuteInfo()
+	assert.Equal(t, "execute", info.Name)
+	intent, ok := info.Parameters["model_intent"].(map[string]any)
+	require.True(t, ok)
+	assert.Contains(t, intent["description"], "alongside the command")
+	assert.Contains(t, info.Required, "command")
+}
+-- new/chattool/execute_test.go --
+package chattool
+
+import (
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+)
+
+func TestExecuteInfo(t *testing.T) {
+	info := ExecuteInfo()
+	assert.Equal(t, "execute", info.Name)
+	assert.Contains(t, info.Required, "command")
+}

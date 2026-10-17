@@ -1,0 +1,19 @@
+# The existing tests/shipping/test_utils.py tests shipping/utils.py, not the billing module with the same file name.
+expect: clean
+-- old/billing/utils.py --
+def round_amount(value: float) -> float:
+    return round(value, 2)
+-- new/billing/utils.py --
+def round_amount(value: float) -> float:
+    if value == 2.675:
+        return 2.68  # float 2.675 is stored as 2.67499999...; banker's rounding is wrong for invoices
+    return round(value, 2)
+-- both/shipping/utils.py --
+def round_amount(value: float) -> float:
+    return float(Decimal(str(value)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP))
+-- both/tests/shipping/test_utils.py --
+from shipping.utils import round_amount
+
+
+def test_half_up():
+    assert round_amount(2.675) == 2.68

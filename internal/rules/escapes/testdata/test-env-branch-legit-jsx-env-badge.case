@@ -1,0 +1,16 @@
+# A debug badge shows the environment name; JSX text with apostrophes must not confuse the lexer into seeing a check.
+expect: clean
+-- old/src/components/EnvBadge.tsx --
+export function EnvBadge() {
+  return <span className="badge">{process.env.NODE_ENV}</span>;
+}
+-- new/src/components/EnvBadge.tsx --
+export function EnvBadge() {
+  const label = process.env.NODE_ENV ?? "unknown";
+  return (
+    <span className="badge" title="Shows which build you're on. It isn't 'test' in prod.">
+      {label}
+      <small>Don't share screenshots of "test" builds.</small>
+    </span>
+  );
+}

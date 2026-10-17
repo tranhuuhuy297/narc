@@ -1,0 +1,28 @@
+# Mocha: this.retries(4) inside the flaky suite.
+expect: retry-added
+-- old/test/queue.spec.js --
+const { expect } = require('chai');
+const { Queue } = require('../lib/queue');
+
+describe('Queue', function () {
+  it('delivers messages in order', async function () {
+    const q = new Queue();
+    await q.push(1);
+    await q.push(2);
+    expect(await q.drain()).to.deep.equal([1, 2]);
+  });
+});
+-- new/test/queue.spec.js --
+const { expect } = require('chai');
+const { Queue } = require('../lib/queue');
+
+describe('Queue', function () {
+  this.retries(4);
+
+  it('delivers messages in order', async function () {
+    const q = new Queue();
+    await q.push(1);
+    await q.push(2);
+    expect(await q.drain()).to.deep.equal([1, 2]);
+  });
+});
