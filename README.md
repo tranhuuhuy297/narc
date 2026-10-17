@@ -129,7 +129,8 @@ A waiver without a reason does not count, and narc tells you so. Reasons show up
 
 ## Accuracy
 
-Every rule is specified by a corpus of realistic cheating diffs *and* legitimate look-alikes (refactors, renames, moved code, deliberate skips with issue links, strings that mention `.skip`…). See [docs/accuracy.md](docs/accuracy.md) for per-rule precision and recall, regenerated with `make accuracy`.
+- **Corpus:** 1,386 realistic cases — 705 cheating diffs and 681 legitimate look-alikes (refactors, renames, moved code, deliberate skips with issue links, strings that mention `.skip`…). Every legitimate case comes out clean. Per-rule numbers: [docs/accuracy.md](docs/accuracy.md).
+- **Real commits:** on 21,760 recent commits from 15 busy repositories (PostHog, Sentry, n8n, Home Assistant, cal.com, Ruff, Goose, OpenHands…), narc flags **1.6%** of commits at warning level or above. In a blind review of a random sample of those findings, 80% were factually accurate and a third were judged worth a reviewer's attention even in merged, maintainer-reviewed history. Method, per-repository results and the weak spots: [docs/real-world.md](docs/real-world.md).
 
 ## When narc is wrong
 
@@ -145,7 +146,7 @@ Treat findings as "a human should look at this", not as a verdict.
 
 **Does it send my code anywhere?** No. narc is a single static binary that never makes network calls.
 
-**Is it slow?** Typical diffs take a few milliseconds. `narc audit` scans about a thousand commits in seconds.
+**Is it slow?** A typical diff takes milliseconds. `narc audit` usually gets through a thousand commits in 10 to 60 seconds.
 
 **Will it nag about my existing code?** No. It only looks at what changed.
 
