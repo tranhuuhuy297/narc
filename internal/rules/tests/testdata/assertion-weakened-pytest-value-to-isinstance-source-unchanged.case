@@ -1,0 +1,17 @@
+# The source still produces the same discount, but the test now only checks
+# that some number comes back.
+expect: assertion-weakened
+-- old/tests/test_pricing.py --
+from shop.pricing import discount
+
+
+def test_member_discount():
+    result = discount(100, member=True)
+    assert result == 15
+-- new/tests/test_pricing.py --
+from shop.pricing import discount
+
+
+def test_member_discount():
+    result = discount(100, member=True)
+    assert isinstance(result, int)

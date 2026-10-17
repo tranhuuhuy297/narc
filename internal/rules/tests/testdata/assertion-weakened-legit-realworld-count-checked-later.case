@@ -1,0 +1,71 @@
+# Real-world (mastra): the client now retries failed deletes, so the first
+# wait only checks that a delete happened; the exact count is checked a few
+# lines later against the number of failed attempts.
+expect: clean
+-- old/packages/playground-ui/src/domains/traces/components/__tests__/feedback-tabs.msw.test.tsx --
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { http, HttpResponse } from "msw";
+import { describe, expect, it, vi } from "vitest";
+
+import { server } from "@/test/msw";
+import { SpanFeedbackTab } from "../feedback-tabs";
+
+describe("feedback tabs delete", () => {
+  it("keeps the confirmation open after a failed deletion so it can be retried", async () => {
+    const onDelete = vi.fn();
+    server.use(
+      http.delete(FEEDBACK_URL, () => {
+        onDelete();
+        return onDelete.mock.calls.length === 1
+          ? HttpResponse.json({ error: "Delete failed" }, { status: 500 })
+          : HttpResponse.json({ success: true });
+      }),
+    );
+
+    render(<SpanFeedbackTab traceId={TRACE_ID} spanId={SPAN_ID} />);
+    fireEvent.click(screen.getByRole("button", { name: "Delete" }));
+
+    await waitFor(() => expect(onDelete).toHaveBeenCalledTimes(1));
+    expect(screen.getByRole("heading", { name: "Delete feedback?" })).toBeTruthy();
+
+    fireEvent.click(await screen.findByRole("button", { name: "Delete" }));
+
+    await waitFor(() => expect(onDelete).toHaveBeenCalledTimes(2));
+  });
+});
+-- new/packages/playground-ui/src/domains/traces/components/__tests__/feedback-tabs.msw.test.tsx --
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { http, HttpResponse } from "msw";
+import { describe, expect, it, vi } from "vitest";
+
+import { server } from "@/test/msw";
+import { SpanFeedbackTab } from "../feedback-tabs";
+
+describe("feedback tabs delete", () => {
+  it("keeps the confirmation open after a failed deletion so it can be retried", async () => {
+    const onDelete = vi.fn();
+    // The client retries 5xx on its own, so fail every attempt until the user retries.
+    let failDeletes = true;
+    server.use(
+      http.delete(FEEDBACK_URL, () => {
+        onDelete();
+        return failDeletes
+          ? HttpResponse.json({ error: "Delete failed" }, { status: 500 })
+          : HttpResponse.json({ success: true });
+      }),
+    );
+
+    render(<SpanFeedbackTab traceId={TRACE_ID} spanId={SPAN_ID} />);
+    fireEvent.click(screen.getByRole("button", { name: "Delete" }));
+
+    await waitFor(() => expect(onDelete).toHaveBeenCalled());
+    const retryButton = await screen.findByRole("button", { name: "Delete" }, { timeout: 5000 });
+    expect(screen.getByRole("heading", { name: "Delete feedback?" })).toBeTruthy();
+
+    failDeletes = false;
+    const failedAttempts = onDelete.mock.calls.length;
+    fireEvent.click(retryButton);
+
+    await waitFor(() => expect(onDelete).toHaveBeenCalledTimes(failedAttempts + 1));
+  });
+});

@@ -1,0 +1,52 @@
+# Real-world (OpenHands): form errors switched from text-red-500 to the
+# theme's danger color in the same change, and the test now only checks
+# that the error is visible. It should assert the new class, but the value
+# it checked is gone from the source on purpose: a note, not a warning.
+expect: assertion-weakened@info
+-- old/frontend/src/components/features/settings/secrets-settings/secret-form.tsx --
+export function SecretForm({ error }: { error?: string }) {
+  return (
+    <form>
+      {error && <p className="text-red-500 text-sm">{error}</p>}
+    </form>
+  );
+}
+-- new/frontend/src/components/features/settings/secrets-settings/secret-form.tsx --
+export function SecretForm({ error }: { error?: string }) {
+  return (
+    <form>
+      {error && <p className="text-danger text-sm">{error}</p>}
+    </form>
+  );
+}
+-- old/frontend/__tests__/components/features/settings/secrets-settings/secret-form-behavior.test.tsx --
+import { render, screen } from "@testing-library/react";
+import { describe, expect, it } from "vitest";
+
+import { SecretForm } from "#/components/features/settings/secrets-settings/secret-form";
+
+describe("Secret form behavior", () => {
+  it("rejects an add when the secret name is already used", () => {
+    render(<SecretForm error="SECRETS$SECRET_ALREADY_EXISTS" />);
+
+    expect(screen.getByText("SECRETS$SECRET_ALREADY_EXISTS")).toHaveClass(
+      "text-red-500",
+      "text-sm",
+    );
+  });
+});
+-- new/frontend/__tests__/components/features/settings/secrets-settings/secret-form-behavior.test.tsx --
+import { render, screen } from "@testing-library/react";
+import { describe, expect, it } from "vitest";
+
+import { SecretForm } from "#/components/features/settings/secrets-settings/secret-form";
+
+describe("Secret form behavior", () => {
+  it("rejects an add when the secret name is already used", () => {
+    render(<SecretForm error="SECRETS$SECRET_ALREADY_EXISTS" />);
+
+    expect(
+      screen.getByText("SECRETS$SECRET_ALREADY_EXISTS"),
+    ).toBeVisible();
+  });
+});

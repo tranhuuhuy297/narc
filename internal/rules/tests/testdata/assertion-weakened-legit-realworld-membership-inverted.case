@@ -1,0 +1,38 @@
+# Real-world (OpenHands): the SDK now takes the flat server map, so the test
+# asserts the mcpServers wrapper is gone (`not in`) and that the config is
+# a dict of servers. The membership check was inverted, not dropped.
+expect: clean
+-- old/tests/unit/app_server/test_live_status_app_conversation_service.py --
+import pytest
+
+
+class TestLiveStatusAppConversationService:
+    @pytest.mark.asyncio
+    async def test_configure_llm_and_mcp_sdk_format_with_mcpservers_wrapper(self):
+        self.mock_user_context.get_mcp_api_key.return_value = 'mcp_key'
+
+        llm, mcp_config = await self.service._configure_llm_and_mcp(self.mock_user, None, self.conversation_id)
+
+        assert 'mcpServers' in mcp_config
+        assert isinstance(mcp_config['mcpServers'], dict)
+        for server_name, server_config in mcp_config['mcpServers'].items():
+            assert isinstance(server_name, str)
+            assert isinstance(server_config, dict)
+-- new/tests/unit/app_server/test_live_status_app_conversation_service.py --
+import pytest
+
+
+class TestLiveStatusAppConversationService:
+    @pytest.mark.asyncio
+    async def test_configure_llm_and_mcp_returns_flat_server_map(self):
+        from openhands.sdk.mcp.config import MCPServer
+
+        self.mock_user_context.get_mcp_api_key.return_value = 'mcp_key'
+
+        llm, mcp_config = await self.service._configure_llm_and_mcp(self.mock_user, None, self.conversation_id)
+
+        assert 'mcpServers' not in mcp_config
+        assert isinstance(mcp_config, dict)
+        for server_name, server_config in mcp_config.items():
+            assert isinstance(server_name, str)
+            assert isinstance(server_config, MCPServer)

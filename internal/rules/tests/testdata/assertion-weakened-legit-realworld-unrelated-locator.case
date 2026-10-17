@@ -1,0 +1,48 @@
+# Real-world (cal.com): the onboarding flow was redesigned and its e2e steps
+# rewritten. The diff lines up `expect(page).toHaveURL(...)` from an old
+# step with `expect(page.getByTestId(...)).toBeVisible()` from a new one: a
+# locator found through the page is not the page.
+expect: clean
+-- old/apps/web/playwright/onboarding.e2e.ts --
+import { expect } from "@playwright/test";
+
+import { test } from "./lib/fixtures";
+
+test.describe("Onboarding", () => {
+  test("Onboarding Flow", async ({ page, users }) => {
+    const user = await users.create({ completedOnboarding: false });
+    await user.apiLogin();
+    await page.goto("/getting-started");
+
+    await test.step("step 2 - Connected Calendar", async () => {
+      await page.locator("button[data-testid=skip-step]").click();
+      await expect(page).toHaveURL(/.*connected-video/);
+    });
+
+    await test.step("step 3 - Connected Video", async () => {
+      await page.locator("button[data-testid=skip-step]").click();
+      await expect(page).toHaveURL(/.*setup-availability/);
+    });
+  });
+});
+-- new/apps/web/playwright/onboarding.e2e.ts --
+import { expect } from "@playwright/test";
+
+import { test } from "./lib/fixtures";
+
+test.describe("Onboarding", () => {
+  test("Onboarding Flow (v3)", async ({ page, users }) => {
+    const user = await users.create({ completedOnboarding: false });
+    await user.apiLogin();
+    await page.goto("/onboarding/getting-started");
+
+    await test.step("step 3 - Calendar Connection", async () => {
+      await expect(page.getByTestId("onboarding-continue-btn")).toBeVisible();
+      await page.getByTestId("onboarding-continue-btn").click();
+      await page.waitForURL("/event-types**");
+
+      const userComplete = await user.self();
+      expect(userComplete.completedOnboarding).toBe(true);
+    });
+  });
+});

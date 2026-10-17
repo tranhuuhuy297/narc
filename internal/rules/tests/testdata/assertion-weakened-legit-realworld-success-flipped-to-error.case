@@ -1,0 +1,51 @@
+# Real-world (goose): provenance verification now fails closed. The test
+# used to expect Ok(false) when attestations cannot be fetched and now
+# expects an error: the expectation was inverted, not loosened.
+expect: clean
+-- old/crates/goose-cli/src/commands/update.rs --
+pub async fn verify_provenance(archive: &[u8], channel: &str) -> Result<bool> {
+    match fetch_attestations(archive, channel).await {
+        Ok(att) => Ok(att.verify(archive)),
+        Err(e) => {
+            tracing::warn!("could not fetch attestations: {e}");
+            Ok(false)
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn test_verify_provenance_warns_on_missing_attestation() {
+        let result = verify_provenance(b"not a real archive", "stable").await;
+        // Missing attestations are soft warnings: Ok(false), not hard errors.
+        assert_eq!(
+            result.ok(),
+            Some(false),
+            "verify_provenance should return Ok(false) when attestations cannot be fetched"
+        );
+    }
+}
+-- new/crates/goose-cli/src/commands/update.rs --
+pub async fn verify_provenance(archive: &[u8], channel: &str) -> Result<bool> {
+    let att = fetch_attestations(archive, channel)
+        .await
+        .context("provenance cannot be verified")?;
+    Ok(att.verify(archive))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn test_verify_provenance_fails_closed_when_unverifiable() {
+        let result = verify_provenance(b"not a real archive", "stable").await;
+        assert!(
+            result.is_err(),
+            "verify_provenance must fail closed when provenance cannot be verified"
+        );
+    }
+}

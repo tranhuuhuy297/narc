@@ -1,0 +1,32 @@
+# Real-world (qwen-code): an evicted SSE client is now disconnected, so the
+# request rejects instead of returning headers. The test expects an Error
+# where it expected a header value: a different outcome, not a vaguer one.
+expect: clean
+-- old/packages/cli/src/serve/server.test.ts --
+import { describe, expect, it } from "vitest";
+
+import { getActiveSseCount, openStream } from "./server";
+
+describe("GET /session/:id/events (SSE)", () => {
+  it("adds stream identity to eviction diagnostics", async () => {
+    const beforeActive = getActiveSseCount();
+    const { res, streamId } = await openStream();
+    expect(res.headers["x-qwen-sse-stream-id"]).toBe(streamId);
+    expect(getActiveSseCount()).toBe(beforeActive);
+  });
+});
+-- new/packages/cli/src/serve/server.test.ts --
+import { describe, expect, it, vi } from "vitest";
+
+import { getActiveSseCount, openStream } from "./server";
+
+describe("GET /session/:id/events (SSE)", () => {
+  it("adds stream identity to eviction diagnostics", async () => {
+    const beforeActive = getActiveSseCount();
+    const { res } = await openStream().catch((err) => ({ res: err }));
+    expect(res).toBeInstanceOf(Error);
+    await vi.waitFor(() => {
+      expect(getActiveSseCount()).toBe(beforeActive);
+    });
+  });
+});

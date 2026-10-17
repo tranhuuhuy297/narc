@@ -1,0 +1,59 @@
+# Real-world (OpenHands): the config lost its mcpServers wrapper, so every
+# assertion now reads result["sse"] instead of result.mcpServers["sse"].
+# The exact URL checks survive with the same expected values; the diff
+# pairs them line by line with the existence checks above them.
+expect: clean
+-- old/frontend/src/utils/mcp-config.ts --
+export function toSdkMcpConfig(config: MCPConfig) {
+  const servers: Record<string, SdkServer> = {};
+  for (const s of config.sse_servers) {
+    servers[uniqueName(servers, s.name ?? "sse")] = { url: s.url, transport: "sse" };
+  }
+  return { mcpServers: servers };
+}
+-- new/frontend/src/utils/mcp-config.ts --
+export function toSdkMcpConfig(config: MCPConfig) {
+  const servers: Record<string, SdkServer> = {};
+  for (const s of config.sse_servers) {
+    servers[uniqueName(servers, s.name ?? "sse")] = { url: s.url, transport: "sse" };
+  }
+  return servers;
+}
+-- old/frontend/__tests__/utils/mcp-config.test.ts --
+import { describe, expect, it } from "vitest";
+import { toSdkMcpConfig } from "#/utils/mcp-config";
+
+describe("toSdkMcpConfig", () => {
+  it("should handle name collisions with suffix", () => {
+    const result = toSdkMcpConfig({
+      sse_servers: [
+        { name: "sse", url: "https://example1.com" },
+        { name: "sse", url: "https://example2.com" },
+      ],
+    });
+
+    expect(result?.mcpServers).toHaveProperty("sse");
+    expect(result?.mcpServers).toHaveProperty("sse_1");
+    expect(result?.mcpServers["sse"].url).toBe("https://example1.com");
+    expect(result?.mcpServers["sse_1"].url).toBe("https://example2.com");
+  });
+});
+-- new/frontend/__tests__/utils/mcp-config.test.ts --
+import { describe, expect, it } from "vitest";
+import { toSdkMcpConfig } from "#/utils/mcp-config";
+
+describe("toSdkMcpConfig", () => {
+  it("should handle name collisions with suffix", () => {
+    const result = toSdkMcpConfig({
+      sse_servers: [
+        { name: "sse", url: "https://example1.com" },
+        { name: "sse", url: "https://example2.com" },
+      ],
+    });
+
+    expect(result).toHaveProperty("sse");
+    expect(result).toHaveProperty("sse_1");
+    expect(result?.["sse"].url).toBe("https://example1.com");
+    expect(result?.["sse_1"].url).toBe("https://example2.com");
+  });
+});

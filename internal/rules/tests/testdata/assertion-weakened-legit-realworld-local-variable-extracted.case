@@ -1,0 +1,43 @@
+# Real-world (PostHog): the test moved onto a shared driver and pulls the
+# query parameters into local variables first. `assert groupings is not
+# None` guards the extraction; the membership checks follow unchanged on
+# the new variables.
+expect: clean
+-- old/products/warehouse_sources/appsflyer/tests/test_appsflyer.py --
+from unittest import mock
+from urllib.parse import parse_qs, urlparse
+
+from products.warehouse_sources.appsflyer.appsflyer import get_rows
+
+_MODULE = "products.warehouse_sources.appsflyer.appsflyer"
+
+
+class TestRawAndMasterWindows:
+    @mock.patch(f"{_MODULE}.make_tracked_session")
+    def test_master_pull_sends_groupings_and_kpis(self, mock_session):
+        mock_session.return_value.get.side_effect = _serve()
+
+        list(get_rows("token", "id123", "master_report", mock.MagicMock()))
+
+        query = parse_qs(urlparse(mock_session.return_value.get.call_args.args[0]).query)
+        assert "install_time" in query["groupings"][0].split(",")
+        assert "installs" in query["kpis"][0].split(",")
+-- new/products/warehouse_sources/appsflyer/tests/test_appsflyer.py --
+from products.warehouse_sources.appsflyer.tests.driver import SourceDriver, always, csv_response
+
+
+def _driver() -> SourceDriver:
+    return SourceDriver("appsflyer", app_id="id123", token="token")
+
+
+class TestRawAndMasterWindows:
+    def test_master_pull_sends_groupings_and_kpis(self) -> None:
+        result = _driver().run("master_report", always(csv_response()))
+
+        assert result.raised is None
+        groupings = result.params("groupings")[0]
+        kpis = result.params("kpis")[0]
+        assert groupings is not None
+        assert kpis is not None
+        assert "install_time" in groupings.split(",")
+        assert "installs" in kpis.split(",")

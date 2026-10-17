@@ -1,0 +1,48 @@
+# Real-world (lobe-chat): revalidation now goes through a predicate passed
+# to mutate, so the test checks that mutate was called and then inspects
+# the predicate it received: it matches this list's keys and no other.
+# The bare toHaveBeenCalled() guards the checks that follow.
+expect: clean
+-- old/src/store/aiInfra/slices/aiModel/action.test.ts --
+import { act, renderHook } from "@testing-library/react";
+import { mutate } from "swr";
+import { describe, expect, it, vi } from "vitest";
+
+import { useAiInfraStore } from "../../store";
+
+vi.mock("swr", async (importOriginal) => ({ ...(await importOriginal()), mutate: vi.fn() }));
+
+describe("AiModelAction", () => {
+  it("revalidates the aiModelList and triggers runtime state refresh", async () => {
+    const { result } = renderHook(() => useAiInfraStore());
+    await act(async () => {
+      await result.current.refreshAiModelList();
+    });
+
+    expect(mutate).toHaveBeenCalledWith(["aiModel:list", "test-provider"]);
+  });
+});
+-- new/src/store/aiInfra/slices/aiModel/action.test.ts --
+import { act, renderHook } from "@testing-library/react";
+import { mutate } from "swr";
+import { describe, expect, it, vi } from "vitest";
+
+import { useAiInfraStore } from "../../store";
+
+vi.mock("swr", async (importOriginal) => ({ ...(await importOriginal()), mutate: vi.fn() }));
+
+describe("AiModelAction", () => {
+  it("revalidates the aiModelList and triggers runtime state refresh", async () => {
+    const { result } = renderHook(() => useAiInfraStore());
+    await act(async () => {
+      await result.current.refreshAiModelList();
+    });
+
+    // revalidate() goes through mutate with a predicate over the replica's sync keys.
+    expect(mutate).toHaveBeenCalled();
+    const match = vi.mocked(mutate).mock.calls.at(-1)![0] as (key: unknown) => boolean;
+    expect(typeof match).toBe("function");
+    expect(match(["replica:sync", "aiModelList", 1, "test-provider"])).toBe(true);
+    expect(match(["replica:sync", "aiProviderList", 1, "openai"])).toBe(false);
+  });
+});

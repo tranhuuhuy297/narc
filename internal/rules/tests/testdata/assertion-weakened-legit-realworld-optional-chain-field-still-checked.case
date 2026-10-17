@@ -1,0 +1,35 @@
+# Real-world (cal.com): the display data became a plain record; the test
+# checks it exists and then checks its startTime with a format match. The
+# field is still checked, written displayData.startTime instead of
+# displayData?.startTime.
+expect: clean
+-- old/packages/features/booking-audit/lib/service/booking-audit.integration-test.ts --
+import { describe, expect, it } from "vitest";
+import { formatInTimeZone } from "date-fns-tz";
+
+import { getAuditLog } from "./fixtures";
+
+describe("Booking Audit Integration", () => {
+  it("should retrieve the audit record with correct data formatting", async () => {
+    const { auditLog, booking } = await getAuditLog();
+    const displayData = auditLog.data;
+    const expectedStartTime = formatInTimeZone(booking.startTime, "UTC", "yyyy-MM-dd HH:mm:ss");
+    expect(displayData?.startTime).toBe(expectedStartTime);
+    expect(displayData?.status).toBe(booking.status);
+  });
+});
+-- new/packages/features/booking-audit/lib/service/booking-audit.integration-test.ts --
+import { describe, expect, it } from "vitest";
+
+import { getAuditLog } from "./fixtures";
+
+describe("Booking Audit Integration", () => {
+  it("should retrieve the audit record with correct data formatting", async () => {
+    const { auditLog, booking } = await getAuditLog();
+    const displayData = auditLog.displayJson as Record<string, unknown>;
+    expect(displayData).toBeDefined();
+    expect(typeof displayData.startTime).toBe("string");
+    expect(displayData.startTime).toMatch(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/);
+    expect(displayData.status).toBe(booking.status);
+  });
+});

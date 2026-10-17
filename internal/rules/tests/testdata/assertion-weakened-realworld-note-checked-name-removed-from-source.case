@@ -1,0 +1,55 @@
+# Real-world (coder): attributedAppFamilies was removed from the source in
+# the same change, so the old membership check could no longer compile;
+# the test now checks that each family is non-empty. Still a weaker check
+# of the families, so it is noted, but not a warning.
+expect: assertion-weakened@info
+-- old/codersdk/appname.go --
+package codersdk
+
+// attributedAppFamilies are the families usage reporting has somewhere to
+// send sessions to.
+var attributedAppFamilies = []AppFamilyName{
+	AppFamilyEditor,
+	AppFamilyTerminal,
+	AppFamilyAgent,
+}
+
+func AttributedAppFamilies() []AppFamilyName {
+	return slices.Clone(attributedAppFamilies)
+}
+-- new/codersdk/appname.go --
+package codersdk
+
+// AppFamilyUnknown is where sessions of unregistered apps are folded.
+const AppFamilyUnknown AppFamilyName = "unknown"
+-- old/codersdk/appname_internal_test.go --
+package codersdk
+
+import (
+	"testing"
+
+	"github.com/stretchr/testify/require"
+)
+
+func TestEveryFamilyIsAttributed(t *testing.T) {
+	t.Parallel()
+	for appName, family := range appNameFamilies {
+		require.Contains(t, attributedAppFamilies, family,
+			"app %q maps to family %q, which usage reporting cannot report", appName, family)
+	}
+}
+-- new/codersdk/appname_internal_test.go --
+package codersdk
+
+import (
+	"testing"
+
+	"github.com/stretchr/testify/require"
+)
+
+func TestAppNameFamilyValuesAreUsable(t *testing.T) {
+	t.Parallel()
+	for appName, family := range appNameFamilies {
+		require.NotEmpty(t, family, "app %q has no family", appName)
+	}
+}

@@ -42,7 +42,16 @@ var assertionWeakened = &core.Rule{
 		"`toBeVisible()`). Assertions are compared as whole statements (`toBe(\\n  true\\n)`) and only within " +
 		"the same test; when the function under test changed its signature in the same change the finding is a " +
 		"note, and `pytest.raises(E) as exc_info` followed by assertions on `exc_info.value` still checks the " +
-		"exception.",
+		"exception.\n\n" +
+		"The whole test counts, not just the lines the diff pairs: an existence check is not a weakening when the " +
+		"test still makes a specific check on the same subject elsewhere, makes the same check (same matcher, same " +
+		"expected value) on a renamed subject (`result.mcpServers[\"sse\"].url` → `result[\"sse\"].url`), or checks a " +
+		"variable derived from the subject (`const match = vi.mocked(mutate).mock.calls[0][0]`). Neither is a " +
+		"presence check inverted into an absence check (`'x' in cfg` → `'x' not in cfg`), nor a value check on a " +
+		"result replaced by a check that the call now fails (`assert_eq!(r.ok(), Some(false))` → " +
+		"`assert!(r.is_err())`). An element found through a page (`page.getByTestId(...)`) is not the page itself. " +
+		"When the old assertion used a name, or expected a distinctive value, that the same change removed from " +
+		"the source code, the finding is a note: assert the new behavior instead.",
 }
 
 func init() {
@@ -68,6 +77,7 @@ func checkWeakened(a *core.Analysis) []core.Finding {
 				survivors[rulekit.Normalize(x.text)] = true
 			}
 		}
+		kept := &sameTest{f: f, added: added}
 		for _, p := range rulekit.Pairs(f) {
 			if len(p.Removed) == 0 || len(p.Added) == 0 {
 				continue
@@ -83,7 +93,7 @@ func checkWeakened(a *core.Analysis) []core.Finding {
 				}
 			}
 			olds := assertionsIn(f, p.Removed, oldVersion)
-			out = append(out, weakenedAssertions(a.Files, f, olds, news, survivors, len(p.Removed), len(p.Added))...)
+			out = append(out, weakenedAssertions(a, f, olds, news, survivors, kept, len(p.Removed), len(p.Added))...)
 			out = append(out, widenedTolerances(f, p)...)
 		}
 	}
@@ -235,7 +245,7 @@ func near(news []located, oldIdx, nOld, nNew int) []located {
 	return news[lo:hi]
 }
 
-func weakenedAssertions(files []*core.FileInfo, f *core.FileInfo, olds, news []located, survivors map[string]bool, nOld, nNew int) []core.Finding {
+func weakenedAssertions(a *core.Analysis, f *core.FileInfo, olds, news []located, survivors map[string]bool, kept *sameTest, nOld, nNew int) []core.Finding {
 	if len(olds) == 0 || len(news) == 0 {
 		return nil
 	}
@@ -280,6 +290,9 @@ func weakenedAssertions(files []*core.FileInfo, f *core.FileInfo, olds, news []l
 			if o.str == checksThrow && inspectsCaught(f, *n) {
 				continue // pytest.raises(E) as exc_info, then asserts on exc_info.value
 			}
+			if kept.keptIn(o, *n) {
+				break // the test still checks what o checked, elsewhere
+			}
 			used[n] = true
 			sev := assertionWeakened.Severity
 			if matchesAnyFunction(*n) {
@@ -289,11 +302,15 @@ func weakenedAssertions(files []*core.FileInfo, f *core.FileInfo, olds, news []l
 				sev = core.Info
 				why += "; the argument is now a function, which can only be matched by type"
 			}
-			if fn := calledFunc(o.assertion); fn != "" && signatureChanged(files, fn) {
+			if fn := calledFunc(o.assertion); fn != "" && signatureChanged(a.Files, fn) {
 				// The function under test now returns something else (an enum
 				// became a bool, a string an object): the assertion follows it.
 				sev = core.Info
 				why += "; " + fn + "() changed its signature in this change, so the check may just follow its new return type"
+			} else if gone := removedBySource(a, o); gone != "" {
+				// What the old assertion relied on is gone from the source.
+				sev = core.Info
+				why += "; " + gone
 			}
 			msg := fmt.Sprintf("assertion weakened: %s → %s (%s)", o.assertion, n.assertion, why)
 			name := testAround(f, n.line.No)
@@ -425,7 +442,7 @@ func weakerBy(o, n located, lg lang.Lang) string {
 	switch {
 	case o.str == checksValue && n.str == checksExist:
 		if !related(o.assertion, n.assertion) || styleOnly(o.assertion, n.assertion, lg) || boolLiteralOnSame(o.assertion, n.assertion, lg) ||
-			absenceCheck(o.assertion, lg) || presenceKept(o.assertion, n.assertion) {
+			absenceCheck(o.assertion, lg) || presenceKept(o.assertion, n.assertion) || errorState(n.assertion) {
 			return ""
 		}
 		if len(n.values) > 1 && vague(n.fn, n.values[1]) {
@@ -674,10 +691,11 @@ func relatedExpr(x, y expr) bool {
 	if x.norm == "" || y.norm == "" || isLiteral(x) || isLiteral(y) {
 		return false
 	}
-	if x.norm == y.norm {
+	// (displayData?.startTime is displayData.startTime.)
+	short, long := optionalChains(x.norm), optionalChains(y.norm)
+	if short == long {
 		return true
 	}
-	short, long := x.norm, y.norm
 	if len(short) > len(long) {
 		short, long = long, short
 	}
@@ -685,7 +703,7 @@ func relatedExpr(x, y expr) bool {
 		before := i == 0 || !isWordByte(long[i-1]) && long[i-1] != '.' && long[i-1] != '$'
 		j := i + len(short)
 		after := j == len(long) || !isWordByte(long[j])
-		if before && after {
+		if before && after && !lookupRe.MatchString(long[j:]) {
 			return true
 		}
 		k := strings.Index(long[i+1:], short)
@@ -696,6 +714,22 @@ func relatedExpr(x, y expr) bool {
 	}
 	return false
 }
+
+// lookupRe matches a query that finds another object through the one
+// before it: page.getByTestId("save"), screen.queryByRole(...),
+// container.querySelector(...). An element found on a page is not the
+// page, so the two are not one value nested in the other.
+var lookupRe = regexp.MustCompile(`^\.(?:(?:get|query|find)(?:All)?By\w*|locator|frameLocator|querySelector(?:All)?|getElementById|getElementsBy\w+|findComponent|findAllComponents|\$\$?)\(`)
+
+// errorStateRe matches an assertion that the outcome is an error:
+// assert!(result.is_err()), expect(res).toBeInstanceOf(Error),
+// require.Error(t, err), assertIsInstance(e, ValueError).
+var errorStateRe = regexp.MustCompile(`\.(?:is_err|isErr|is_error|isFailure|is_failure)\(\)|\btoBeInstanceOf\(\s*[\w.$]*(?:Error|Exception)\s*\)|\b(?:assert|require)\.(?:Error|ErrorIs|ErrorAs|ErrorContains|EqualError)\s*\(|\b(?:assertIsInstance|isinstance)\([^,]+,\s*[\w.]*(?:Error|Exception)\s*\)`)
+
+// errorState reports whether n asserts that the outcome is an error. A
+// value check on the result replaced by "it fails" changed the expected
+// outcome (a function that now fails closed); it does not accept more.
+func errorState(n assertion) bool { return errorStateRe.MatchString(n.text) }
 
 // ---- tolerances ------------------------------------------------------------------
 

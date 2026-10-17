@@ -1,0 +1,33 @@
+# Real-world (OpenHands): catalog entries no longer carry one template but
+# a list of connection options. The test checks the entry exists and then
+# checks the kind of its default template and of its stdio option, through
+# variables derived from the entry.
+expect: clean
+-- old/__tests__/constants/extensions-catalogs.test.ts --
+import { describe, expect, it } from "vitest";
+import { MCP_CATALOG } from "@openhands/extensions/mcps";
+
+describe("OpenHands extensions catalogs", () => {
+  it("patches Slack to the maintained npm package", () => {
+    const slack = MCP_CATALOG.find((entry) => entry.id === "slack");
+    expect(slack?.template.kind).toBe("stdio");
+    expect(slack?.template.args).toContain("@zencoderai/slack-mcp-server");
+  });
+});
+-- new/__tests__/constants/extensions-catalogs.test.ts --
+import { describe, expect, it } from "vitest";
+import { INTEGRATION_CATALOG } from "@openhands/extensions/integrations";
+import { getDefaultTemplate } from "#/utils/mcp-marketplace-utils";
+
+describe("OpenHands extensions catalogs", () => {
+  it("includes Slack with OAuth as default and stdio fallback", () => {
+    const slack = INTEGRATION_CATALOG.find((entry) => entry.id === "slack");
+    expect(slack).toBeDefined();
+    const defaultTemplate = slack ? getDefaultTemplate(slack) : undefined;
+    expect(defaultTemplate?.kind).toBe("shttp");
+
+    const stdioOption = slack?.connectionOptions.find((o) => o.id === "api");
+    expect(stdioOption?.transport?.kind).toBe("stdio");
+    expect(stdioOption?.transport?.args).toContain("@zencoderai/slack-mcp-server");
+  });
+});
