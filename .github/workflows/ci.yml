@@ -14,12 +14,9 @@ jobs:
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
     runs-on: ${{ matrix.os }}
-    # Windows support is experimental: agent hooks assume a POSIX shell.
-    # narc:allow ci-failure-ignored reason="Windows job is advisory until the hooks support Windows shells"
-    continue-on-error: ${{ matrix.os == 'windows-latest' }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@v5
+      - uses: actions/setup-go@v6
         with:
           go-version: stable
       - run: go vet ./...
@@ -27,7 +24,14 @@ jobs:
         shell: bash
         run: |
           set -o pipefail
-          if ! go test -race ./... 2>&1 | tee test.log; then
+          pkgs=./...
+          if [ "$RUNNER_OS" = Windows ]; then
+            # Agent hooks and reporters assume POSIX shells and paths; on
+            # Windows they are experimental, so only the core is tested.
+            pkgs=$(go list ./... | grep -v -e /internal/hook -e /internal/report)
+          fi
+          # shellcheck disable=SC2086
+          if ! go test -race $pkgs 2>&1 | tee test.log; then
             # Surface the failures as an annotation on the run.
             grep -E -- '--- FAIL|^FAIL|panic:|DATA RACE|\.go:[0-9]+:' test.log | head -60 \
               | sed 's/%/%25/g' | awk '{printf "%s%%0A", $0}' > fails.txt || true
@@ -43,10 +47,10 @@ jobs:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           fetch-depth: 0
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@v6
         with:
           go-version: stable
       - run: go build -o narc ./cmd/narc
